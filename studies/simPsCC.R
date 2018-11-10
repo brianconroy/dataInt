@@ -5,9 +5,6 @@
 # poisson and spatial poisson
 # models in estimating risk
 # surface
-
-# medium strength of 
-# preferential sampling
 ############################
 
 library(plyr)
@@ -15,13 +12,35 @@ library(mvtnorm)
 library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
-sim_name <- "prefSampleGpCC_med"
 
-# #### Worldclim data
-# wc <- readWC()
-# ca <- getState('california')
-# caWin <- as.owin(ca)
-# caWc <- getStateWC(ca, wc)
+sampling <- "none"
+prevalence <- "low"
+sim_name <- gen_sim_name(sampling, prevalence)
+
+
+#### Load simulation parameters
+params <- load_sim_params(sampling, prevalence)
+Alpha.case <- params$alpha.case
+Alpha.ctrl <- params$alpha.ctrl
+beta.case <- as.numeric(strsplit(params$beta.case, split=" ")[[1]])
+beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
+Theta <- 6
+Phi <- 12
+
+
+#### Or manually define them
+# Alpha.case <- 1
+# beta.case <- c(0.5, 0.25, -0.5)
+# Alpha.ctrl <- -1
+# beta.ctrl <- c(2, 1, 0.5)
+
+
+prior_alpha_ca_mean <- Alpha.case
+prior_alpha_ca_var <- 6
+prior_alpha_co_mean <- Alpha.ctrl
+prior_alpha_co_var <- 6
+prior_theta <- c(2.5, 2.5)
+prior_phi <- c(9.33, 100)
 
 
 #### Prism Principal Components
@@ -31,14 +50,7 @@ n_values(caPr.disc[[1]])
 plot(caPr.disc)
 
 
-# #### Discretize the study region
-# simRegion <- discretizeSimRegion(caWin, caWc, factor=2)
-# caWc.disc <- simRegion$raster
-
-
 #### Simulate gaussian process
-Theta <- 6
-Phi <- 12
 cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
 coords <- xyFromCell(caPr.disc, cell=cells.all)
 d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
@@ -59,23 +71,16 @@ points(locs$coords)
 
 #### Simulate counts given locations
 ## Case Counts
-Alpha.case <- 1
-beta.case <- c(2, 0.5, -0.5)
 cov.disc <- caPr.disc
-case.data <- simConditionalGp2(cov.disc, locs, beta.case, Alpha.case, W)
+case.data <- simConditionalGp2(cov.disc, locs, beta.case, Alpha.case, W, seed=42)
 glm(case.data$y ~ case.data$x.standardised-1, family='poisson')
-prior_alpha_ca_mean <- 1
-prior_alpha_ca_var <- 6
 
 
 ## Control Counts
-Alpha.ctrl <- -1
-beta.ctrl <- c(2, 1, 0.5)
 cov.disc <- caWc.disc[[c(1)]]
-ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W)
+ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40)
 glm(ctrl.data$y ~ ctrl.data$x.standardised-1, family='poisson')
-prior_alpha_co_mean <- -1
-prior_alpha_co_var <- 6
+
 
 data <- list(
   loc=locs,
@@ -83,7 +88,12 @@ data <- list(
   ctrl.data=ctrl.data
 )
 
+
 #### Preferential sampling model
+
+#### Load tuning parameters
+
+#### Or manually define them
 n.sample <- 2000 #20000
 burnin <- 0 #1000
 L <- 10
@@ -101,9 +111,6 @@ theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
 w_i <- rnorm(length(W))
 
-prior_theta <- c(2.5, 2.5)
-prior_phi <- c(9.33, 100)
-
 
 output <- prefSampleGpCC(data, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,
@@ -116,10 +123,6 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=W,
                          prior_phi=prior_phi, prior_theta=prior_theta)
 
-
-output$description <- "model: prefSampleGpCC. medium strength of sampling"
-save_output(output, "output_prefSampleGpCC_med.json")
-save_params("params_prefSampleGpCC_med.json")
 
 plot(output$deltas_w)
 plot(output$deltas_ca)
@@ -144,6 +147,7 @@ par(mfrow=c(2, 3))
 view_tr(output$samples.beta.ca[,1], beta.case[1], title='A)')
 view_tr(output$samples.beta.ca[,2], beta.case[2], title='B)')
 view_tr(output$samples.beta.ca[,3], beta.case[3], title='C)')
+print(colMeans(output$samples.beta.ca))
 
 view_tr(output$samples.beta.co[,1], beta.ctrl[1], title='D)')
 view_tr(output$samples.beta.co[,2], beta.ctrl[2], title='E)')
@@ -155,6 +159,10 @@ print(mean(output$samples.alpha.ca))
 
 view_tr(output$samples.alpha.co, Alpha.ctrl, title='B)')
 print(mean(output$samples.alpha.co))
+
+output$description <- sim_name
+save_output(output, paste("output_", sim_name, ".json", sep=""))
+save_params(paste("params_", sim_name, ".json", sep=""))
 
 w.hat <- colMeans(output$samples.w)
 beta_ca_h <- colMeans(output$samples.beta.ca)
@@ -184,13 +192,13 @@ Y.ca <- case.data$y
 d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
 
 set.seed(314)
-beta_ca_i <- beta.case + rnorm(2)
+beta_ca_i <- beta.case + rnorm(length(beta.case))
 w_i <- rnorm(nrow(d.sub))
 phi_i <- Phi + rnorm(1)
 theta_i <- Theta + rnorm(1)
 
-n.sample <- 100000
-burnin <- 2000
+n.sample <- 2000
+burnin <- 0
 L_w <- 14
 L_b <- 20
 
@@ -219,19 +227,26 @@ beta_ca_sp <- colMeans(output.sp_ca$samples.beta)
 kriged_w_ca <- krigeW(output.sp_ca, d, locs$ids)
 w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(locs$status))
 
+save_output(output.sp_ca, paste("output.sp_ca_", sim_name, ".json", sep=""))
 
 ## Controls
 X.co <- ctrl.data$x.standardised
 Y.co <- ctrl.data$y
 
-n.sample <- 100000
-burnin <- 2000
+n.sample <- 2000
+burnin <- 0
 L_w <- 14
 L_b <- 20
 
+set.seed(314)
+beta_co_i <- beta.ctrl + rnorm(length(beta.ctrl))
+w_i <- rnorm(nrow(d.sub))
+phi_i <- Phi + rnorm(1)
+theta_i <- Theta + rnorm(1)
+
 output.sp_co <- poissonGp(X.co, Y.co, d.sub, n.sample=n.sample, burnin=burnin, L_w=L_w, L_b=L_b, proposal.sd.theta=0.3,
-                          beta_initial=beta.ctrl + rnorm(2), w_initial=rnorm(nrow(d.sub)), 
-                          phi_initial=Phi + rnorm(1), theta_initial=Theta + rnorm(1),
+                          beta_initial=beta_co_i, w_initial=w_i, 
+                          phi_initial=phi_i, theta_initial=theta_i,
                           prior_phi=c(3, 40))
 
 print(output.sp_co$accept)
@@ -251,6 +266,8 @@ w.hat_spco <- colMeans(output.sp_co$samples.w)
 beta_co_sp <- colMeans(output.sp_co$samples.beta)
 kriged_w_co <- krigeW(output.sp_co, d, locs$ids)
 w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, as.logical(locs$status))
+
+save_output(output.sp_co, paste("output.sp_co_", sim_name, ".json", sep=""))
 
 
 #### Poisson regression

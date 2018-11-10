@@ -1,5 +1,22 @@
 
 
+gen_sim_name <- function(sampling, prevalence){
+  
+  return(paste("prefSampleGpCC", sampling, prevalence, sep="_"))
+  
+}
+
+
+load_sim_params <- function(sampling, prevalence){
+  
+  sim_params <- read.table("/Users/brianconroy/Documents/research/dataInt/output/simParams.txt",
+                           stringsAsFactors=F, header=T)
+  params <- sim_params[sim_params$sampling == sampling & sim_params$prevalence == prevalence,]
+  return(params)
+  
+}
+
+
 ig_var <- function(a, b){
   
   return(b^2/((a-1)^2 * (a-2)))
