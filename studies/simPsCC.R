@@ -13,8 +13,8 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "none"
-prevalence <- "low"
+sampling <- "medium"
+prevalence <- "medium"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -24,15 +24,16 @@ Alpha.case <- params$alpha.case
 Alpha.ctrl <- params$alpha.ctrl
 beta.case <- as.numeric(strsplit(params$beta.case, split=" ")[[1]])
 beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
-Theta <- 6
-Phi <- 12
 
 
 #### Or manually define them
-# Alpha.case <- 1
-# beta.case <- c(0.5, 0.25, -0.5)
-# Alpha.ctrl <- -1
-# beta.ctrl <- c(2, 1, 0.5)
+Alpha.case <- 1
+beta.case <- c(-0.5, 0.25, -0.5)
+Alpha.ctrl <- -1
+beta.ctrl <- c(2, 1, 0.5)
+
+Theta <- 6
+Phi <- 12
 
 
 prior_alpha_ca_mean <- Alpha.case
@@ -77,7 +78,6 @@ glm(case.data$y ~ case.data$x.standardised-1, family='poisson')
 
 
 ## Control Counts
-cov.disc <- caWc.disc[[c(1)]]
 ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40)
 glm(ctrl.data$y ~ ctrl.data$x.standardised-1, family='poisson')
 
@@ -92,9 +92,26 @@ data <- list(
 #### Preferential sampling model
 
 #### Load tuning parameters
+# tune_params_psgp <- load_params(paste("params_", sim_name, ".json", sep=""))
+# n.sample <- tune_params_psgp$n.sample
+# burnin <- tune_params_psgp$burnin
+# 
+# L <- tune_params_psgp$L
+# L_ca <- tune_params_psgp$L_ca
+# L_co <- tune_params_psgp$L_co
+# L_a_ca <- tune_params_psgp$L_a_ca
+# L_a_co <- tune_params_psgp$L_a_co
+# 
+# beta_ca_i <- tune_params_psgp$beta_ca_i
+# beta_co_i <- tune_params_psgp$beta_co_i
+# alpha_ca_i <- tune_params_psgp$alpha_ca_i
+# alpha_co_i <- tune_params_psgp$alpha_co_i
+# theta_i <-tune_params_psgp$theta_i
+# phi_i <- tune_params_psgp$phi_i
+# w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 2000 #20000
+n.sample <- 3000 #20000
 burnin <- 0 #1000
 L <- 10
 L_ca <- 8
@@ -112,15 +129,18 @@ phi_i <- runif(1, 6, 8)
 w_i <- rnorm(length(W))
 
 
+# target_aca=0.95, target_aco=0.95, target_ca=0.5, target_co=0.5, target_w=0.90
+
+
 output <- prefSampleGpCC(data, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,
                          proposal.sd.theta=0.2,
-                         m_aca=1000, m_aco=1000, m_ca=700, m_co=700, m_w=700,
-                         target_aca=0.95, target_aco=0.95, target_ca=0.5, target_co=0.5, target_w=0.90,
+                         m_aca=1000, m_aco=1000, m_ca=1000, m_co=1000, m_w=1000,
+                         target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
                          self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
                          delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
-                         theta_initial=theta_i, phi_initial=phi_i, w_initial=W,
+                         theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
                          prior_phi=prior_phi, prior_theta=prior_theta)
 
 
@@ -152,6 +172,7 @@ print(colMeans(output$samples.beta.ca))
 view_tr(output$samples.beta.co[,1], beta.ctrl[1], title='D)')
 view_tr(output$samples.beta.co[,2], beta.ctrl[2], title='E)')
 view_tr(output$samples.beta.co[,3], beta.ctrl[3], title='F)')
+print(colMeans(output$samples.beta.co))
 
 par(mfrow=c(1,2))
 view_tr(output$samples.alpha.ca, Alpha.case, title='A)')
@@ -162,7 +183,7 @@ print(mean(output$samples.alpha.co))
 
 output$description <- sim_name
 save_output(output, paste("output_", sim_name, ".json", sep=""))
-save_params(paste("params_", sim_name, ".json", sep=""))
+save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 
 w.hat <- colMeans(output$samples.w)
 beta_ca_h <- colMeans(output$samples.beta.ca)
@@ -191,23 +212,27 @@ X.ca <- case.data$x.standardised
 Y.ca <- case.data$y
 d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
 
-set.seed(314)
-beta_ca_i <- beta.case + rnorm(length(beta.case))
-w_i <- rnorm(nrow(d.sub))
-phi_i <- Phi + rnorm(1)
-theta_i <- Theta + rnorm(1)
 
-n.sample <- 2000
-burnin <- 0
-L_w <- 14
-L_b <- 20
+#### load tuning parameters or set them manually
+set.seed(314)
+beta_ca_i_ <- beta.case + rnorm(length(beta.case))
+w_i_ <- rnorm(nrow(d.sub))
+phi_i_ <- Phi + rnorm(1)
+theta_i_ <- Theta + rnorm(1)
+
+n.sample_ <- 2000
+burnin_ <- 0
+L_w_ <- 14
+L_b_ <- 20
+
+prior_phi_ <- c(3, 40)
 
 
 output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub, n.sample=n.sample, burnin=burnin, proposal.sd.theta=0.3,
-                          L_w=L_w, L_b=L_b,
-                          beta_initial=beta_ca_i, w_initial=w_i, 
-                          phi_initial=phi_i, theta_initial=theta_i,
-                          prior_phi=c(3, 40))
+                          L_w=L_w_, L_b=L_b_,
+                          beta_initial=beta_ca_i_, w_initial=w_i_, 
+                          phi_initial=phi_i_, theta_initial=theta_i_,
+                          prior_phi=prior_phi_)
 
 print(output.sp_ca$accept)
 
@@ -228,6 +253,7 @@ kriged_w_ca <- krigeW(output.sp_ca, d, locs$ids)
 w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(locs$status))
 
 save_output(output.sp_ca, paste("output.sp_ca_", sim_name, ".json", sep=""))
+save_params_psgp(paste("params.sp_ca_", sim_name, ".json", sep=""))
 
 ## Controls
 X.co <- ctrl.data$x.standardised
