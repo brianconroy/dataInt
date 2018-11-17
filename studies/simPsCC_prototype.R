@@ -14,7 +14,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sampling <- "none"
-prevalence <- "medium"
+prevalence <- "high"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -77,6 +77,9 @@ ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40
 print(sum(case.data$y)/sum(case.data$y + ctrl.data$y))
 
 
+save_true_params(sampling, prevalence)
+
+
 data <- list(
   loc=locs,
   case.data=case.data,
@@ -106,13 +109,14 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 4000
-burnin <- 1000
-L <- 10
+n.sample <- 3000
+burnin <- 750
+L <- 8
 L_ca <- 8
 L_co <- 8
 L_a_ca <- 8
 L_a_co <- 8
+proposal.sd.theta <- 0.15
 
 set.seed(241)
 beta_ca_i <- abs(rnorm(3))
@@ -125,13 +129,13 @@ w_i <- rnorm(length(W))
 
 m_aca <- 2000
 m_aco <- 2000
-m_ca <- 3000
-m_co <- 1000
-m_w <- 1000
+m_ca <- 2000
+m_co <- 2000
+m_w <- 2000
 
 output <- prefSampleGpCC(data, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,
-                         proposal.sd.theta=0.2,
+                         proposal.sd.theta=proposal.sd.theta,
                          m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
                          target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
                          self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
@@ -182,6 +186,27 @@ output$description <- sim_name
 save_output(output, paste("output_", sim_name, ".json", sep=""))
 save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 
+w.hat <- colMeans(output$samples.w)
+beta_ca_h <- colMeans(output$samples.beta.ca)
+beta_co_h <- colMeans(output$samples.beta.co)
+alpha_ca_h <- colMeans(output$samples.alpha.ca)
+alpha_co_h <- colMeans(output$samples.alpha.co)
+phi_h <- colMeans(output$samples.phi)
+theta_h <- colMeans(output$samples.theta)
+
+# parameter # true value # estimate # bias
+smry <- list()
+smry[[1]] <- summarize_param('beta +, 0', beta.case[1], beta_ca_h[1])
+smry[[2]] <- summarize_param('beta +, 1', beta.case[2], beta_ca_h[2])
+smry[[3]] <- summarize_param('beta -, 0', beta.ctrl[1], beta_co_h[1])
+smry[[4]] <- summarize_param('beta -, 1', beta.ctrl[2], beta_co_h[2])
+smry[[5]] <- summarize_param('alpha + ', Alpha.case, alpha_ca_h)
+smry[[6]] <- summarize_param('alpha - ', Alpha.ctrl, alpha_co_h)
+smry[[7]] <- summarize_param('phi', Phi, phi_h)
+smry[[8]] <- summarize_param('theta', Theta, theta_h)
+df_smry <- ldply(smry, data.frame)
+
+
 #### Spatial poisson regression
 ## Cases
 X.ca <- case.data$x.standardised
@@ -204,7 +229,7 @@ L_b_ <- 8
 prior_phi_ <- c(3, 40)
 prior_theta_ <- c(2.5, 2.5)
 
-output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub, 
+output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub,
                           n.sample=n.sample_, burnin=burnin_, proposal.sd.theta=0.3,
                           L_w=L_w_, L_b=L_b_,
                           beta_initial=beta_ca_i_, w_initial=w_i_, 
@@ -212,6 +237,7 @@ output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub,
                           prior_phi=prior_phi_, prior_theta=prior_theta_)
 
 print(output.sp_ca$accept)
+
 plot(apply(output.sp_ca$samples.w, 1, mean), type='l', col='2')
 view_tr_w(output.sp_ca$samples.w)
 
@@ -223,8 +249,15 @@ print(colMeans(output.sp_ca$samples.beta))
 print(colMeans(output.sp_ca$samples.theta))
 print(colMeans(output.sp_ca$samples.phi))
 
+w.hat_spca <- colMeans(output.sp_ca$samples.w)
+beta_ca_sp <- colMeans(output.sp_ca$samples.beta)
+kriged_w_ca <- krigeW(output.sp_ca, d, locs$ids)
+w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(locs$status))
+
+output.sp_ca$description <- paste("spatial_poisson_case", sampling, prevalence, sep="_")
 save_output(output.sp_ca, paste("output.sp_ca_", sim_name, ".json", sep=""))
 save_params_psc(paste("params.sp_ca_", sim_name, ".json", sep=""))
+save_output(kriged_w_ca, paste("output.krige_ca_", sim_name, ".json", sep=""))
 
 ## Controls
 X.co <- ctrl.data$x.standardised
@@ -252,6 +285,7 @@ output.sp_co <- poissonGp(X.co, Y.co, d.sub,
                           prior_phi=prior_phi__, prior_theta=prior_theta__)
 
 print(output.sp_co$accept)
+
 plot(apply(output.sp_co$samples.w, 1, mean), type='l', col='2')
 view_tr_w(output.sp_co$samples.w)
 
@@ -263,8 +297,15 @@ print(colMeans(output.sp_co$samples.beta))
 print(colMeans(output.sp_co$samples.theta))
 print(colMeans(output.sp_co$samples.phi))
 
+w.hat_spco <- colMeans(output.sp_co$samples.w)
+beta_co_sp <- colMeans(output.sp_co$samples.beta)
+kriged_w_co <- krigeW(output.sp_co, d, locs$ids)
+w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, as.logical(locs$status))
+
+output.sp_co$description <- paste("spatial_poisson_ctrl", sampling, prevalence, sep="_")
 save_output(output.sp_co, paste("output.sp_co_", sim_name, ".json", sep=""))
 save_params_psco(paste("params.sp_co_", sim_name, ".json", sep=""))
+save_output(kriged_w_co, paste("output.krige_co_", sim_name, ".json", sep=""))
 
 #### Poisson regression
 ## Cases
@@ -278,3 +319,80 @@ beta_co_r <- coefficients(rmodel.co)
 
 save_estimates_pr(beta_ca_r, beta_co_r, paste("estimates_poisson_", sim_name, ".json", sep=""))
 
+
+####################################
+# save and summarize param estimates
+# calculate and compare risk surface
+####################################
+
+
+X <- cov.disc[][!is.na(cov.disc[])]
+X.standard <- matrix((X - mean(X))/sd(X))
+X.standard <- cbind(1, X.standard)
+lodds.true <- X.standard %*% beta.case + Alpha.case * W - X.standard %*% beta.ctrl - Alpha.ctrl * W
+lrisk.true <- lodds.true/(1 - lodds.true)
+
+par(mfrow=c(1, 3))
+lodds.ps <- X.standard %*% beta_ca_h + alpha_ca_h * w.hat - X.standard %*% beta_co_h - alpha_co_h * w.hat
+lrisk.ps <- lodds.ps/(1-lodds.ps)
+plot(x=lodds.true, y=lodds.ps, main='A)', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
+
+lodds.sp <- X.standard %*% beta_ca_sp + w_ca_est - X.standard %*% beta_co_sp - w_co_est
+lrisk.sp <- lodds.sp/(1-lodds.sp)
+plot(x=lodds.true, y=lodds.sp, main='B)', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
+
+lodds.r <- X.standard %*% beta_ca_r - X.standard %*% beta_co_r
+lrisk.r <- lodds.r/(1-lodds.r)
+plot(x=lodds.true, y=lodds.r, main='C)', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
+
+surf.true <- overlay(lodds.true, cov.disc)
+surf.ps <- overlay(lodds.ps, cov.disc)
+surf.sp <- overlay(lodds.sp, cov.disc)
+surf.r <- overlay(lodds.r, cov.disc)
+par(mfrow=c(2,2))
+pal <- colorRampPalette(c("blue","red"))
+brk <- seq(-30, 14, by=4)
+plot(surf.true, col=pal(12), breaks=brk, main='A)')
+plot(surf.ps, col=pal(12), breaks=brk, main='B)')
+plot(surf.sp, col=pal(12), breaks=brk, main='C)')
+plot(surf.r, col=pal(12), breaks=brk, main='D)')
+
+rsurf.true <- overlay(lrisk.true, cov.disc)
+rsurf.ps <- overlay(lrisk.ps, cov.disc)
+rsurf.sp <- overlay(lrisk.sp, cov.disc)
+rsurf.r <- overlay(lrisk.r, cov.disc)
+par(mfrow=c(2,2))
+plot(rsurf.true)
+plot(rsurf.ps)
+plot(rsurf.sp)
+plot(rsurf.r)
+
+par(mfrow=c(1,3))
+pal <- colorRampPalette(c("green","red"))
+diff.ps <- overlay(lodds.ps - lodds.true, cov.disc)
+diff.sp <- overlay(lodds.sp - lodds.true, cov.disc)
+diff.r <- overlay(lodds.r - lodds.true, cov.disc)
+brks <- seq(-25, 15, by=5)
+plot(diff.ps, col=pal(9))
+plot(diff.sp, col=pal(9))
+plot(diff.r, col=pal(9))
+
+rmse.ps <- round(sqrt(mean((lodds.true - lodds.ps)^2)), 2)
+rmse.sp <- round(sqrt(mean((lodds.true - lodds.sp)^2)), 2)
+rmse.r <- round(sqrt(mean((lodds.true - lodds.r)^2)), 2)
+mae.ps <- round(abs(mean(lodds.true - lodds.ps)), 2)
+mae.sp <- round(abs(mean(lodds.true - lodds.sp)), 2)
+mae.r <- round(abs(mean(lodds.true - lodds.r)), 2)
+
+metrics <- list(
+  list(model='preferential sampling', 'rmse'=rmse.ps, 'mae'=mae.ps),
+  list(model='spatial regression', 'rmse'=rmse.sp, 'mae'=mae.sp),
+  list(model='poisson regression', 'rmse'=rmse.r, 'mae'=mae.r)
+)
+df <- ldply(metrics, data.frame)
+
+dir <- "/Users/brianconroy/Documents/research/dataInt/output/"
+write.table(lodds.true, paste(dir, 'lodds_true_med.txt', sep=''), row.names=F, col.names=F)
+write.table(lodds.ps, paste(dir,'lodds_ps_med.txt', sep=''), row.names=F, col.names=F)
+write.table(lodds.sp, paste(dir,'lodds_sp_med.txt', sep=''), row.names=F, col.names=F)
+write.table(lodds.r, paste(dir,'lodds_r_med.txt', sep=''), row.names=F, col.names=F)

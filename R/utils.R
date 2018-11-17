@@ -116,7 +116,7 @@ combine_w <- function(w_est, w_krige, status){
   w_comb <- c()
   i1 <- 1
   i2 <- 1
-  for (i in 1:length(W)){
+  for (i in 1:length(status)){
     if (status[i]){
       w_comb <- c(w_comb, w_est[i1])
       i1 <- i1 + 1
