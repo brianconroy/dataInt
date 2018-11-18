@@ -14,7 +14,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sampling <- "none"
-prevalence <- "high"
+prevalence <- "low"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -326,9 +326,11 @@ save_estimates_pr(beta_ca_r, beta_co_r, paste("estimates_poisson_", sim_name, ".
 ####################################
 
 
-X <- cov.disc[][!is.na(cov.disc[])]
-X.standard <- matrix((X - mean(X))/sd(X))
-X.standard <- cbind(1, X.standard)
+# X <- cov.disc[][!is.na(cov.disc[])]
+# X.standard <- matrix((X - mean(X))/sd(X))
+# X.standard <- cbind(1, X.standard)
+
+X.standard <- load_x_standard(as.logical(locs$status))
 lodds.true <- X.standard %*% beta.case + Alpha.case * W - X.standard %*% beta.ctrl - Alpha.ctrl * W
 lrisk.true <- lodds.true/(1 - lodds.true)
 

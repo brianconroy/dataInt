@@ -1,5 +1,265 @@
 library(jsonlite)
 
+# prevalence # param 	# model		# estimate	# true	# bias
+
+table_params <- function(outputs, sampling, prevalence){
+  
+  output_ps <- get_output(outputs, sampling, prevalence, 'prefSampleGpCC')
+  output_sp_ca <- get_output(outputs, sampling, prevalence, 'spatial_poisson_case')
+  output_sp_co <- get_output(outputs, sampling, prevalence, 'spatial_poisson_ctrl')
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  
+  rows <- list()
+  
+  list(
+    prevalence=prevalence,
+    sampling=sampling,
+    model='PS',
+    parameter='Beta 0 (case)',
+    estimate=get_estimate(output, parameter),
+    true=true_params$beta.case[1]
+  )
+  
+}
+
+
+make_row <- function(prevalence, sampling, model, parameter, output){
+  
+  est <- get_estimate(output, parameter)
+  
+  
+}
+
+
+get_estimate <- function(output, parameter){
+  
+  if (grepl("prefSampleGpCC", output$description)){
+    type <- "PS"
+  } else {
+    type <- "SP"
+  }
+  
+  if (parameter == "Beta 0 (case)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.ca[,1]
+    } else {
+      target_samples <- output$samples.beta[,1]
+    }
+  } else if (parameter == "Beta 1 (case)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.ca[,2]
+    } else {
+      target_samples <- output$samples.beta[,2]
+    }
+  } else if (parameter == "Beta 2 (case)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.ca[,3]
+    } else {
+      target_samples <- output$samples.beta[,3]
+    }
+  } else if (parameter == "Beta 0 (control)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.co[,1]
+    } else {
+      target_samples <- output$samples.beta[,1]
+    }
+  } else if (parameter == "Beta 1 (control)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.co[,2]
+    } else {
+      target_samples <- output$samples.beta[,2]
+    }
+  } else if (parameter == "Beta 2 (control)"){
+    if (type == "PS"){
+      target_samples <- output$samples.beta.co[,3]
+    } else {
+      target_samples <- output$samples.beta[,3]
+    }
+  }
+  
+  est <- mean(target_samples)
+  return(round(est, 3))
+  
+}
+
+
+plot_traces <- function(outputs, sampling, prevalence){
+  
+  output <- get_output(outputs, sampling, prevalence)
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  
+  par(mfrow=c(3,4))
+  plot(output$samples.beta.ca[,1], typ='l', ylab='Beta 0 (case)'); abline(h=true_params$beta.case[1], col='2')
+  plot(output$samples.beta.ca[,2], typ='l', ylab='Beta 1 (case)'); abline(h=true_params$beta.case[2], col='2')
+  plot(output$samples.beta.ca[,3], typ='l', ylab='Beta 2 (case)'); abline(h=true_params$beta.case[3], col='2')
+  
+  plot(output$samples.beta.co[,1], typ='l', ylab='Beta 0 (control)'); abline(h=true_params$beta.ctrl[1], col='2')
+  plot(output$samples.beta.co[,2], typ='l', ylab='Beta 1 (control)'); abline(h=true_params$beta.ctrl[2], col='2')
+  plot(output$samples.beta.co[,3], typ='l', ylab='Beta 2 (control)'); abline(h=true_params$beta.ctrl[3], col='2')
+  
+  plot(output$samples.alpha.ca, typ='l', ylab='Alpha (case)'); abline(h=true_params$Alpha.case[1], col='2')
+  plot(output$samples.alpha.co, typ='l', ylab='Alpha (control)'); abline(h=true_params$Alpha.ctrl[1], col='2')
+  
+  plot(output$samples.theta, typ='l', ylab='Range'); abline(h=true_params$Theta, col='2')
+  plot(output$samples.phi, typ='l', ylab='Marginal Variance'); abline(h=true_params$Phi, col='2')
+  par(mfrow=c(1,1))
+  
+}
+
+
+get_output <- function(outputs, sampling, prevalence, type){
+  
+  output_target <- list()
+  for (o in outputs){
+    if (grepl(sampling, o$description) & grepl(prevalence, o$description)
+        & grepl(type, o$description)){
+      output_target <- o
+      break
+    }
+  }
+  return(output_target)
+  
+}
+
+
+#' calc_log_odds
+#' 
+#' calculates the estimated log odds from the preferential sampling model
+#'
+#' @param outputs 
+#' @param sampling 
+#' @param prevalence 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+calc_log_odds <- function(outputs, sampling, prevalence){
+  
+  output_target <- list()
+  for (o in outputs){
+    if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
+        & grepl('prefSampleGpCC', o$description)){
+      output_target <- o
+      break
+    }
+  }
+  
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  location_indicators <- true_params$location_indicators
+  x_standard <- load_x_standard(location_indicators)
+  
+  w.hat <- colMeans(output_target$samples.w)
+  beta_ca_h <- colMeans(output_target$samples.beta.ca)
+  beta_co_h <- colMeans(output_target$samples.beta.co)
+  alpha_ca_h <- colMeans(output_target$samples.alpha.ca)
+  alpha_co_h <- colMeans(output_target$samples.alpha.co)
+  
+  lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds.ps)
+  
+}
+
+
+#' calc_log_odds_true
+#' 
+#' calculates the true log odds
+#'
+#' @param sampling 
+#' @param prevalence 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+calc_log_odds_true <- function(sampling, prevalence){
+  
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  location_indicators <- true_params$location_indicators
+  x_standard <- load_x_standard(location_indicators)
+  beta.case <- true_params$beta.case
+  beta.ctrl <- true_params$beta.ctrl
+  Alpha.case <- true_params$Alpha.case
+  Alpha.ctrl <- true_params$Alpha.ctrl
+  W <- true_params$W
+  
+  lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.true)
+  
+}
+
+
+#' calc_log_odds_sp
+#' 
+#' calculates the log odds from the spatial poisson models
+#'
+#' @param outputs 
+#' @param sampling 
+#' @param prevalence 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+calc_log_odds_sp <- function(outputs, sampling, prevalence){
+  
+  output_ca <- list()
+  output_co <- list()
+  for (o in outputs){
+    if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
+        & grepl('spatial_poisson_case', o$description)){
+      output_ca <- o
+    } else if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
+               & grepl('spatial_poisson_ctrl', o$description)){
+      output_co <- o
+    }
+  }
+  
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  location_indicators <- true_params$location_indicators
+  location_ids <- true_params$location_ids
+  x_standard <- load_x_standard(location_indicators)
+  
+  w.hat_spca <- colMeans(output_ca$samples.w)
+  beta_ca_sp <- colMeans(output_ca$samples.beta)
+  kriged_w_ca <- load_output(paste('output.krige_ca_prefSampleGpCC_', sampling, '_',prevalence, '.json', sep=''))
+  w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, location_indicators)
+  
+  w.hat_spco <- colMeans(output_co$samples.w)
+  beta_co_sp <- colMeans(output_co$samples.beta)
+  kriged_w_co <- load_output(paste('output.krige_co_prefSampleGpCC_', sampling, '_', prevalence, '.json', sep=''))
+  w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, location_indicators)
+  
+  lodds <- x_standard %*% beta_ca_sp + w_ca_est - x_standard %*% beta_co_sp - w_co_est
+  return(lodds)
+  
+}
+
+
+#' calc_log_odds_pr
+#' 
+#' calculates the log odds from the poisson regression models
+#'
+#' @param sampling 
+#' @param prevalence 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+calc_log_odds_pr <- function(sampling, prevalence){
+  
+  betas <- load_params(paste('estimates_poisson_prefSampleGpCC_', sampling, '_', prevalence, '.json', sep=''))
+  beta_ca_r <- betas$case
+  beta_co_r <- betas$ctrl
+  true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  location_indicators <- true_params$location_indicators
+  x_standard <- load_x_standard(location_indicators)
+  lodds <- x_standard %*% beta_ca_r - x_standard %*% beta_co_r
+  return(lodds)
+  
+}
+
 
 #' save_output
 #'
