@@ -7,26 +7,102 @@ table_params <- function(outputs, sampling, prevalence){
   output_ps <- get_output(outputs, sampling, prevalence, 'prefSampleGpCC')
   output_sp_ca <- get_output(outputs, sampling, prevalence, 'spatial_poisson_case')
   output_sp_co <- get_output(outputs, sampling, prevalence, 'spatial_poisson_ctrl')
+  betas <- load_params(paste('estimates_poisson_prefSampleGpCC_', sampling, '_', prevalence, '.json', sep=''))
+  betas$description <- "Poisson Regression"
   true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
   
   rows <- list()
+  shared <- c("Beta 0 (case)", "Beta 1 (case)", "Beta 2 (case)", 
+              "Beta 0 (control)", "Beta 1 (control)", "Beta 2 (control)")
+  counter <- 1
+  for (p in shared){
+    rows[[counter]] <- make_row(
+      prevalence,
+      sampling,
+      "PS",
+      p,
+      true_params,
+      output_ps
+    )
+    rows[[counter + 1]] <- make_row(
+      prevalence,
+      sampling,
+      "SP",
+      p,
+      true_params,
+      output_sp_ca
+    )
+    rows[[counter + 1]] <- make_row(
+      prevalence,
+      sampling,
+      "PR",
+      p,
+      true_params,
+      betas
+    )
+    counter <- counter + 3
+  }
   
-  list(
+  ps <- c("Alpha (case)", "Alpha (control)", "Theta", "Phi")
+  for (p in ps){
+    rows[[counter]] <- make_row(
+      prevalence,
+      sampling,
+      "PS",
+      p,
+      true_params,
+      output_ps
+    )
+    counter <- counter + 1
+  }
+  
+  return(rows)
+}
+
+
+make_row <- function(prevalence, sampling, model, parameter, true_params, output){
+  
+  est <- get_estimate(output, parameter)
+  true <- get_true_val(true_params, parameter)
+  row <- list(
     prevalence=prevalence,
     sampling=sampling,
-    model='PS',
-    parameter='Beta 0 (case)',
-    estimate=get_estimate(output, parameter),
-    true=true_params$beta.case[1]
+    model=model,
+    parameter=parameter,
+    estimate=est,
+    true=true,
+    bias=est-true
   )
+  return(row)
   
 }
 
 
-make_row <- function(prevalence, sampling, model, parameter, output){
+get_true_val <- function(true_params, parameter){
   
-  est <- get_estimate(output, parameter)
-  
+  if (parameter == "Beta 0 (case)"){
+    return(true_params$beta.case[1])
+  } else if (parameter == "Beta 1 (case)"){
+    return(true_params$beta.case[2])
+  } else if (parameter == "Beta 2 (case)"){
+    return(true_params$beta.case[3])
+  } else if (parameter == "Beta 0 (control)"){
+    return(true_params$beta.ctrl[1])
+  } else if (parameter == "Beta 1 (control)"){
+    return(true_params$beta.ctrl[2])
+  } else if (parameter == "Beta 2 (control)"){
+    return(true_params$beta.ctrl[3])
+  } else if (parameter == "Alpha (case)"){
+    return(true_params$Alpha.case)
+  } else if (parameter == "Alpha (control)"){
+    return(true_params$Alpha.ctrl)
+  } else if (parameter == "W"){
+    return(true_params$W)
+  } else if (parameter == "Theta"){
+    return(true_params$Theta)
+  } else if (parameter == "Phi"){
+    return(true_params$Phi)
+  }
   
 }
 
@@ -35,6 +111,8 @@ get_estimate <- function(output, parameter){
   
   if (grepl("prefSampleGpCC", output$description)){
     type <- "PS"
+  } else if (grepl("Poisson Regression", output$description)){
+    type <- "PR"
   } else {
     type <- "SP"
   }
@@ -42,39 +120,59 @@ get_estimate <- function(output, parameter){
   if (parameter == "Beta 0 (case)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.ca[,1]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,1]
+    } else {
+      target_samples <- output$case[1]
     }
   } else if (parameter == "Beta 1 (case)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.ca[,2]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,2]
+    } else {
+      target_samples <- output$case[2]
     }
   } else if (parameter == "Beta 2 (case)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.ca[,3]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,3]
+    } else {
+      target_samples <- output$case[3]
     }
   } else if (parameter == "Beta 0 (control)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.co[,1]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,1]
+    } else {
+      target_samples <- output$ctrl[1]
     }
   } else if (parameter == "Beta 1 (control)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.co[,2]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,2]
+    } else {
+      target_samples <- output$ctrl[2]
     }
   } else if (parameter == "Beta 2 (control)"){
     if (type == "PS"){
       target_samples <- output$samples.beta.co[,3]
-    } else {
+    } else if (type == "SP") {
       target_samples <- output$samples.beta[,3]
+    } else {
+      target_samples <- output$ctrl[3]
     }
+  } else if (parameter == "Alpha (case)"){
+    target_samples <- output$samples.alpha.ca
+  } else if (parameter == "Alpha (control)"){
+    target_samples <- output$samples.alpha.co
+  } else if (parameter == "Theta"){
+    target_samples <- output$samples.theta
+  } else if (parameter == "Phi"){
+    target_samples <- output$samples.phi
   }
   
   est <- mean(target_samples)

@@ -13,7 +13,7 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "none"
+sampling <- "medium"
 prevalence <- "low"
 sim_name <- gen_sim_name(sampling, prevalence)
 
@@ -109,8 +109,8 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 3000
-burnin <- 750
+n.sample <- 1500
+burnin <- 0
 L <- 8
 L_ca <- 8
 L_co <- 8
@@ -127,11 +127,11 @@ theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
 w_i <- rnorm(length(W))
 
-m_aca <- 2000
-m_aco <- 2000
-m_ca <- 2000
-m_co <- 2000
-m_w <- 2000
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
 
 output <- prefSampleGpCC(data, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,

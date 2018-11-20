@@ -37,12 +37,12 @@ plot(r)
 points(locs$coords)
 
 
-sampling <- 'high'
+sampling <- 'medium'
 prev <- 'high'
-Alpha.case <- 2
-beta.case <- c(-2, 0.15, -0.25)
-Alpha.ctrl <- 2
-beta.ctrl <- c(-1.5, 1, 0.5)
+Alpha.case <- 1
+beta.case <- c(2, -0.5, -0.5)
+Alpha.ctrl <- -1
+beta.ctrl <- c(3, 0.5, 0.5)
 
 
 #### Simulate counts given locations

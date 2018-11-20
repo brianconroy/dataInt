@@ -84,7 +84,7 @@ data <- list(
 
 
 #### Preferential sampling model
-n.sample <- 3000
+n.sample <- 2000
 burnin <- 0
 L <- 10
 L_ca <- 8
@@ -144,7 +144,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=W,
-                         prior_phi=c(3, 24))
+                         prior_phi=c(3, 24), prior_theta=c(2.5, 2.5))
 
 plot(output$deltas_w)
 plot(output$deltas_ca)

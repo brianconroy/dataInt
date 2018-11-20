@@ -47,6 +47,13 @@ for (p in c("low", "medium", "high")){
 }
 
 
+tables <- list()
+counter <- 1
+for (p in c("low", "medium", "high")){
+  tables[[counter]] <- table_params(outputs, s, p)
+  counter <- counter + 1
+}
+
 # w scatterplots
   # wait till you fit other models
 
