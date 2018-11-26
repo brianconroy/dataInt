@@ -13,8 +13,8 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "medium"
-prevalence <- "low"
+sampling <- "high"
+prevalence <- "high"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -59,11 +59,29 @@ Sigma <- Exponential(d, range=Theta, phi=Phi)
 set.seed(40)
 W <- mvrnorm(n=1, mu=rep(0, length(cells.all)), Sigma)
 N <- length(W)
+hist(W)
+
+
+# X.standard <- load_x_standard(as.logical(locs$status))
+# hist(abs(Alpha.case * W)/abs(X.standard %*% beta.case))
+# summary(abs(Alpha.case * W)/abs(X.standard %*% beta.case))
+# 
+# hist(abs(Alpha.ctrl * W)/abs(X.standard %*% beta.ctrl))
+# summary(abs(Alpha.ctrl * W)/abs(X.standard %*% beta.ctrl))
+
+
+r.w <- caPr.disc[[1]]
+r.w[][!is.na(r.w[])] <- W
+
+par(mfrow=c(1,3))
+plot(r.w)
+plot(caPr.disc[[1]])
+plot(caPr.disc[[2]])
 
 
 #### Simulate locations
 r <- caPr.disc[[1]]
-locs <- simLocW(W, r, beta=0, seed=42)
+locs <- simLocW(W, r, beta=0, seed=11) # 42
 sum(locs$status)
 hist(W)
 plot(r)
@@ -109,8 +127,8 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 1500
-burnin <- 0
+n.sample <- 6000
+burnin <- 2500
 L <- 8
 L_ca <- 8
 L_co <- 8
@@ -121,11 +139,11 @@ proposal.sd.theta <- 0.15
 set.seed(241)
 beta_ca_i <- abs(rnorm(3))
 beta_co_i <- abs(rnorm(3))
-alpha_ca_i <- runif(1, 1, 2)
-alpha_co_i <- runif(1, -2, -1)
+alpha_ca_i <- runif(1, 2, 3)
+alpha_co_i <- runif(1, -3, -2)
 theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
-w_i <- rnorm(length(W))
+w_i <- W + rnorm(length(W))
 
 m_aca <- 1000
 m_aco <- 1000
@@ -221,7 +239,7 @@ w_i_ <- rnorm(nrow(d.sub))
 phi_i_ <- Phi + rnorm(1)
 theta_i_ <- Theta + rnorm(1)
 
-n.sample_ <- 25000
+n.sample_ <- 20000
 burnin_ <- 3000
 L_w_ <- 8
 L_b_ <- 8
@@ -263,7 +281,7 @@ save_output(kriged_w_ca, paste("output.krige_ca_", sim_name, ".json", sep=""))
 X.co <- ctrl.data$x.standardised
 Y.co <- ctrl.data$y
 
-n.sample__ <- 25000
+n.sample__ <- 20000
 burnin__ <- 3000
 L_w__ <- 8
 L_b__ <- 8
@@ -315,7 +333,6 @@ beta_ca_r <- coefficients(rmodel.ca)
 ## Controls
 rmodel.co <- glm(Y.co ~ X.co-1, family='poisson')
 beta_co_r <- coefficients(rmodel.co)
-
 
 save_estimates_pr(beta_ca_r, beta_co_r, paste("estimates_poisson_", sim_name, ".json", sep=""))
 

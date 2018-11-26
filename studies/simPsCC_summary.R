@@ -21,7 +21,7 @@ outputs <- load_sim_outputs()
 
 
 par(mfrow=c(3,3))
-s <- "none"
+s <- "medium"
 prevs <- c("low", "medium", "high")
 mains <- c("A)", "B)", "C)")
 for (i in 1:3){
@@ -37,7 +37,7 @@ for (i in 1:3){
 }
 
 
-s <- "none"
+s <- "medium"
 for (p in c("low", "medium", "high")){
   fname <- paste("traces_", s, "_", p, ".png", sep="")
   png(paste("/Users/brianconroy/Documents/research/project1/simulations/", fname, sep=""),

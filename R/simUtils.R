@@ -183,7 +183,7 @@ get_estimate <- function(output, parameter){
 
 plot_traces <- function(outputs, sampling, prevalence){
   
-  output <- get_output(outputs, sampling, prevalence)
+  output <- get_output(outputs, sampling, prevalence, 'PS')
   true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
   
   par(mfrow=c(3,4))
@@ -511,7 +511,8 @@ save_estimates_pr <- function(beta_ca, beta_ctrl, fname){
   path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
   store <- list(
     case=beta_ca_r,
-    ctrl=beta_co_r
+    ctrl=beta_co_r,
+    description="Poisson Regression"
   )
   write(toJSON(store), path)
   

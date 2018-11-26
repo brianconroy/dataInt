@@ -30,19 +30,19 @@ N <- length(W)
 
 #### Simulate locations
 r <- caPr.disc[[1]]
-locs <- simLocW(W, r, beta=0, seed=42)
+locs <- simLocW(W, r, beta=0, seed=11) # 42
 sum(locs$status)
 hist(W)
 plot(r)
 points(locs$coords)
 
 
-sampling <- 'medium'
-prev <- 'high'
-Alpha.case <- 1
-beta.case <- c(2, -0.5, -0.5)
-Alpha.ctrl <- -1
-beta.ctrl <- c(3, 0.5, 0.5)
+sampling <- 'high'
+prev <- 'nrgk'
+Alpha.case <- 2
+beta.case <- c(0.5, -1, 1)
+Alpha.ctrl <- -2
+beta.ctrl <- c(4.5, -1.5, 1)
 
 
 #### Simulate counts given locations
@@ -54,7 +54,8 @@ ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40
 sum(case.data$y)/sum(case.data$y + ctrl.data$y)
 sum(case.data$y)
 sum(ctrl.data$y)
-
+print(case.data$y)
+print(ctrl.data$y)
 
 new_row <- list(
   sampling=sampling,
