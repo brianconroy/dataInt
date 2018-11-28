@@ -13,7 +13,7 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "high"
+sampling <- "none"
 prevalence <- "high"
 sim_name <- gen_sim_name(sampling, prevalence)
 
@@ -31,6 +31,7 @@ beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
 # beta.case <- c(-0.5, 0.25, -0.5)
 # Alpha.ctrl <- -1
 # beta.ctrl <- c(2, 1, 0.5)
+
 
 Theta <- 6
 Phi <- 12
@@ -72,7 +73,6 @@ hist(W)
 
 r.w <- caPr.disc[[1]]
 r.w[][!is.na(r.w[])] <- W
-
 par(mfrow=c(1,3))
 plot(r.w)
 plot(caPr.disc[[1]])
@@ -127,8 +127,8 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 6000
-burnin <- 2500
+n.sample <- 4000
+burnin <- 750
 L <- 8
 L_ca <- 8
 L_co <- 8
@@ -212,18 +212,6 @@ alpha_co_h <- colMeans(output$samples.alpha.co)
 phi_h <- colMeans(output$samples.phi)
 theta_h <- colMeans(output$samples.theta)
 
-# parameter # true value # estimate # bias
-smry <- list()
-smry[[1]] <- summarize_param('beta +, 0', beta.case[1], beta_ca_h[1])
-smry[[2]] <- summarize_param('beta +, 1', beta.case[2], beta_ca_h[2])
-smry[[3]] <- summarize_param('beta -, 0', beta.ctrl[1], beta_co_h[1])
-smry[[4]] <- summarize_param('beta -, 1', beta.ctrl[2], beta_co_h[2])
-smry[[5]] <- summarize_param('alpha + ', Alpha.case, alpha_ca_h)
-smry[[6]] <- summarize_param('alpha - ', Alpha.ctrl, alpha_co_h)
-smry[[7]] <- summarize_param('phi', Phi, phi_h)
-smry[[8]] <- summarize_param('theta', Theta, theta_h)
-df_smry <- ldply(smry, data.frame)
-
 
 #### Spatial poisson regression
 ## Cases
@@ -239,8 +227,8 @@ w_i_ <- rnorm(nrow(d.sub))
 phi_i_ <- Phi + rnorm(1)
 theta_i_ <- Theta + rnorm(1)
 
-n.sample_ <- 20000
-burnin_ <- 3000
+n.sample_ <- 16000
+burnin_ <- 2000
 L_w_ <- 8
 L_b_ <- 8
 
@@ -281,8 +269,8 @@ save_output(kriged_w_ca, paste("output.krige_ca_", sim_name, ".json", sep=""))
 X.co <- ctrl.data$x.standardised
 Y.co <- ctrl.data$y
 
-n.sample__ <- 20000
-burnin__ <- 3000
+n.sample__ <- 16000
+burnin__ <- 2000
 L_w__ <- 8
 L_b__ <- 8
 
@@ -325,6 +313,7 @@ save_output(output.sp_co, paste("output.sp_co_", sim_name, ".json", sep=""))
 save_params_psco(paste("params.sp_co_", sim_name, ".json", sep=""))
 save_output(kriged_w_co, paste("output.krige_co_", sim_name, ".json", sep=""))
 
+
 #### Poisson regression
 ## Cases
 rmodel.ca <- glm(Y.ca ~ X.ca-1, family='poisson')
@@ -342,10 +331,6 @@ save_estimates_pr(beta_ca_r, beta_co_r, paste("estimates_poisson_", sim_name, ".
 # calculate and compare risk surface
 ####################################
 
-
-# X <- cov.disc[][!is.na(cov.disc[])]
-# X.standard <- matrix((X - mean(X))/sd(X))
-# X.standard <- cbind(1, X.standard)
 
 X.standard <- load_x_standard(as.logical(locs$status))
 lodds.true <- X.standard %*% beta.case + Alpha.case * W - X.standard %*% beta.ctrl - Alpha.ctrl * W
@@ -409,9 +394,4 @@ metrics <- list(
   list(model='poisson regression', 'rmse'=rmse.r, 'mae'=mae.r)
 )
 df <- ldply(metrics, data.frame)
-
-dir <- "/Users/brianconroy/Documents/research/dataInt/output/"
-write.table(lodds.true, paste(dir, 'lodds_true_med.txt', sep=''), row.names=F, col.names=F)
-write.table(lodds.ps, paste(dir,'lodds_ps_med.txt', sep=''), row.names=F, col.names=F)
-write.table(lodds.sp, paste(dir,'lodds_sp_med.txt', sep=''), row.names=F, col.names=F)
-write.table(lodds.r, paste(dir,'lodds_r_med.txt', sep=''), row.names=F, col.names=F)
+print(df)

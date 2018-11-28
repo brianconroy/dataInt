@@ -1,7 +1,17 @@
 library(jsonlite)
 
-# prevalence # param 	# model		# estimate	# true	# bias
 
+#' table_params
+#'
+#' @param outputs (list) mcmc outputs
+#' @param sampling (character) strength of sampling
+#' @param prevalence (character) disease prevalence ("low", "medium", "high")
+#'
+#' @return (list) list of lists containing parameter
+#' estimates, true values and biases of different models
+#' @export
+#'
+#' @examples
 table_params <- function(outputs, sampling, prevalence){
   
   output_ps <- get_output(outputs, sampling, prevalence, 'prefSampleGpCC')
@@ -181,25 +191,74 @@ get_estimate <- function(output, parameter){
 }
 
 
+get_pad <- function(val, typ){
+  if (typ == 'lower'){
+    if (val < 0){
+      return(1.15 * val)
+    } else if (val == 0) {
+      return(-0.15)
+    } else {
+      return(0.75 * val)
+    } 
+  } else {
+    if (val < 0){
+      return(0.75 * val)
+    } else if (val == 0) {
+      return(0.15)
+    } else {
+      return(1.15 * val)
+    } 
+  }
+}
+
+
+padded_plot <- function(y, trueval, ylab=''){
+  
+  ymax <- max(y)
+  ymin <- min(y)
+  if (trueval < ymin){
+    lb <- get_pad(trueval, 'lower')
+    ub <- get_pad(ymax, 'upper')
+    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
+  } else if (trueval > ymax){
+    lb <- get_pad(trueval, 'upper')
+    ub <- get_pad(ymin, 'lower')
+    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
+  } else{
+    plot(y, typ='l', ylab=ylab); abline(h=trueval, col='2')
+  }
+  
+}
+
+
+#' plot_traces
+#' 
+#' plots traceplots for the preferential sampling model
+#'
+#' @param outputs (list) mcmc preferential sampling outputs
+#' @param sampling (character) strength of preferential sampling
+#' @param prevalence (character) disease prevalence
+#'
+#' @return
+#' @export
+#'
+#' @examples
 plot_traces <- function(outputs, sampling, prevalence){
   
-  output <- get_output(outputs, sampling, prevalence, 'PS')
+  output <- get_output(outputs, sampling, prevalence, 'prefSampleGpCC')
   true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
   
   par(mfrow=c(3,4))
-  plot(output$samples.beta.ca[,1], typ='l', ylab='Beta 0 (case)'); abline(h=true_params$beta.case[1], col='2')
-  plot(output$samples.beta.ca[,2], typ='l', ylab='Beta 1 (case)'); abline(h=true_params$beta.case[2], col='2')
-  plot(output$samples.beta.ca[,3], typ='l', ylab='Beta 2 (case)'); abline(h=true_params$beta.case[3], col='2')
-  
-  plot(output$samples.beta.co[,1], typ='l', ylab='Beta 0 (control)'); abline(h=true_params$beta.ctrl[1], col='2')
-  plot(output$samples.beta.co[,2], typ='l', ylab='Beta 1 (control)'); abline(h=true_params$beta.ctrl[2], col='2')
-  plot(output$samples.beta.co[,3], typ='l', ylab='Beta 2 (control)'); abline(h=true_params$beta.ctrl[3], col='2')
-  
-  plot(output$samples.alpha.ca, typ='l', ylab='Alpha (case)'); abline(h=true_params$Alpha.case[1], col='2')
-  plot(output$samples.alpha.co, typ='l', ylab='Alpha (control)'); abline(h=true_params$Alpha.ctrl[1], col='2')
-  
-  plot(output$samples.theta, typ='l', ylab='Range'); abline(h=true_params$Theta, col='2')
-  plot(output$samples.phi, typ='l', ylab='Marginal Variance'); abline(h=true_params$Phi, col='2')
+  padded_plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', true_params$beta.case[1])
+  padded_plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', true_params$beta.case[2])
+  padded_plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', true_params$beta.case[3])
+  padded_plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', true_params$beta.ctrl[1])
+  padded_plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', true_params$beta.ctrl[2])
+  padded_plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', true_params$beta.ctrl[3])
+  padded_plot(output$samples.alpha.ca, ylab='Alpha (case)', true_params$Alpha.case[1])
+  padded_plot(output$samples.alpha.co, ylab='Alpha (control)', true_params$Alpha.ctrl[1])
+  padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
+  padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
   par(mfrow=c(1,1))
   
 }
@@ -301,14 +360,13 @@ calc_log_odds_true <- function(sampling, prevalence){
 #' @examples
 calc_log_odds_sp <- function(outputs, sampling, prevalence){
   
+  tag <- paste(sampling, prevalence, sep='_')
   output_ca <- list()
   output_co <- list()
   for (o in outputs){
-    if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
-        & grepl('spatial_poisson_case', o$description)){
+    if (grepl(tag, o$description) & grepl('spatial_poisson_case', o$description)){
       output_ca <- o
-    } else if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
-               & grepl('spatial_poisson_ctrl', o$description)){
+    } else if (grepl(tag, o$description) & grepl('spatial_poisson_ctrl', o$description)){
       output_co <- o
     }
   }
@@ -471,6 +529,16 @@ save_params_psc <- function(fname){
 }
 
 
+#' save_params_psco
+#' 
+#' saves parameters of the spatial poisson regression control model
+#'
+#' @param fname fname (character) file name
+#'
+#' @return
+#' @export
+#'
+#' @examples
 save_params_psco <- function(fname){
   
   store=list()
