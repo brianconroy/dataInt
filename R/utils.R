@@ -28,7 +28,7 @@ iterate_ig_variance <- function(phi){
   
   vars <- list()
   c <- 1
-  for (b in 40:100){
+  for (b in 40:400){
     a <- b/phi + 1
     vars[[c]] <- list(a=a, b=b, v=ig_var(a, b))
     c <- c + 1

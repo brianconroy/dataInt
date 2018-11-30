@@ -267,9 +267,9 @@ plot_traces <- function(outputs, sampling, prevalence){
 get_output <- function(outputs, sampling, prevalence, type){
   
   output_target <- list()
+  tag <- paste(sampling, prevalence, sep="_")
   for (o in outputs){
-    if (grepl(sampling, o$description) & grepl(prevalence, o$description)
-        & grepl(type, o$description)){
+    if (grepl(tag, o$description) & grepl(type, o$description)){
       output_target <- o
       break
     }
@@ -294,9 +294,9 @@ get_output <- function(outputs, sampling, prevalence, type){
 calc_log_odds <- function(outputs, sampling, prevalence){
   
   output_target <- list()
+  tag <- paste(sampling, prevalence, sep="_")
   for (o in outputs){
-    if (grepl(sampling, o$description) & grepl(prevalence, o$description) 
-        & grepl('prefSampleGpCC', o$description)){
+    if (grepl(tag, o$description) & grepl('prefSampleGpCC', o$description)){
       output_target <- o
       break
     }

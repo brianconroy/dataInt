@@ -13,7 +13,7 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "none"
+sampling <- "medium"
 prevalence <- "high"
 sim_name <- gen_sim_name(sampling, prevalence)
 
@@ -127,8 +127,8 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 4000
-burnin <- 750
+n.sample <- 6000
+burnin <- 3000
 L <- 8
 L_ca <- 8
 L_co <- 8
