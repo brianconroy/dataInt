@@ -92,7 +92,8 @@ prior_alpha_ca_var <- 6
 prior_alpha_co_mean <- Alpha.ctrl
 prior_alpha_co_var <- 6
 
-# shoot for 5 values
+
+# target variances
 # 4, 9, 12, 20, 40
 iterate_ig_variance(Phi)
 priors_phi <- list(
@@ -103,10 +104,25 @@ priors_phi <- list(
   c(5.58, 55)
 )
 
-i <- 2
-prior_phi <- priors_phi[[i]]
-prior_theta <- c(2.5, 2.5)
-sim_name <- paste("iterate_prior_phi_", i, sep="")
+
+# target theta variances
+# 3, 6, 12, 24, 48
+iterate_g_variance(Theta, 0.25, 50)
+priors_theta <- list(
+  c(12, 0.5),
+  c(6, 1),
+  c(3, 2),
+  c(1.5, 4),
+  c(0.75, 8)
+)
+
+
+i_phi <- 3
+i_theta <- 3
+prior_phi <- priors_phi[[i_phi]]
+prior_theta <- priors_theta[[i_theta]]
+# sim_name <- paste("iterate_prior_phi_", i, sep="")
+sim_name <- paste("iterate_prior_theta_", i_theta, sep="")
 
 #### Load tuning parameters
 # tune_params_psgp <- load_params(paste("params_", sim_name, ".json", sep=""))
@@ -128,8 +144,8 @@ sim_name <- paste("iterate_prior_phi_", i, sep="")
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 2000
-burnin <- 0
+n.sample <- 9000
+burnin <- 6000
 L <- 8
 L_ca <- 8
 L_co <- 8
@@ -146,7 +162,7 @@ theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
 w_i <- W + rnorm(length(W))
 
-m_aca <- 1000
+m_aca <- 3000
 m_aco <- 1000
 m_ca <- 1000
 m_co <- 1000

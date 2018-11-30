@@ -38,6 +38,33 @@ iterate_ig_variance <- function(phi){
 }
 
 
+g_var <- function(a, b){
+  
+  return(a*(b^2))
+
+}
+
+
+iterate_g_variance <- function(theta, lower, upper){
+  
+  if (lower < 1){
+    rng <- c(seq(lower, 1, by=0.25), 1:upper)
+  } else{
+    rng <- lower:upper
+  }
+  
+  vars <- list()
+  c <- 1
+  for (b in rng){
+    a <- round(theta/b, 3)
+    vars[[c]] <- list(a=a, b=b, v=g_var(a, b))
+    c <- c + 1
+  }
+  return(ldply(vars, 'data.frame'))
+  
+}
+
+
 n_values <- function(r){
   
   return(length(r[][!is.na(r[])]))
