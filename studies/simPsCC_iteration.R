@@ -160,7 +160,8 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
-                         prior_phi=prior_phi, prior_theta=prior_theta)
+                         prior_phi=prior_phi, prior_theta=prior_theta,
+                         prior_alpha_ca_var, prior_alpha_co_var)
 
 
 plot(output$deltas_w)

@@ -8,8 +8,7 @@
 # plans
   # iterate over phi
   # iterate over theta
-  # iterate 
-  # run and check convergence
+  # iterate over alpha
 # fix prevalence at medium, medium
 
 library(plyr)
@@ -62,7 +61,7 @@ plot(caPr.disc[[2]])
 
 #### Simulate locations
 r <- caPr.disc[[1]]
-locs <- simLocW(W, r, beta=0, seed=11) # 42
+locs <- simLocW(W, r, beta=0, seed=11)
 sum(locs$status)
 hist(W)
 plot(r)
@@ -88,10 +87,15 @@ data <- list(
 
 #### Preferential sampling model
 prior_alpha_ca_mean <- Alpha.case
-prior_alpha_ca_var <- 6
 prior_alpha_co_mean <- Alpha.ctrl
-prior_alpha_co_var <- 6
 
+
+# Alpha variances
+prior_alpha_var <- c(6, 12, 18, 24, 30)
+i_alpha <- 2
+
+prior_alpha_ca_var <- prior_alpha_var[i_alpha]
+prior_alpha_co_var <- prior_alpha_var[i_alpha]
 
 # target variances
 # 4, 9, 12, 20, 40
@@ -117,12 +121,14 @@ priors_theta <- list(
 )
 
 
-i_phi <- 3
+i_phi <- 2
 i_theta <- 3
 prior_phi <- priors_phi[[i_phi]]
 prior_theta <- priors_theta[[i_theta]]
-# sim_name <- paste("iterate_prior_phi_", i, sep="")
-sim_name <- paste("iterate_prior_theta_", i_theta, sep="")
+# sim_name <- paste("iterate_prior_phi_", i_phi, sep="")
+# sim_name <- paste("iterate_prior_theta_", i_theta, sep="")
+sim_name <- paste("iterate_prior_alpha_", i_alpha, sep="")
+
 
 #### Load tuning parameters
 # tune_params_psgp <- load_params(paste("params_", sim_name, ".json", sep=""))
@@ -144,9 +150,9 @@ sim_name <- paste("iterate_prior_theta_", i_theta, sep="")
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 9000
-burnin <- 6000
-L <- 8
+n.sample <- 12500
+burnin <- 8500
+L_w <- 8
 L_ca <- 8
 L_co <- 8
 L_a_ca <- 8
@@ -162,7 +168,7 @@ theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
 w_i <- W + rnorm(length(W))
 
-m_aca <- 3000
+m_aca <- 4000
 m_aco <- 1000
 m_ca <- 1000
 m_co <- 1000
@@ -177,7 +183,16 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
-                         prior_phi=prior_phi, prior_theta=prior_theta)
+                         prior_phi=prior_phi, prior_theta=prior_theta,
+                         prior_alpha_ca_var, prior_alpha_co_var)
+
+
+# optionally burnin the output more
+# output <- burnin_after(output, n.burn=250)
+
+
+# optionally continue running if necessary
+# output <- continueMCMC(data, output, n.sample=1000)
 
 
 plot(output$deltas_w)
@@ -230,7 +245,6 @@ phi_h <- colMeans(output$samples.phi)
 theta_h <- colMeans(output$samples.theta)
 
 
-
 ####################################
 # save and summarize param estimates
 # calculate and compare risk surface
@@ -245,49 +259,25 @@ lodds.ps <- X.standard %*% beta_ca_h + alpha_ca_h * w.hat - X.standard %*% beta_
 lrisk.ps <- lodds.ps/(1-lodds.ps)
 plot(x=lodds.true, y=lodds.ps, main='A)', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
 
-surf.true <- overlay(lodds.true, cov.disc)
-surf.ps <- overlay(lodds.ps, cov.disc)
-surf.sp <- overlay(lodds.sp, cov.disc)
-surf.r <- overlay(lodds.r, cov.disc)
-par(mfrow=c(2,2))
+surf.true <- overlay(lodds.true, cov.disc[[1]])
+surf.ps <- overlay(lodds.ps, cov.disc[[1]])
+par(mfrow=c(1,2))
 pal <- colorRampPalette(c("blue","red"))
 brk <- seq(-30, 14, by=4)
 plot(surf.true, col=pal(12), breaks=brk, main='A)')
 plot(surf.ps, col=pal(12), breaks=brk, main='B)')
-plot(surf.sp, col=pal(12), breaks=brk, main='C)')
-plot(surf.r, col=pal(12), breaks=brk, main='D)')
 
-rsurf.true <- overlay(lrisk.true, cov.disc)
-rsurf.ps <- overlay(lrisk.ps, cov.disc)
-rsurf.sp <- overlay(lrisk.sp, cov.disc)
-rsurf.r <- overlay(lrisk.r, cov.disc)
-par(mfrow=c(2,2))
+rsurf.true <- overlay(lrisk.true, cov.disc[[1]])
+rsurf.ps <- overlay(lrisk.ps, cov.disc[[1]])
+par(mfrow=c(1,2))
 plot(rsurf.true)
 plot(rsurf.ps)
-plot(rsurf.sp)
-plot(rsurf.r)
 
-par(mfrow=c(1,3))
+par(mfrow=c(1,1))
 pal <- colorRampPalette(c("green","red"))
-diff.ps <- overlay(lodds.ps - lodds.true, cov.disc)
-diff.sp <- overlay(lodds.sp - lodds.true, cov.disc)
-diff.r <- overlay(lodds.r - lodds.true, cov.disc)
+diff.ps <- overlay(lodds.ps - lodds.true, cov.disc[[1]])
 brks <- seq(-25, 15, by=5)
 plot(diff.ps, col=pal(9))
-plot(diff.sp, col=pal(9))
-plot(diff.r, col=pal(9))
 
 rmse.ps <- round(sqrt(mean((lodds.true - lodds.ps)^2)), 2)
-rmse.sp <- round(sqrt(mean((lodds.true - lodds.sp)^2)), 2)
-rmse.r <- round(sqrt(mean((lodds.true - lodds.r)^2)), 2)
 mae.ps <- round(abs(mean(lodds.true - lodds.ps)), 2)
-mae.sp <- round(abs(mean(lodds.true - lodds.sp)), 2)
-mae.r <- round(abs(mean(lodds.true - lodds.r)), 2)
-
-metrics <- list(
-  list(model='preferential sampling', 'rmse'=rmse.ps, 'mae'=mae.ps),
-  list(model='spatial regression', 'rmse'=rmse.sp, 'mae'=mae.sp),
-  list(model='poisson regression', 'rmse'=rmse.r, 'mae'=mae.r)
-)
-df <- ldply(metrics, data.frame)
-print(df)

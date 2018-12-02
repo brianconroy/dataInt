@@ -1,5 +1,97 @@
 
 
+burnin_after <- function(output, n.burn){
+  
+  n.curr <- output$n.sample
+  i.start <- n.burn + 1
+  output$burnin <- output$burnin + n.burn
+  output$samples.alpha.ca <- output$samples.alpha.ca[i.start:n.curr]
+  output$samples.alpha.co <- output$samples.alpha.co[i.start:n.curr]
+  output$samples.beta.ca <- output$samples.beta.ca[i.start:n.curr,]
+  output$samples.beta.co <- output$samples.beta.co[i.start:n.curr,]
+  output$samples.w <- output$samples.w[i.start:n.curr,]
+  output$samples.phi <- output$samples.phi[i.start:n.curr]
+  output$samples.theta <- output$samples.theta[i.start:n.curr]
+  return(output)
+  
+}
+
+
+#' continueMCMC
+#' 
+#' continues running an MCMC chain from the output of prefSampleGpCC
+#'
+#' @param output (list) output of prefSampleGpCC
+#' @param n.sample (numeric) number of additional samples to generate
+#'
+#' @return
+#' @export
+#'
+#' @examples
+continueMCMC <- function(data, output, n.sample){
+  
+  # get initial values
+  n.sample.old <- nrow(output$samples.beta.ca)
+  beta_ca_initial <- output$samples.beta.ca[n.sample.old,]
+  beta_co_initial <- output$samples.beta.co[n.sample.old,]
+  alpha_ca_initial <- output$samples.alpha.ca[n.sample.old]
+  alpha_co_initial <- output$samples.alpha.co[n.sample.old]
+  w_initial <- output$samples.w[n.sample.old,]
+  theta_initial <- output$samples.theta[n.sample.old]
+  phi_initial <- output$samples.phi[n.sample.old]
+  
+  # get tuning parameters
+  delta_w <- tail(output$deltas_w, 1)
+  delta_aca <- tail(output$deltas_aca, 1)
+  delta_aco <- tail(output$deltas_aco, 1)
+  delta_ca <- tail(output$deltas_ca, 1)
+  delta_co <- tail(output$deltas_co, 1)
+  L_w <- output$L_w
+  L_ca <- output$L_ca
+  L_co <- output$L_co
+  L_a_ca <- output$L_a_ca 
+  L_a_co <- output$L_a_co
+  proposal.sd.theta <- output$proposal.sd.theta
+  
+  # get priors
+  prior_phi <- output$prior_phi
+  prior_theta <- output$prior_theta
+  prior_alpha_ca_var <- output$prior_alpha_ca_var
+  prior_alpha_co_var <- output$prior_alpha_co_var
+  
+  more_output <- prefSampleGpCC(data, n.sample, burnin=0, 
+                                L_w=L_w, L_ca=L_ca, L_co=L_co, L_a_ca=L_a_ca, L_a_co=L_a_co,
+                                proposal.sd.theta=proposal.sd.theta,
+                                self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
+                                delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
+                                beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, 
+                                alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
+                                theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
+                                prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, 
+                                prior_alpha_co_var=prior_alpha_ca_var)
+  
+  # combine outputs
+  new_output <- output
+  new_output$samples.alpha.ca <- c(new_output$samples.alpha.ca, more_output$samples.alpha.ca)
+  new_output$samples.alpha.co <- c(new_output$samples.alpha.co, more_output$samples.alpha.co)
+  new_output$samples.beta.ca <- rbind(new_output$samples.beta.ca, more_output$samples.beta.ca)
+  new_output$samples.beta.co <- rbind(new_output$samples.beta.co, more_output$samples.beta.co)
+  new_output$samples.phi <- c(new_output$samples.phi, more_output$samples.phi)
+  new_output$samples.theta <- c(new_output$samples.theta, more_output$samples.theta)
+  new_output$samples.w <- rbind(new_output$samples.w, more_output$samples.w)
+  new_output$deltas_aca <- c(new_output$deltas_aca, more_output$deltas_aca)
+  new_output$deltas_aco <- c(new_output$deltas_aco, more_output$deltas_aco)
+  new_output$deltas_co <- c(new_output$deltas_co, more_output$deltas_co)
+  new_output$deltas_ca <- c(new_output$deltas_ca, more_output$deltas_ca)
+  new_output$deltas_w <- c(new_output$deltas_w, more_output$deltas_w)
+  new_output$n.sample <- new_output$n.sample + n.sample
+  new_output$accept <- (new_output$n.sample * new_output$accept + n.sample * more_output$accept)/(new_output$n.sample + n.sample)
+  
+  return(new_output)
+  
+}
+
+
 #' prefSampleGp
 #' 
 #' Fits the preferential sampling model with locations
@@ -230,7 +322,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
                            theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
-                           prior_phi, prior_theta){
+                           prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var){
   
   
   ## setup
@@ -340,7 +432,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
     sigma.i <- Exponential(d, range=theta.i, phi=phi.i)
     sigma.inv.i <- solve(sigma.i)
     w.out.i <- wHmcUpdateCC(Y.l, X.c, Y.ca, alpha.ca.i, beta.ca, Y.co,
-                            alpha.co.i, beta.co, w.i, sigma.i, sigma.inv.i, locs, w_tuning$delta_curr, L)
+                            alpha.co.i, beta.co, w.i, sigma.i, sigma.inv.i, locs, w_tuning$delta_curr, L_w)
     w.i <- w.out.i$w
     
     ## sample from theta
@@ -434,7 +526,19 @@ prefSampleGpCC <- function(data, n.sample, burnin,
   output$deltas_aco <- deltas_aco
   output$deltas_ca <- deltas_ca
   output$deltas_co <- deltas_co
-  
+  output$L_w <- L_w
+  output$L_ca <- L_ca
+  output$L_co <- L_co
+  output$L_a_ca <- L_a_ca 
+  output$L_a_co <- L_a_co
+  output$proposal.sd.theta <- proposal.sd.theta
+  output$prior_phi <- prior_phi
+  output$prior_theta <- prior_theta
+  output$prior_alpha_ca_var <- prior_alpha_ca_var
+  output$prior_alpha_co_var <- prior_alpha_co_var
+  output$n.sample <- n.sample
+  output$burnin <- burnin
+
   return(output)
   
 }
