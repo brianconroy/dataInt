@@ -1,6 +1,89 @@
 library(jsonlite)
 
 
+load_priors <- function(param, index){
+  
+  f1 <- 'simParams_alpha_prior.txt'
+  f2 <- 'simParams_theta_prior.txt'
+  f3 <- 'simParams_phi_prior.txt'
+  priors_alpha <- load_output(f1)
+  priors_theta <- load_output(f2)
+  priors_phi <- load_output(f3)
+  priors <- list()
+  if (param == 'alpha'){
+    priors$prior_alpha <- priors_alpha[index]
+    priors$prior_phi <- priors_phi[2,]
+    priors$prior_theta <- priors_theta[3,]
+  } else if (param == 'phi'){
+    priors$prior_alpha <- 6
+    priors$prior_phi <- priors_phi[index,]
+    priors$prior_theta <- c(2.5, 2.5)
+  } else if (param == 'theta'){
+    priors$prior_alpha <- 6
+    priors$prior_phi <- c(14, 156)
+    priors$prior_theta <- priors_theta[index,]
+  }
+  return(priors)
+  
+}
+
+calc_log_odds_output <- function(output, true_params){
+  
+  location_indicators <- true_params$location_indicators
+  x_standard <- load_x_standard(location_indicators)
+  
+  w.hat <- colMeans(output$samples.w)
+  beta_ca_h <- colMeans(output$samples.beta.ca)
+  beta_co_h <- colMeans(output$samples.beta.co)
+  alpha_ca_h <- mean(output$samples.alpha.ca)
+  alpha_co_h <- mean(output$samples.alpha.co)
+  
+  lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds.ps)
+  
+}
+
+
+get_output_priorsens <- function(outputs, param, number){
+  
+  output_target <- list()
+  tag <- paste(param, number, sep="_")
+  for (o in outputs){
+    if (grepl(tag, o$description)){
+      output_target <- o
+      break
+    }
+  }
+  return(output_target)
+  
+}
+
+
+#' load_sim_outputs_priorsens
+#' 
+#' load simulation outputs for the prior sensitivity study
+#'
+#' @return
+#' @export
+#'
+#' @examples
+load_sim_outputs_priorsens <- function(){
+  
+  output_list <- list()
+  
+  counter <- 1
+  for (f in list.files('/Users/brianconroy/Documents/research/dataInt/output/')){
+    if (grepl('output_iterate_prior', f)) {
+      output_list[[counter]] <- load_output(f)
+      counter <- counter + 1
+    }
+  }
+  
+  return(output_list)
+  
+}
+
+
 #' table_params
 #'
 #' @param outputs (list) mcmc outputs
@@ -469,7 +552,7 @@ save_params_psgp <- function(fname){
   
   store$n.sample=n.sample
   store$burnin=burnin
-  store$L=L
+  store$L=L_w
   store$L_ca=L_ca
   store$L_co=L_co
   store$L_a_ca=L_a_ca

@@ -2,7 +2,7 @@
 
 burnin_after <- function(output, n.burn){
   
-  n.curr <- output$n.sample
+  n.curr <- output$n.sample - output$burnin
   i.start <- n.burn + 1
   output$burnin <- output$burnin + n.burn
   output$samples.alpha.ca <- output$samples.alpha.ca[i.start:n.curr]

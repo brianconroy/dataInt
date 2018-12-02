@@ -11,6 +11,11 @@
   # iterate over alpha
 # fix prevalence at medium, medium
 
+# usage
+# specify sim name
+# specify sim iteration
+# load sim params
+
 library(plyr)
 library(mvtnorm)
 library(R.utils)
@@ -19,6 +24,9 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 sampling <- "medium"
 prevalence <- "medium"
+param <- "alpha"
+index <- 1
+sim_name <- paste("iterate_prior", param, index, sep="_")
 
 
 #### Load simulation parameters
@@ -27,6 +35,14 @@ Alpha.case <- params$alpha.case
 Alpha.ctrl <- params$alpha.ctrl
 beta.case <- as.numeric(strsplit(params$beta.case, split=" ")[[1]])
 beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
+
+
+#### Load priors
+priors <- load_priors(param, index)
+prior_alpha_ca_var <- priors$prior_alpha
+prior_alpha_co_var <- priors$prior_alpha
+prior_phi <- priors$prior_phi
+prior_theta <- priors$prior_theta
 
 
 Theta <- 6
@@ -90,46 +106,6 @@ prior_alpha_ca_mean <- Alpha.case
 prior_alpha_co_mean <- Alpha.ctrl
 
 
-# Alpha variances
-prior_alpha_var <- c(6, 12, 18, 24, 30)
-i_alpha <- 2
-
-prior_alpha_ca_var <- prior_alpha_var[i_alpha]
-prior_alpha_co_var <- prior_alpha_var[i_alpha]
-
-# target variances
-# 4, 9, 12, 20, 40
-iterate_ig_variance(Phi)
-priors_phi <- list(
-  c(32, 372),
-  c(18, 204),
-  c(14, 156),
-  c(9.167, 98),
-  c(5.58, 55)
-)
-
-
-# target theta variances
-# 3, 6, 12, 24, 48
-iterate_g_variance(Theta, 0.25, 50)
-priors_theta <- list(
-  c(12, 0.5),
-  c(6, 1),
-  c(3, 2),
-  c(1.5, 4),
-  c(0.75, 8)
-)
-
-
-i_phi <- 2
-i_theta <- 3
-prior_phi <- priors_phi[[i_phi]]
-prior_theta <- priors_theta[[i_theta]]
-# sim_name <- paste("iterate_prior_phi_", i_phi, sep="")
-# sim_name <- paste("iterate_prior_theta_", i_theta, sep="")
-sim_name <- paste("iterate_prior_alpha_", i_alpha, sep="")
-
-
 #### Load tuning parameters
 # tune_params_psgp <- load_params(paste("params_", sim_name, ".json", sep=""))
 # n.sample <- tune_params_psgp$n.sample
@@ -150,8 +126,8 @@ sim_name <- paste("iterate_prior_alpha_", i_alpha, sep="")
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 12500
-burnin <- 8500
+n.sample <- 13500
+burnin <- 9500
 L_w <- 8
 L_ca <- 8
 L_co <- 8
@@ -188,7 +164,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 
 # optionally burnin the output more
-# output <- burnin_after(output, n.burn=250)
+output <- burnin_after(output, n.burn=1000)
 
 
 # optionally continue running if necessary
@@ -239,10 +215,10 @@ save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 w.hat <- colMeans(output$samples.w)
 beta_ca_h <- colMeans(output$samples.beta.ca)
 beta_co_h <- colMeans(output$samples.beta.co)
-alpha_ca_h <- colMeans(output$samples.alpha.ca)
-alpha_co_h <- colMeans(output$samples.alpha.co)
-phi_h <- colMeans(output$samples.phi)
-theta_h <- colMeans(output$samples.theta)
+alpha_ca_h <- mean(output$samples.alpha.ca)
+alpha_co_h <- mean(output$samples.alpha.co)
+phi_h <- mean(output$samples.phi)
+theta_h <- mean(output$samples.theta)
 
 
 ####################################
