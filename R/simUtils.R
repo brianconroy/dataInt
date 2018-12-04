@@ -27,6 +27,7 @@ load_priors <- function(param, index){
   
 }
 
+
 calc_log_odds_output <- function(output, true_params){
   
   location_indicators <- true_params$location_indicators

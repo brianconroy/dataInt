@@ -13,8 +13,8 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-sampling <- "medium"
-prevalence <- "high"
+sampling <- "high"
+prevalence <- "medium"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -41,8 +41,8 @@ prior_alpha_ca_mean <- Alpha.case
 prior_alpha_ca_var <- 6
 prior_alpha_co_mean <- Alpha.ctrl
 prior_alpha_co_var <- 6
-prior_theta <- c(2.5, 2.5)
-prior_phi <- c(9.33, 100)
+prior_theta <- c(6, 1)
+prior_phi <- c(18, 204)
 
 
 #### Prism Principal Components
@@ -127,9 +127,9 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 6000
-burnin <- 3000
-L <- 8
+n.sample <- 10000
+burnin <- 0
+L_w <- 8
 L_ca <- 8
 L_co <- 8
 L_a_ca <- 8
@@ -162,6 +162,13 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
                          prior_phi=prior_phi, prior_theta=prior_theta,
                          prior_alpha_ca_var, prior_alpha_co_var)
+
+# optionally burnin the output more
+output <- burnin_after(output, n.burn=3000)
+
+
+# optionally continue running if necessary
+output <- continueMCMC(data, output, n.sample=3000)
 
 
 plot(output$deltas_w)
@@ -208,10 +215,10 @@ save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 w.hat <- colMeans(output$samples.w)
 beta_ca_h <- colMeans(output$samples.beta.ca)
 beta_co_h <- colMeans(output$samples.beta.co)
-alpha_ca_h <- colMeans(output$samples.alpha.ca)
-alpha_co_h <- colMeans(output$samples.alpha.co)
-phi_h <- colMeans(output$samples.phi)
-theta_h <- colMeans(output$samples.theta)
+alpha_ca_h <- mean(output$samples.alpha.ca)
+alpha_co_h <- mean(output$samples.alpha.co)
+phi_h <- mean(output$samples.phi)
+theta_h <- mean(output$samples.theta)
 
 
 #### Spatial poisson regression
