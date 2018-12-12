@@ -63,8 +63,8 @@ p <- "medium"
 par(mfrow=c(2,3))
 xl <- c(-22, 7)
 yl <- c(-22, 7)
-lodds_true <- calc_log_odds_true(s, p)
 true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+lodds_true_general <- calc_log_odds_true(true_params)
 for (i in 1:5){
   o <- get_output_priorsens(outputs, 'alpha', i)
   lodds <- calc_log_odds_output(o, true_params)

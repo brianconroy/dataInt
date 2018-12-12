@@ -15,7 +15,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs()
-s <- "none"
+s <- "high"
 
 
 # log odds

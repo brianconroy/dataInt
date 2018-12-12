@@ -17,6 +17,16 @@ load_sim_params <- function(sampling, prevalence){
 }
 
 
+load_sim_params_size <- function(size){
+  
+  sim_params <- read.table("/Users/brianconroy/Documents/research/dataInt/output/simParams_size.txt",
+                           stringsAsFactors=F, header=T)
+  params <- sim_params[sim_params$size == size,]
+  return(params)
+  
+}
+
+
 ig_var <- function(a, b){
   
   return(b^2/((a-1)^2 * (a-2)))

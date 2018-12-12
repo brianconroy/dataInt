@@ -11,7 +11,8 @@
 #' @export
 #'
 #' @examples
-write_latex_table <- function(df, fname){
+write_latex_table <- function(df, fname, 
+                              path="/Users/brianconroy/Documents/research/dataInt/output/"){
   
   df[,] <- lapply(df[, ], as.character)
   tab <- "\\begin{table}[h]
@@ -34,7 +35,7 @@ write_latex_table <- function(df, fname){
   \\end{center}
   \\end{table}"
   tab <- paste(tab, end, sep=" ")
-  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  path <- paste(path, fname, sep="")
   write(tab, path)
 
 }

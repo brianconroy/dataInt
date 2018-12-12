@@ -348,12 +348,44 @@ plot_traces <- function(outputs, sampling, prevalence){
 }
 
 
+plot_traces_general <- function(output, true_params){
+  
+  par(mfrow=c(3,4))
+  padded_plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', true_params$beta.case[1])
+  padded_plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', true_params$beta.case[2])
+  padded_plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', true_params$beta.case[3])
+  padded_plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', true_params$beta.ctrl[1])
+  padded_plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', true_params$beta.ctrl[2])
+  padded_plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', true_params$beta.ctrl[3])
+  padded_plot(output$samples.alpha.ca, ylab='Alpha (case)', true_params$Alpha.case[1])
+  padded_plot(output$samples.alpha.co, ylab='Alpha (control)', true_params$Alpha.ctrl[1])
+  padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
+  padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  par(mfrow=c(1,1))
+  
+}
+
+
 get_output <- function(outputs, sampling, prevalence, type){
   
   output_target <- list()
   tag <- paste(sampling, prevalence, sep="_")
   for (o in outputs){
     if (grepl(tag, o$description) & grepl(type, o$description)){
+      output_target <- o
+      break
+    }
+  }
+  return(output_target)
+  
+}
+
+
+get_output_general <- function(outputs, tag){
+  
+  output_target <- list()
+  for (o in outputs){
+    if (grepl(tag, o$description)){
       output_target <- o
       break
     }
@@ -393,8 +425,8 @@ calc_log_odds <- function(outputs, sampling, prevalence){
   w.hat <- colMeans(output_target$samples.w)
   beta_ca_h <- colMeans(output_target$samples.beta.ca)
   beta_co_h <- colMeans(output_target$samples.beta.co)
-  alpha_ca_h <- colMeans(output_target$samples.alpha.ca)
-  alpha_co_h <- colMeans(output_target$samples.alpha.co)
+  alpha_ca_h <- mean(output_target$samples.alpha.ca)
+  alpha_co_h <- mean(output_target$samples.alpha.co)
   
   lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
   return(lodds.ps)
@@ -416,6 +448,22 @@ calc_log_odds <- function(outputs, sampling, prevalence){
 calc_log_odds_true <- function(sampling, prevalence){
   
   true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+  location_indicators <- true_params$location_indicators
+  x_standard <- load_x_standard(location_indicators)
+  beta.case <- true_params$beta.case
+  beta.ctrl <- true_params$beta.ctrl
+  Alpha.case <- true_params$Alpha.case
+  Alpha.ctrl <- true_params$Alpha.ctrl
+  W <- true_params$W
+  
+  lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.true)
+  
+}
+
+
+calc_log_odds_true_general <- function(true_params){
+  
   location_indicators <- true_params$location_indicators
   x_standard <- load_x_standard(location_indicators)
   beta.case <- true_params$beta.case
@@ -707,6 +755,27 @@ save_true_params <- function(sampling, prevalence){
 }
 
 
+save_true_params_general <- function(tag){
+  
+  fname <- paste('true_params_', tag, '.json', sep='')
+  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  store <- list()
+  store$Alpha.case <- Alpha.case
+  store$Alpha.ctrl <- Alpha.ctrl
+  store$beta.case <- beta.case
+  store$beta.ctrl <- beta.ctrl
+  store$W <- W
+  store$Theta <- Theta
+  store$Phi <- Phi
+  store$location_indicators <- as.logical(locs$status)
+  store$location_ids <- locs$ids
+  write(toJSON(store), path)
+  
+  
+}
+
+
+
 load_x_standard <- function(location_indicators){
   
   caPr <- load_prism_pcs()
@@ -731,13 +800,13 @@ load_x_standard <- function(location_indicators){
 
 
 # load mcmc outputs
-load_sim_outputs <- function(){
+load_sim_outputs <- function(tag=''){
   
   output_list <- list()
   
   counter <- 1
   for (f in list.files('/Users/brianconroy/Documents/research/dataInt/output/')){
-    if (grepl('output', f) & !grepl('krige', f)) {
+    if (grepl('output', f) & !grepl('krige', f) & grepl(tag, f)) {
       output_list[[counter]] <- load_output(f)
       counter <- counter + 1
     }

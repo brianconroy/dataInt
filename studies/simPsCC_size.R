@@ -12,14 +12,13 @@ library(mvtnorm)
 library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
-
-sampling <- "none"
-prevalence <- "medium"
-sim_name <- gen_sim_name(sampling, prevalence)
+# sizes: 75, 123, 619, 1689, 5495
+size <- "5495"
+sim_name <- paste("simPsCC_size_", size, sep="")
 
 
 #### Load simulation parameters
-params <- load_sim_params(sampling, prevalence)
+params <- load_sim_params_size(size)
 Alpha.case <- params$alpha.case
 Alpha.ctrl <- params$alpha.ctrl
 beta.case <- as.numeric(strsplit(params$beta.case, split=" ")[[1]])
@@ -32,6 +31,7 @@ beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
 # Alpha.ctrl <- -1
 # beta.ctrl <- c(2, 1, 0.5)
 
+
 Theta <- 6
 Phi <- 12
 
@@ -40,8 +40,8 @@ prior_alpha_ca_mean <- Alpha.case
 prior_alpha_ca_var <- 6
 prior_alpha_co_mean <- Alpha.ctrl
 prior_alpha_co_var <- 6
-prior_theta <- c(2.5, 2.5)
-prior_phi <- c(9.33, 100)
+prior_theta <- c(6, 1)
+prior_phi <- c(18, 204)
 
 
 #### Prism Principal Components
@@ -59,11 +59,28 @@ Sigma <- Exponential(d, range=Theta, phi=Phi)
 set.seed(40)
 W <- mvrnorm(n=1, mu=rep(0, length(cells.all)), Sigma)
 N <- length(W)
+hist(W)
+
+
+# X.standard <- load_x_standard(as.logical(locs$status))
+# hist(abs(Alpha.case * W)/abs(X.standard %*% beta.case))
+# summary(abs(Alpha.case * W)/abs(X.standard %*% beta.case))
+# 
+# hist(abs(Alpha.ctrl * W)/abs(X.standard %*% beta.ctrl))
+# summary(abs(Alpha.ctrl * W)/abs(X.standard %*% beta.ctrl))
+
+
+r.w <- caPr.disc[[1]]
+r.w[][!is.na(r.w[])] <- W
+par(mfrow=c(1,3))
+plot(r.w)
+plot(caPr.disc[[1]])
+plot(caPr.disc[[2]])
 
 
 #### Simulate locations
 r <- caPr.disc[[1]]
-locs <- simLocW(W, r, beta=0, seed=42)
+locs <- simLocW(W, r, beta=0, seed=11) # 42
 sum(locs$status)
 hist(W)
 plot(r)
@@ -75,6 +92,9 @@ cov.disc <- caPr.disc
 case.data <- simConditionalGp2(cov.disc, locs, beta.case, Alpha.case, W, seed=42)
 ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40)
 print(sum(case.data$y)/sum(case.data$y + ctrl.data$y))
+
+
+save_true_params_general(paste('size', size, sep='_'))
 
 
 data <- list(
@@ -106,39 +126,48 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 4000
-burnin <- 1000
-L <- 10
+n.sample <- 3000
+burnin <- 0
+L_w <- 8
 L_ca <- 8
 L_co <- 8
 L_a_ca <- 8
 L_a_co <- 8
+proposal.sd.theta <- 0.15
 
 set.seed(241)
 beta_ca_i <- abs(rnorm(3))
 beta_co_i <- abs(rnorm(3))
-alpha_ca_i <- runif(1, 1, 2)
-alpha_co_i <- runif(1, -2, -1)
+alpha_ca_i <- runif(1, 2, 3)
+alpha_co_i <- runif(1, -3, -2)
 theta_i <- runif(1, 9, 10)
 phi_i <- runif(1, 6, 8)
-w_i <- rnorm(length(W))
+w_i <- W #+ rnorm(length(W))
 
-m_aca <- 2000
-m_aco <- 2000
-m_ca <- 3000
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
 output <- prefSampleGpCC(data, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,
-                         proposal.sd.theta=0.2,
+                         proposal.sd.theta=proposal.sd.theta,
                          m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
                          target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
                          self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
                          delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
-                         prior_phi=prior_phi, prior_theta=prior_theta)
+                         prior_phi=prior_phi, prior_theta=prior_theta,
+                         prior_alpha_ca_var, prior_alpha_co_var)
+
+# optionally burnin the output more
+output <- burnin_after(output, n.burn=500)
+
+
+# optionally continue running if necessary
+output <- continueMCMC(data, output, n.sample=3000)
 
 
 plot(output$deltas_w)
@@ -182,99 +211,25 @@ output$description <- sim_name
 save_output(output, paste("output_", sim_name, ".json", sep=""))
 save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 
-#### Spatial poisson regression
-## Cases
-X.ca <- case.data$x.standardised
-Y.ca <- case.data$y
-d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
+w.hat <- colMeans(output$samples.w)
+beta_ca_h <- colMeans(output$samples.beta.ca)
+beta_co_h <- colMeans(output$samples.beta.co)
+alpha_ca_h <- mean(output$samples.alpha.ca)
+alpha_co_h <- mean(output$samples.alpha.co)
+phi_h <- mean(output$samples.phi)
+theta_h <- mean(output$samples.theta)
 
 
-#### load tuning parameters or set them manually
-set.seed(314)
-beta_ca_i_ <- beta.case + rnorm(length(beta.case))
-w_i_ <- rnorm(nrow(d.sub))
-phi_i_ <- Phi + rnorm(1)
-theta_i_ <- Theta + rnorm(1)
-
-n.sample_ <- 25000
-burnin_ <- 3000
-L_w_ <- 8
-L_b_ <- 8
-
-prior_phi_ <- c(3, 40)
-prior_theta_ <- c(2.5, 2.5)
-
-output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub, 
-                          n.sample=n.sample_, burnin=burnin_, proposal.sd.theta=0.3,
-                          L_w=L_w_, L_b=L_b_,
-                          beta_initial=beta_ca_i_, w_initial=w_i_, 
-                          phi_initial=phi_i_, theta_initial=theta_i_,
-                          prior_phi=prior_phi_, prior_theta=prior_theta_)
-
-print(output.sp_ca$accept)
-plot(apply(output.sp_ca$samples.w, 1, mean), type='l', col='2')
-view_tr_w(output.sp_ca$samples.w)
-
-view_tr(output.sp_ca$samples.beta[,1])
-view_tr(output.sp_ca$samples.beta[,2])
-view_tr(output.sp_ca$samples.theta)
-view_tr(output.sp_ca$samples.phi)
-print(colMeans(output.sp_ca$samples.beta))
-print(colMeans(output.sp_ca$samples.theta))
-print(colMeans(output.sp_ca$samples.phi))
-
-save_output(output.sp_ca, paste("output.sp_ca_", sim_name, ".json", sep=""))
-save_params_psc(paste("params.sp_ca_", sim_name, ".json", sep=""))
-
-## Controls
-X.co <- ctrl.data$x.standardised
-Y.co <- ctrl.data$y
-
-n.sample__ <- 25000
-burnin__ <- 3000
-L_w__ <- 8
-L_b__ <- 8
-
-set.seed(314)
-beta_co_i__ <- beta.ctrl + rnorm(length(beta.ctrl))
-w_i__ <- rnorm(nrow(d.sub))
-phi_i__ <- Phi + rnorm(1)
-theta_i__ <- Theta + rnorm(1)
-
-prior_phi__ <- c(3, 40)
-prior_theta__ <- c(2.5, 2.5)
-
-output.sp_co <- poissonGp(X.co, Y.co, d.sub,
-                          n.sample=n.sample__, burnin=burnin__, 
-                          L_w=L_w__, L_b=L_b__, proposal.sd.theta=0.3,
-                          beta_initial=beta_co_i__, w_initial=w_i__, 
-                          phi_initial=phi_i__, theta_initial=theta_i__,
-                          prior_phi=prior_phi__, prior_theta=prior_theta__)
-
-print(output.sp_co$accept)
-plot(apply(output.sp_co$samples.w, 1, mean), type='l', col='2')
-view_tr_w(output.sp_co$samples.w)
-
-view_tr(output.sp_co$samples.beta[,1])
-view_tr(output.sp_co$samples.beta[,2])
-view_tr(output.sp_co$samples.theta)
-view_tr(output.sp_co$samples.phi)
-print(colMeans(output.sp_co$samples.beta))
-print(colMeans(output.sp_co$samples.theta))
-print(colMeans(output.sp_co$samples.phi))
-
-save_output(output.sp_co, paste("output.sp_co_", sim_name, ".json", sep=""))
-save_params_psco(paste("params.sp_co_", sim_name, ".json", sep=""))
-
-#### Poisson regression
-## Cases
-rmodel.ca <- glm(Y.ca ~ X.ca-1, family='poisson')
-beta_ca_r <- coefficients(rmodel.ca)
-
-## Controls
-rmodel.co <- glm(Y.co ~ X.co-1, family='poisson')
-beta_co_r <- coefficients(rmodel.co)
+####################################
+# save and summarize param estimates
+# calculate and compare risk surface
+####################################
 
 
-save_estimates_pr(beta_ca_r, beta_co_r, paste("estimates_poisson_", sim_name, ".json", sep=""))
+X.standard <- load_x_standard(as.logical(locs$status))
+lodds.true <- X.standard %*% beta.case + Alpha.case * W - X.standard %*% beta.ctrl - Alpha.ctrl * W
+lrisk.true <- lodds.true/(1 - lodds.true)
 
+lodds.ps <- X.standard %*% beta_ca_h + alpha_ca_h * w.hat - X.standard %*% beta_co_h - alpha_co_h * w.hat
+lrisk.ps <- lodds.ps/(1-lodds.ps)
+plot(x=lodds.true, y=lodds.ps, main='A)', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')

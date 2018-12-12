@@ -14,7 +14,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sampling <- "high"
-prevalence <- "medium"
+prevalence <- "high"
 sim_name <- gen_sim_name(sampling, prevalence)
 
 
@@ -164,7 +164,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          prior_alpha_ca_var, prior_alpha_co_var)
 
 # optionally burnin the output more
-output <- burnin_after(output, n.burn=3000)
+output <- burnin_after(output, n.burn=5000)
 
 
 # optionally continue running if necessary
