@@ -15,11 +15,11 @@ load_priors <- function(param, index){
     priors$prior_phi <- priors_phi[2,]
     priors$prior_theta <- priors_theta[3,]
   } else if (param == 'phi'){
-    priors$prior_alpha <- 6
+    priors$prior_alpha <- 4
     priors$prior_phi <- priors_phi[index,]
     priors$prior_theta <- c(2.5, 2.5)
   } else if (param == 'theta'){
-    priors$prior_alpha <- 6
+    priors$prior_alpha <- 4
     priors$prior_phi <- c(14, 156)
     priors$prior_theta <- priors_theta[index,]
   }
@@ -590,12 +590,14 @@ load_output <- function(fname){
 #' @export
 #'
 #' @examples
-save_params_psgp <- function(fname){
+save_params_psgp <- function(fname, prior="flat"){
   
   store=list()
 
-  store$prior_alpha_co_mean=prior_alpha_co_mean
-  store$prior_alpha_co_var=prior_alpha_co_var
+  if (prior != "flat"){
+    store$prior_alpha_co_mean=prior_alpha_co_mean
+    store$prior_alpha_co_var=prior_alpha_co_var
+  }
   store$prior_phi=prior_phi
   store$prior_theta=prior_theta
   

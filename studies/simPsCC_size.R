@@ -1,10 +1,9 @@
 ############################
 # Simulation study
-# Compare the shared latent
-# process model against 
-# poisson and spatial poisson
-# models in estimating risk
-# surface
+# to verify model convergence
+# over different sample sizes
+# i.e. numbers of collected
+# specimen
 ############################
 
 library(plyr)
@@ -25,23 +24,16 @@ beta.case <- as.numeric(strsplit(params$beta.case, split=" ")[[1]])
 beta.ctrl <- as.numeric(strsplit(params$beta.ctrl, split=" ")[[1]])
 
 
-#### Or manually define them
-# Alpha.case <- 1
-# beta.case <- c(-0.5, 0.25, -0.5)
-# Alpha.ctrl <- -1
-# beta.ctrl <- c(2, 1, 0.5)
-
-
 Theta <- 6
 Phi <- 12
 
 
-prior_alpha_ca_mean <- Alpha.case
-prior_alpha_ca_var <- 6
-prior_alpha_co_mean <- Alpha.ctrl
-prior_alpha_co_var <- 6
 prior_theta <- c(6, 1)
 prior_phi <- c(18, 204)
+prior_alpha_ca_var <- 4
+prior_alpha_co_var <- 4
+prior_alpha_ca_mean <- Alpha.case
+prior_alpha_co_mean <- Alpha.ctrl
 
 
 #### Prism Principal Components
@@ -126,7 +118,7 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 3000
+n.sample <- 2000
 burnin <- 0
 L_w <- 8
 L_ca <- 8
@@ -136,13 +128,35 @@ L_a_co <- 8
 proposal.sd.theta <- 0.15
 
 set.seed(241)
-beta_ca_i <- abs(rnorm(3))
-beta_co_i <- abs(rnorm(3))
-alpha_ca_i <- runif(1, 2, 3)
-alpha_co_i <- runif(1, -3, -2)
-theta_i <- runif(1, 9, 10)
-phi_i <- runif(1, 6, 8)
-w_i <- W #+ rnorm(length(W))
+# beta_ca_i <- abs(rnorm(3))
+# beta_co_i <- abs(rnorm(3))
+# alpha_ca_i <- runif(1, 2, 3)
+# alpha_co_i <- runif(1, -3, -2)
+# theta_i <- runif(1, 9, 10)
+# phi_i <- runif(1, 6, 8)
+# w_i <- rep(0, length(W))
+
+########################
+# must set smart initial 
+# values for size >= 619
+########################
+
+# W initial value
+w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=200, L=10,
+                       prior_phi=prior_phi, prior_theta=prior_theta)
+view_logistic_output(w_output)
+w_i <- colMeans(w_output$samples.w)
+theta_i <- mean(w_output$samples.theta)
+phi_i <- mean(w_output$samples.phi)
+
+# Beta & alpha initial values
+ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
 
 m_aca <- 1000
 m_aco <- 1000
@@ -160,14 +174,14 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
                          theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
                          prior_phi=prior_phi, prior_theta=prior_theta,
-                         prior_alpha_ca_var, prior_alpha_co_var)
+                         prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
 # optionally burnin the output more
-output <- burnin_after(output, n.burn=500)
+output <- burnin_after(output, n.burn=1000)
 
 
 # optionally continue running if necessary
-output <- continueMCMC(data, output, n.sample=3000)
+output <- continueMCMC(data, output, n.sample=1000)
 
 
 plot(output$deltas_w)
@@ -207,7 +221,7 @@ print(mean(output$samples.alpha.ca))
 view_tr(output$samples.alpha.co, Alpha.ctrl, title='B)')
 print(mean(output$samples.alpha.co))
 
-output$description <- sim_name
+output$description <- paste(sim_name, sep="")
 save_output(output, paste("output_", sim_name, ".json", sep=""))
 save_params_psgp(paste("params_", sim_name, ".json", sep=""))
 

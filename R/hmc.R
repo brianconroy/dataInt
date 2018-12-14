@@ -67,6 +67,53 @@ Ualpha <- function(y, w, x, beta, alpha, prior_mean, prior_var){
 }
 
 
+Ualpha_gamma <- function(y, w, x, beta, alpha, shape, scale, type){
+  
+  # likelihood
+  logd <- 0
+  lin_preds <- x %*% beta + alpha * w
+  for (i in 1:length(y)){
+    logd <- logd + dpois(y[i], lambda=exp(lin_preds[i]), log=T)
+  }
+  
+  # prior
+  if (type == 'case'){
+    logprior <- dgamma(alpha, shape=shape, scale=scale, log=T)
+  } else {
+    logprior <- dgamma(-alpha, shape=shape, scale=scale, log=T)
+  }
+  
+  logd <- logd + logprior
+  
+  return(-logd)
+  
+}
+
+
+Ualpha_flat <- function(y, w, x, beta, alpha, prior_lower_bound, prior_upper_bound){
+  
+  # likelihood
+  logd <- 0
+  lin_preds <- x %*% beta + alpha * w
+  for (i in 1:length(y)){
+    logd <- logd + dpois(y[i], lambda=exp(lin_preds[i]), log=T)
+  }
+  
+  # prior
+  log_prior <- 0
+  if (!is.na(alpha)){
+    if (alpha < prior_lower_bound || alpha > prior_upper_bound){
+      log_prior <- -Inf
+    }
+  } else {
+    log_prior <- -Inf
+  }
+  logd <- logd + log_prior
+  
+  return(-logd)
+  
+}
+
 
 dU_w <- function(y.l, x.c, y.c, alpha, beta.c, w, sigma.inv, loc.stats){
   
@@ -127,6 +174,41 @@ dU_alpha <- function(y, w, x, beta, alpha, prior_mean, prior_var){
   prior_var_inv <- 1/prior_var
   
   grad <- grad - (alpha - prior_mean) * prior_var_inv
+  return(-grad)
+  
+}
+
+
+dU_alpha_gamma <- function(y, w, x, beta, alpha, shape, scale, type){
+  
+  grad <- 0
+  lin_preds <- x %*% beta + alpha * w
+  
+  for (i in 1:length(w)){
+    grad <- grad + w[i] * (y[i] - exp(lin_preds[i,]))
+  }
+  
+  if (type=='case'){
+    prior_grad <- (shape - 1)/alpha - 1/scale
+  } else{
+    prior_grad <- (shape - 1)/(-alpha) - 1/scale
+  }
+  
+  grad <- grad + prior_grad
+  return(-grad)
+  
+}
+
+
+dU_alpha_flat <- function(y, w, x, beta, alpha){
+  
+  grad <- 0
+  lin_preds <- x %*% beta + alpha * w
+  
+  for (i in 1:length(w)){
+    grad <- grad + w[i] * (y[i] - exp(lin_preds[i,]))
+  }
+  
   return(-grad)
   
 }
@@ -249,7 +331,6 @@ caseHmcUpdate <- function(y, w, x, beta, alpha, delta_c, L_c){
 }
 
 
-
 alphaHmcUpdate <- function(y, w, x, beta, alpha, delta_a, prior_mean, prior_var, L_a){
   
   
@@ -278,6 +359,118 @@ alphaHmcUpdate <- function(y, w, x, beta, alpha, delta_a, prior_mean, prior_var,
   # evaluate energies
   U0 <- Ualpha(y, w, x, beta, acurr, prior_mean, prior_var)
   UStar <- Ualpha(y, w, x, beta, aStar, prior_mean, prior_var)
+  
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  a <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  
+  if (is.na(a)){
+    a <- 0
+  }
+  
+  if (runif(1, 0, 1) < a){
+    anext <- aStar
+    accept <- 1
+  } else {
+    anext <- acurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$alpha <- anext
+  out$accept <- accept
+  out$a <- a
+  return(out)
+  
+}
+
+
+alphaHmcUpdate_flat <- function(y, w, x, beta, alpha, delta_a, prior_lower_bound, prior_upper_bound, L_a){
+  
+  
+  # sample random momentum
+  p0 <- rnorm(1)
+  
+  # simulate Hamiltonian dynamics
+  acurr <- alpha
+  pStar <- p0 - 0.5 * delta_a * dU_alpha_flat(y, w, x, beta, acurr)
+  
+  # first full step for position
+  aStar <- acurr + delta_a*pStar
+  
+  # full steps
+  for (jL in 1:c(L_a-1)){
+    # momentum
+    pStar <- pStar - delta_a * dU_alpha_flat(y, w, x, beta, aStar)
+    
+    # position
+    aStar <- aStar + delta_a*pStar
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta_a * dU_alpha_flat(y, w, x, beta, aStar)
+  
+  # evaluate energies
+  U0 <- Ualpha_flat(y, w, x, beta, acurr, prior_lower_bound, prior_upper_bound)
+  UStar <- Ualpha_flat(y, w, x, beta, aStar, prior_lower_bound, prior_upper_bound)
+  
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  a <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  
+  if (is.na(a)){
+    a <- 0
+  }
+  
+  if (runif(1, 0, 1) < a){
+    anext <- aStar
+    accept <- 1
+  } else {
+    anext <- acurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$alpha <- anext
+  out$accept <- accept
+  out$a <- a
+  return(out)
+  
+}
+
+
+alphaHmcUpdate_gamma <- function(y, w, x, beta, alpha, delta_a, shape, scale, L_a, type){
+  
+  
+  # sample random momentum
+  p0 <- rnorm(1)
+  
+  # simulate Hamiltonian dynamics
+  acurr <- alpha
+  pStar <- p0 - 0.5 * delta_a * dU_alpha_gamma(y, w, x, beta, acurr, shape, scale, type)
+  
+  # first full step for position
+  aStar <- acurr + delta_a*pStar
+  
+  # full steps
+  for (jL in 1:c(L_a-1)){
+    # momentum
+    pStar <- pStar - delta_a * dU_alpha_gamma(y, w, x, beta, aStar, shape, scale, type)
+    
+    # position
+    aStar <- aStar + delta_a*pStar
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta_a * dU_alpha_gamma(y, w, x, beta, aStar, shape, scale, type)
+  
+  # evaluate energies
+  U0 <- Ualpha_gamma(y, w, x, beta, acurr, shape, scale, type)
+  UStar <- Ualpha_gamma(y, w, x, beta, aStar, shape, scale, type)
   
   K0 <- K(p0)
   KStar <- K(pStar)
