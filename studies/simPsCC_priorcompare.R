@@ -339,50 +339,159 @@ output_tnormal_uncal <- prefSampleGpCC_truncnorm(data, n.sample, burnin,
 
 
 # optionally burnin the output_normal more
-output_normal <- burnin_after(output_normal, n.burn=500)
+output_tnormal_uncal <- burnin_after(output_tnormal_uncal, n.burn=500)
 
 
 # optionally continue running if necessary
-output_normal <- continueMCMC(data, output_normal, n.sample=500)
+output_tnormal_uncal <- continueMCMC(data, output_tnormal_uncal, n.sample=2000)
 
 
-plot(output_normal$deltas_w)
-plot(output_normal$deltas_ca)
-plot(output_normal$deltas_co)
-plot(output_normal$deltas_aca)
-plot(output_normal$deltas_aco)
-print(output_normal$accept)
+plot(output_tnormal_uncal$deltas_w)
+plot(output_tnormal_uncal$deltas_ca)
+plot(output_tnormal_uncal$deltas_co)
+plot(output_tnormal_uncal$deltas_aca)
+plot(output_tnormal_uncal$deltas_aco)
+print(output_tnormal_uncal$accept)
 
-plot(apply(output_normal$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
-w.hat <- colMeans(output_normal$samples.w)
+plot(apply(output_tnormal_uncal$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+w.hat <- colMeans(output_tnormal_uncal$samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)
 summary(100*(W-w.hat)/W)
-view_tr_w(output_normal$samples.w, w_true=W)
+view_tr_w(output_tnormal_uncal$samples.w, w_true=W)
 
-view_tr(output_normal$samples.theta, Theta)
-print(mean(output_normal$samples.theta)); print(Theta)
+view_tr(output_tnormal_uncal$samples.theta, Theta)
+print(mean(output_tnormal_uncal$samples.theta)); print(Theta)
 
-view_tr(output_normal$samples.phi, Phi)
-print(mean(output_normal$samples.phi)); print(Phi)
+view_tr(output_tnormal_uncal$samples.phi, Phi)
+print(mean(output_tnormal_uncal$samples.phi)); print(Phi)
 
 par(mfrow=c(2, 3))
-view_tr(output_normal$samples.beta.ca[,1], beta.case[1], title='A)')
-view_tr(output_normal$samples.beta.ca[,2], beta.case[2], title='B)')
-view_tr(output_normal$samples.beta.ca[,3], beta.case[3], title='C)')
-print(colMeans(output_normal$samples.beta.ca))
+padded_plot(output_tnormal_uncal$samples.beta.ca[,1], beta.case[1])
+padded_plot(output_tnormal_uncal$samples.beta.ca[,2], beta.case[2])
+padded_plot(output_tnormal_uncal$samples.beta.ca[,3], beta.case[3])
+print(colMeans(output_tnormal_uncal$samples.beta.ca))
 
-view_tr(output_normal$samples.beta.co[,1], beta.ctrl[1], title='D)')
-view_tr(output_normal$samples.beta.co[,2], beta.ctrl[2], title='E)')
-view_tr(output_normal$samples.beta.co[,3], beta.ctrl[3], title='F)')
-print(colMeans(output_normal$samples.beta.co))
+padded_plot(output_tnormal_uncal$samples.beta.co[,1], beta.ctrl[1])
+padded_plot(output_tnormal_uncal$samples.beta.co[,2], beta.ctrl[2])
+padded_plot(output_tnormal_uncal$samples.beta.co[,3], beta.ctrl[3])
+print(colMeans(output_tnormal_uncal$samples.beta.co))
 
 par(mfrow=c(1,2))
-view_tr(output_normal$samples.alpha.ca, Alpha.case, title='A)')
-print(mean(output_normal$samples.alpha.ca))
+view_tr(output_tnormal_uncal$samples.alpha.ca, Alpha.case, title='A)')
+print(mean(output_tnormal_uncal$samples.alpha.ca))
 
-view_tr(output_normal$samples.alpha.co, Alpha.ctrl, title='B)')
-print(mean(output_normal$samples.alpha.co))
+view_tr(output_tnormal_uncal$samples.alpha.co, Alpha.ctrl, title='B)')
+print(mean(output_tnormal_uncal$samples.alpha.co))
 
-output$description <- paste(sim_name, "_normal_w", sep="")
-save_output(output, paste("output_", sim_name, "_normal_w", ".json", sep=""))
-save_params_psgp(paste("params_", sim_name, "_normal_w", ".json", sep=""), prior='normal')
+tag <- "_tnormal_uncal"
+output_tnormal_uncal$description <- paste(sim_name, tag, sep="")
+save_output(output_tnormal_uncal, paste("output_", sim_name, tag, ".json", sep=""))
+save_params_psgp(paste("params_", sim_name, tag, ".json", sep=""), prior='normal')
+
+
+################################
+#### Truncated Normal priors
+#### Calibrated initial values
+################################
+
+
+n.sample <- 2000
+burnin <- 500
+L_w <- 8
+L_ca <- 8
+L_co <- 8
+L_a_ca <- 8
+L_a_co <- 8
+proposal.sd.theta <- 0.15
+
+w_output <- load_output("w_inival_output_priorcompare.json")
+view_logistic_output(w_output)
+w_i <- colMeans(w_output$samples.w)
+theta_i <- mean(w_output$samples.theta)
+phi_i <- mean(w_output$samples.phi)
+
+ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+prior_alpha_ca_mean <- Alpha.case
+prior_alpha_co_mean <- Alpha.ctrl
+prior_alpha_ca_var <- 4
+prior_alpha_co_var <- 4
+prior_alpha_ca <- c(prior_alpha_ca_mean, prior_alpha_ca_var)
+prior_alpha_co <- c(prior_alpha_co_mean, prior_alpha_co_var)
+
+output_tnormal_uncal <- prefSampleGpCC_truncnorm(data, n.sample, burnin,
+                                                 L_w, L_ca, L_co, L_a_ca, L_a_co,
+                                                 proposal.sd.theta=proposal.sd.theta,
+                                                 m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                                                 target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                                                 self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                                                 delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                                                 beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                                                 theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                                                 prior_phi=prior_phi, prior_theta=prior_theta,
+                                                 prior_alpha_ca=prior_alpha_ca, 
+                                                 prior_alpha_co=prior_alpha_co)
+
+
+# optionally burnin the output_normal more
+output_tnormal_uncal <- burnin_after(output_tnormal_uncal, n.burn=500)
+
+
+# optionally continue running if necessary
+output_tnormal_uncal <- continueMCMC(data, output_tnormal_uncal, n.sample=2000)
+
+
+plot(output_tnormal_uncal$deltas_w)
+plot(output_tnormal_uncal$deltas_ca)
+plot(output_tnormal_uncal$deltas_co)
+plot(output_tnormal_uncal$deltas_aca)
+plot(output_tnormal_uncal$deltas_aco)
+print(output_tnormal_uncal$accept)
+
+plot(apply(output_tnormal_uncal$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+w.hat <- colMeans(output_tnormal_uncal$samples.w)
+plot(x=W, y=w.hat); abline(0, 1, col=2)
+summary(100*(W-w.hat)/W)
+view_tr_w(output_tnormal_uncal$samples.w, w_true=W)
+
+view_tr(output_tnormal_uncal$samples.theta, Theta)
+print(mean(output_tnormal_uncal$samples.theta)); print(Theta)
+
+view_tr(output_tnormal_uncal$samples.phi, Phi)
+print(mean(output_tnormal_uncal$samples.phi)); print(Phi)
+
+par(mfrow=c(2, 3))
+padded_plot(output_tnormal_uncal$samples.beta.ca[,1], beta.case[1])
+padded_plot(output_tnormal_uncal$samples.beta.ca[,2], beta.case[2])
+padded_plot(output_tnormal_uncal$samples.beta.ca[,3], beta.case[3])
+print(colMeans(output_tnormal_uncal$samples.beta.ca))
+
+padded_plot(output_tnormal_uncal$samples.beta.co[,1], beta.ctrl[1])
+padded_plot(output_tnormal_uncal$samples.beta.co[,2], beta.ctrl[2])
+padded_plot(output_tnormal_uncal$samples.beta.co[,3], beta.ctrl[3])
+print(colMeans(output_tnormal_uncal$samples.beta.co))
+
+par(mfrow=c(1,2))
+view_tr(output_tnormal_uncal$samples.alpha.ca, Alpha.case, title='A)')
+print(mean(output_tnormal_uncal$samples.alpha.ca))
+
+view_tr(output_tnormal_uncal$samples.alpha.co, Alpha.ctrl, title='B)')
+print(mean(output_tnormal_uncal$samples.alpha.co))
+
+tag <- "_tnormal_cal"
+output_tnormal_uncal$description <- paste(sim_name, tag, sep="")
+save_output(output_tnormal_uncal, paste("output_", sim_name, tag, ".json", sep=""))
+save_params_psgp(paste("params_", sim_name, tag, ".json", sep=""), prior='normal')
+
