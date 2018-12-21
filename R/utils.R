@@ -27,6 +27,15 @@ load_sim_params_size <- function(size){
 }
 
 
+load_sim_params_priorcompare <- function(){
+  
+  sim_params <- read.table("/Users/brianconroy/Documents/research/dataInt/output/simParams_priorcompare.txt",
+                           stringsAsFactors=F, header=T)
+  return(sim_params)
+  
+}
+
+
 ig_var <- function(a, b){
   
   return(b^2/((a-1)^2 * (a-2)))

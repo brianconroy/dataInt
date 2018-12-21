@@ -305,12 +305,32 @@ padded_plot <- function(y, trueval, ylab=''){
     ub <- get_pad(ymax, 'upper')
     plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
   } else if (trueval > ymax){
-    lb <- get_pad(trueval, 'upper')
-    ub <- get_pad(ymin, 'lower')
+    ub <- get_pad(trueval, 'upper')
+    lb <- get_pad(ymin, 'lower')
     plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
   } else{
     plot(y, typ='l', ylab=ylab); abline(h=trueval, col='2')
   }
+  
+}
+
+
+padded_plot2 <- function(y, ylab=''){
+  
+  ymax <- max(y)
+  ymin <- min(y)
+  if (ymax > 0){
+    ub <- 2 * ymax
+    if (ymin > 0){
+      lb <- 0
+    } else{
+      lb <- 2 * ymin
+    }
+  } else {
+    lb <- 2 * ymin
+    ub <- 2 * abs(ub)
+  }
+  plot(y, ylim=c(lb, ub), type='l')
   
 }
 

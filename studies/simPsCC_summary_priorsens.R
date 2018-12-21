@@ -33,7 +33,7 @@ par(mfrow=c(2,3))
 for (i in 1:5){
  
   o <- get_output_priorsens(outputs, 'alpha', i)
-  padded_plot(o$samples.alpha.ca, true_params$Alpha.case, '')
+  plot(o$samples.alpha.ca, type='l', ylim=c(0, 1.5)); abline(h=true_params$Alpha.case, col=2)
   
 }
 dev.off()
@@ -51,7 +51,7 @@ par(mfrow=c(2,3))
 for (i in 1:5){
   
   o <- get_output_priorsens(outputs, 'alpha', i)
-  padded_plot(o$samples.alpha.co, true_params$Alpha.ctrl, '')
+  plot(o$samples.alpha.co, type='l', ylim=c(-1.5, 0)); abline(h=true_params$Alpha.ctrl, col=2)
   
 }
 dev.off()
@@ -64,11 +64,11 @@ par(mfrow=c(2,3))
 xl <- c(-22, 7)
 yl <- c(-22, 7)
 true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
-lodds_true_general <- calc_log_odds_true(true_params)
+lodds_true_general <- calc_log_odds_true_general(true_params)
 for (i in 1:5){
   o <- get_output_priorsens(outputs, 'alpha', i)
   lodds <- calc_log_odds_output(o, true_params)
-  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl); abline(0, 1, col=2)
+  plot(x=lodds_true_general, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl); abline(0, 1, col=2)
 }
 
 
@@ -88,7 +88,7 @@ par(mfrow=c(2,3))
 for (i in 1:5){
   
   o <- get_output_priorsens(outputs, 'phi', i)
-  padded_plot(o$samples.phi, true_params$Phi, '')
+  plot(o$samples.phi, type='l', ylim=c(0,30)); abline(h=true_params$Phi, col=2)
   
 }
 dev.off()

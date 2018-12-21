@@ -21,8 +21,8 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 sampling <- "medium"
 prevalence <- "medium"
-param <- "phi" # theta, phi, alpha
-index <- 3 # 1, 3, 5
+param <- "alpha" # theta, phi, alpha
+index <- 5 # 1, 3, 5
 sim_name <- paste("iterate_prior", param, index, sep="_")
 
 
@@ -122,7 +122,7 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 3000
+n.sample <- 2000
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -173,7 +173,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 
 # optionally burnin the output more
-output <- burnin_after(output, n.burn=2000)
+output <- burnin_after(output, n.burn=1000)
 
 
 # optionally continue running if necessary

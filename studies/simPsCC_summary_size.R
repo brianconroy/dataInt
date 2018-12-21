@@ -1,8 +1,11 @@
-############################
-# Summarizes the preferential
-# sampling x prevalence
-# simulation results
-############################
+#########################
+# Summarizes the sampling
+# size simulations
+
+# key finding: need to set
+# good initial values as 
+# size > 619
+#########################
 
 library(plyr)
 library(grid)
@@ -15,7 +18,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs(tag='size')
-sizes <- c(75, 123, 619, 1689, 5495)
+sizes <- c(75, 123, '619_fail', '619_success', 1689, 5495)
 
 
 # log odds scatterplots
@@ -23,6 +26,8 @@ par(mfrow=c(3,2))
 xl <- c(-15, 5)
 yl <- c(-15, 5)
 rmses <- c()
+labels <- c("A)", "B)", "C)", "D)", "E)", "F)")
+counter <- 1
 for (s in sizes){
   
   o <- get_output_general(outputs, tag=paste('size_', s, sep=""))
@@ -31,15 +36,10 @@ for (s in sizes){
   lodds_true <- calc_log_odds_true_general(true_params)
   rmse <- sqrt(mean((lodds-lodds_true)^2))
   rmses <- c(rmses, rmse)
-  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl); abline(0, 1, col=2)
-
+  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl, main=labels[counter]); abline(0, 1, col=2)
+  counter <- counter + 1
+  
 }
-
-
-# log odds rmses plot
-par(mfrow=c(1,1))
-plot(x=sizes, y=rmses, type='l', ylim=c(0, 1.5), col='2', xlab='Number of collected specimen')
-points(x=sizes, y=rmses, col='2')
 
 
 # log odds rmses table
@@ -79,11 +79,13 @@ for (s in sizes){
 # w scatterplots
 par(mfrow=c(3,2))
 counter <- 1
+labels <- c("A)", "B)", "C)", "D)", "E)", "F)")
 for (s in sizes){
   
   output <- get_output_general(outputs, tag=paste('size_', s, sep=""))
   truevals <- load_params(paste('true_params_size_', s, '.json', sep=''))
   w.hat <- colMeans(output$samples.w)
-  plot(x=truevals$W, y=w.hat, xlab="True W", ylab="Estimated W"); abline(0, 1, col='2')
+  plot(x=truevals$W, y=w.hat, xlab="True W", ylab="Estimated W", main=labels[counter]); abline(0, 1, col='2')
+  counter <- counter + 1
   
 }

@@ -38,9 +38,9 @@ Phi <- 12
 
 
 prior_alpha_ca_mean <- Alpha.case
-prior_alpha_ca_var <- 6
+prior_alpha_ca_var <- 4
 prior_alpha_co_mean <- Alpha.ctrl
-prior_alpha_co_var <- 6
+prior_alpha_co_var <- 4
 prior_theta <- c(6, 1)
 prior_phi <- c(18, 204)
 
@@ -127,8 +127,8 @@ data <- list(
 # w_i <- tune_params_psgp$w_i
 
 #### Or manually define them
-n.sample <- 10000
-burnin <- 0
+n.sample <- 3000
+burnin <- 500
 L_w <- 8
 L_ca <- 8
 L_co <- 8
@@ -136,14 +136,24 @@ L_a_ca <- 8
 L_a_co <- 8
 proposal.sd.theta <- 0.15
 
-set.seed(241)
-beta_ca_i <- abs(rnorm(3))
-beta_co_i <- abs(rnorm(3))
-alpha_ca_i <- runif(1, 2, 3)
-alpha_co_i <- runif(1, -3, -2)
-theta_i <- runif(1, 9, 10)
-phi_i <- runif(1, 6, 8)
-w_i <- W + rnorm(length(W))
+# W initial value
+# w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=200, L=10,
+#                        prior_phi=prior_phi, prior_theta=prior_theta)
+# view_logistic_output(w_output)
+# save_output(w_output, "w_inival_output_iteration.json")
+w_output <- load_output("w_inival_output_iteration.json")
+w_i <- colMeans(w_output$samples.w)
+theta_i <- mean(w_output$samples.theta)
+phi_i <- mean(w_output$samples.phi)
+
+# Beta & alpha initial values
+ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
 
 m_aca <- 1000
 m_aco <- 1000
@@ -164,11 +174,11 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                          prior_alpha_ca_var, prior_alpha_co_var)
 
 # optionally burnin the output more
-output <- burnin_after(output, n.burn=5000)
+output <- burnin_after(output, n.burn=2000)
 
 
 # optionally continue running if necessary
-output <- continueMCMC(data, output, n.sample=3000)
+output <- continueMCMC(data, output, n.sample=2000)
 
 
 plot(output$deltas_w)
@@ -178,7 +188,7 @@ plot(output$deltas_aca)
 plot(output$deltas_aco)
 print(output$accept)
 
-plot(apply(output$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+padded_plot(apply(output$samples.w, 1, mean), mean(W))
 w.hat <- colMeans(output$samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)
 summary(100*(W-w.hat)/W)
@@ -191,21 +201,21 @@ view_tr(output$samples.phi, Phi)
 print(mean(output$samples.phi)); print(Phi)
 
 par(mfrow=c(2, 3))
-view_tr(output$samples.beta.ca[,1], beta.case[1], title='A)')
-view_tr(output$samples.beta.ca[,2], beta.case[2], title='B)')
-view_tr(output$samples.beta.ca[,3], beta.case[3], title='C)')
+view_tr(output$samples.beta.ca[,1], beta.case[1])
+view_tr(output$samples.beta.ca[,2], beta.case[2])
+view_tr(output$samples.beta.ca[,3], beta.case[3])
 print(colMeans(output$samples.beta.ca))
 
-view_tr(output$samples.beta.co[,1], beta.ctrl[1], title='D)')
-view_tr(output$samples.beta.co[,2], beta.ctrl[2], title='E)')
-view_tr(output$samples.beta.co[,3], beta.ctrl[3], title='F)')
+padded_plot(output$samples.beta.co[,1], beta.ctrl[1])
+padded_plot(output$samples.beta.co[,2], beta.ctrl[2])
+padded_plot(output$samples.beta.co[,3], beta.ctrl[3])
 print(colMeans(output$samples.beta.co))
 
 par(mfrow=c(1,2))
-view_tr(output$samples.alpha.ca, Alpha.case, title='A)')
+view_tr(output$samples.alpha.ca, Alpha.case)
 print(mean(output$samples.alpha.ca))
 
-view_tr(output$samples.alpha.co, Alpha.ctrl, title='B)')
+view_tr(output$samples.alpha.co, Alpha.ctrl)
 print(mean(output$samples.alpha.co))
 
 output$description <- sim_name

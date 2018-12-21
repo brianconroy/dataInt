@@ -67,29 +67,6 @@ Ualpha <- function(y, w, x, beta, alpha, prior_mean, prior_var){
 }
 
 
-Ualpha_gamma <- function(y, w, x, beta, alpha, shape, scale, type){
-  
-  # likelihood
-  logd <- 0
-  lin_preds <- x %*% beta + alpha * w
-  for (i in 1:length(y)){
-    logd <- logd + dpois(y[i], lambda=exp(lin_preds[i]), log=T)
-  }
-  
-  # prior
-  if (type == 'case'){
-    logprior <- dgamma(alpha, shape=shape, scale=scale, log=T)
-  } else {
-    logprior <- dgamma(-alpha, shape=shape, scale=scale, log=T)
-  }
-  
-  logd <- logd + logprior
-  
-  return(-logd)
-  
-}
-
-
 Ualpha_flat <- function(y, w, x, beta, alpha, prior_lower_bound, prior_upper_bound){
   
   # likelihood
@@ -108,6 +85,29 @@ Ualpha_flat <- function(y, w, x, beta, alpha, prior_lower_bound, prior_upper_bou
   } else {
     log_prior <- -Inf
   }
+  logd <- logd + log_prior
+  
+  return(-logd)
+  
+}
+
+
+Ualpha_truncnorm <- function(y, w, x, beta, alpha, bound, bound_type, prior_mean, prior_var){
+  
+  # likelihood
+  logd <- 0
+  lin_preds <- x %*% beta + alpha * w
+  for (i in 1:length(y)){
+    logd <- logd + dpois(y[i], lambda=exp(lin_preds[i]), log=T)
+  }
+  
+  # prior
+  if (bound_type == 'lower'){
+    log_prior <- log(dtruncnorm(alpha, a=bound, mean=prior_mean, sd=sqrt(prior_var)))
+  } else {
+    log_prior <- log(dtruncnorm(alpha, b=bound, mean=prior_mean, sd=sqrt(prior_var)))
+  }
+  
   logd <- logd + log_prior
   
   return(-logd)
@@ -179,7 +179,7 @@ dU_alpha <- function(y, w, x, beta, alpha, prior_mean, prior_var){
 }
 
 
-dU_alpha_gamma <- function(y, w, x, beta, alpha, shape, scale, type){
+dU_alpha_truncnorm <- function(y, w, x, beta, alpha, prior_mean, prior_var){
   
   grad <- 0
   lin_preds <- x %*% beta + alpha * w
@@ -188,13 +188,7 @@ dU_alpha_gamma <- function(y, w, x, beta, alpha, shape, scale, type){
     grad <- grad + w[i] * (y[i] - exp(lin_preds[i,]))
   }
   
-  if (type=='case'){
-    prior_grad <- (shape - 1)/alpha - 1/scale
-  } else{
-    prior_grad <- (shape - 1)/(-alpha) - 1/scale
-  }
-  
-  grad <- grad + prior_grad
+  grad <- grad - (alpha - prior_mean)/prior_var
   return(-grad)
   
 }
@@ -443,7 +437,7 @@ alphaHmcUpdate_flat <- function(y, w, x, beta, alpha, delta_a, prior_lower_bound
 }
 
 
-alphaHmcUpdate_gamma <- function(y, w, x, beta, alpha, delta_a, shape, scale, L_a, type){
+alphaHmcUpdate_truncnorm <- function(y, w, x, beta, alpha, prior_mean, prior_var, delta_a, bound, bound_type, L_a){
   
   
   # sample random momentum
@@ -451,7 +445,7 @@ alphaHmcUpdate_gamma <- function(y, w, x, beta, alpha, delta_a, shape, scale, L_
   
   # simulate Hamiltonian dynamics
   acurr <- alpha
-  pStar <- p0 - 0.5 * delta_a * dU_alpha_gamma(y, w, x, beta, acurr, shape, scale, type)
+  pStar <- p0 - 0.5 * delta_a * dU_alpha_truncnorm(y, w, x, beta, acurr, prior_mean, prior_var)
   
   # first full step for position
   aStar <- acurr + delta_a*pStar
@@ -459,18 +453,18 @@ alphaHmcUpdate_gamma <- function(y, w, x, beta, alpha, delta_a, shape, scale, L_
   # full steps
   for (jL in 1:c(L_a-1)){
     # momentum
-    pStar <- pStar - delta_a * dU_alpha_gamma(y, w, x, beta, aStar, shape, scale, type)
+    pStar <- pStar - delta_a * dU_alpha_truncnorm(y, w, x, beta, aStar, prior_mean, prior_var)
     
     # position
     aStar <- aStar + delta_a*pStar
   }
   
   # last half step
-  pStar <- pStar - 0.5 * delta_a * dU_alpha_gamma(y, w, x, beta, aStar, shape, scale, type)
+  pStar <- pStar - 0.5 * delta_a * dU_alpha_truncnorm(y, w, x, beta, aStar, prior_mean, prior_var)
   
   # evaluate energies
-  U0 <- Ualpha_gamma(y, w, x, beta, acurr, shape, scale, type)
-  UStar <- Ualpha_gamma(y, w, x, beta, aStar, shape, scale, type)
+  U0 <- Ualpha_truncnorm(y, w, x, beta, acurr, bound, bound_type, prior_mean, prior_var)
+  UStar <- Ualpha_truncnorm(y, w, x, beta, aStar, bound, bound_type, prior_mean, prior_var)
   
   K0 <- K(p0)
   KStar <- K(pStar)

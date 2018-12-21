@@ -14,7 +14,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
-outputs <- load_sim_outputs()
+outputs <- load_sim_outputs(tag='prefSampleGpCC')
 s <- "high"
 
 
@@ -25,8 +25,8 @@ s <- "high"
 par(mfrow=c(3,3))
 prevs <- c("low", "medium", "high")
 mains <- c("A)", "B)", "C)")
-xl <- c(-25, 7)
-yl <- c(-25, 7)
+xl <- c(-44, 17)
+yl <- xl
 for (i in 1:3){
   p <- prevs[i]
   lodds <- calc_log_odds(outputs, s, p)
@@ -40,27 +40,31 @@ for (i in 1:3){
 }
 
 
-for (p in c("low", "medium", "high")){
-  fname <- paste("traces_", s, "_", p, ".png", sep="")
-  png(paste("/Users/brianconroy/Documents/research/project1/simulations_iteration/", fname, sep=""),
-      width=900, height=700, res=100)
-  plot_traces(outputs, s, p)
-  dev.off()
+for (s in c("none", "medium", "high")){
+  for (p in c("low", "medium", "high")){
+    fname <- paste("traces_", s, "_", p, ".png", sep="")
+    png(paste("/Users/brianconroy/Documents/research/project1/simulations_iteration/", fname, sep=""),
+        width=900, height=700, res=100)
+    plot_traces(outputs, s, p)
+    dev.off()
+  }
 }
 
 
-tables <- list()
-counter <- 1
-for (p in c("low", "medium", "high")){
-  tables[[counter]] <- table_params(outputs, s, p)
-  counter <- counter + 1
-}
-for (i in 1:length(tables)){
-  df <- ldply(tables[[i]], 'data.frame')
-  s <- df$sampling[1]
-  p <- df$prevalence[1]
-  fname <- paste("latex_param_estimates_", s, "_", p, ".txt", sep="")
-  write_latex_table(df, fname)
+for (s in c("none", "medium", "high")){
+  tables <- list()
+  counter <- 1
+  for (p in c("low", "medium", "high")){
+    tables[[counter]] <- table_params(outputs, s, p)
+    counter <- counter + 1
+  }
+  for (i in 1:length(tables)){
+    df <- ldply(tables[[i]], 'data.frame')
+    s <- df$sampling[1]
+    p <- df$prevalence[1]
+    fname <- paste("latex_param_estimates_", s, "_", p, ".txt", sep="")
+    write_latex_table(df, fname)
+  }
 }
 
 

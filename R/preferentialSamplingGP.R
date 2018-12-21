@@ -555,7 +555,7 @@ prefSampleGpCC_flat <- function(data, n.sample, burnin,
 }
 
 
-#' prefSampleGpCC_normal
+#' prefSampleGpCC
 #' 
 #' uses normal priors for alpha case and alpha control
 #'
@@ -835,7 +835,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
 }
 
 
-prefSampleGpCC_gamma <- function(data, n.sample, burnin, 
+prefSampleGpCC_truncnorm <- function(data, n.sample, burnin, 
                                   L_w, L_ca, L_co, L_a_ca, L_a_co,
                                   proposal.sd.theta=0.3,
                                   m_aca=2000, m_aco=2000, m_ca=700, m_co=700, m_w=700, 
@@ -844,7 +844,7 @@ prefSampleGpCC_gamma <- function(data, n.sample, burnin,
                                   delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
                                   beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
                                   theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
-                                  prior_phi, prior_theta, prior_alpha_shape, prior_alpha_scale){
+                                  prior_phi, prior_theta, prior_alpha_ca, prior_alpha_co){
   
   
   ## setup
@@ -942,6 +942,10 @@ prefSampleGpCC_gamma <- function(data, n.sample, burnin,
   
   prior.mean.beta <- rep(0, p.c)
   prior.var.beta <- rep(1000, p.c)
+  prior_alpha_ca_mean <- prior_alpha_ca[1]
+  prior_alpha_ca_var <- prior_alpha_ca[2]
+  prior_alpha_co_mean <- prior_alpha_co[1]
+  prior_alpha_co_var <- prior_alpha_co[2]
   
   accept <- rep(0, 6)
   
@@ -971,9 +975,9 @@ prefSampleGpCC_gamma <- function(data, n.sample, burnin,
     beta.ca <- beta.out.ca$beta
     
     ## sample from alpha case
-    alpha.out.ca <- alphaHmcUpdate_gamma(Y.ca, w.i.sub, X.c, beta.ca, alpha.ca.i, 
-                                   a_ca_tuning$delta_curr, prior_alpha_shape, prior_alpha_scale, L_a_ca,
-                                   type='case')
+    alpha.out.ca <- alphaHmcUpdate_truncnorm(Y.ca, w.i.sub, X.c, beta.ca, alpha.ca.i, prior_alpha_ca_mean,
+                                         prior_alpha_ca_var, a_ca_tuning$delta_curr, 
+                                         bound=0, bound_type='lower', L_a_ca)
     alpha.ca.i <- alpha.out.ca$alpha
     
     ## sample from beta.ctrl
@@ -981,9 +985,9 @@ prefSampleGpCC_gamma <- function(data, n.sample, burnin,
     beta.co <- beta.out.co$beta
     
     ## sample from alpha control
-    alpha.out.co <- alphaHmcUpdate_gamma(Y.co, w.i.sub, X.c, beta.co, alpha.co.i, 
-                                   a_co_tuning$delta_curr, prior_alpha_shape, prior_alpha_scale, L_a_co,
-                                   type='control')
+    alpha.out.co <- alphaHmcUpdate_truncnorm(Y.co, w.i.sub, X.c, beta.co, alpha.co.i, 
+                                             prior_alpha_co_mean, prior_alpha_co_var,
+                                             a_co_tuning$delta_curr, bound=0, bound_type='upper', L_a_co)
     alpha.co.i <- alpha.out.co$alpha
     
     if (i > burnin){
@@ -1058,8 +1062,10 @@ prefSampleGpCC_gamma <- function(data, n.sample, burnin,
   output$proposal.sd.theta <- proposal.sd.theta
   output$prior_phi <- prior_phi
   output$prior_theta <- prior_theta
-  output$prior_alpha_shape <- prior_alpha_shape
-  output$prior_alpha_scale <- prior_alpha_scale
+  output$prior_alpha_ca_mean <- prior_alpha_ca_mean
+  output$prior_alpha_ca_var <- prior_alpha_ca_var
+  output$prior_alpha_co_mean <- prior_alpha_co_mean
+  output$prior_alpha_co_var <- prior_alpha_co_var
   output$n.sample <- n.sample
   output$burnin <- burnin
   
