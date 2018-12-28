@@ -173,9 +173,10 @@ print(mean(output_uncal$samples.alpha.ca))
 view_tr(output_uncal$samples.alpha.co, Alpha.ctrl, title='B)')
 print(mean(output_uncal$samples.alpha.co))
 
-output_uncal$description <- paste(sim_name, "_normal_uncal", sep="")
-save_output(output_uncal, paste("output_uncal_", sim_name, "_normal_uncal", ".json", sep=""))
-save_params_psgp(paste("params_", sim_name, "_normal_uncal", ".json", sep=""))
+tag <- "_normal_uncal"
+output_uncal$description <- paste(sim_name, tag, sep="")
+save_output(output_uncal, paste("output_uncal_", sim_name, tag, ".json", sep=""))
+save_params_psgp(paste("params_", sim_name, tag, ".json", sep=""))
 
 w.hat <- colMeans(output_uncal$samples.w)
 beta_ca_h <- colMeans(output_uncal$samples.beta.ca)
@@ -195,9 +196,9 @@ theta_h <- mean(output_uncal$samples.theta)
 # W initial value
 # w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=200, L=10,
 #                       prior_phi=prior_phi, prior_theta=prior_theta)
-view_logistic_output(w_output)
-save_output(w_output, "w_inival_output_priorcompare.json")
-# w_output <- load_output("w_inival_output_priorcompare.json")
+# view_logistic_output(w_output)
+# save_output(w_output, "w_inival_output_priorcompare.json")
+w_output <- load_output("w_inival_output_priorcompare.json")
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
@@ -223,6 +224,12 @@ L_co <- 8
 L_a_ca <- 8
 L_a_co <- 8
 proposal.sd.theta <- 0.15
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
 
 output_cal <- prefSampleGpCC(data, n.sample, burnin,
                                     L_w, L_ca, L_co, L_a_ca, L_a_co,
@@ -282,9 +289,10 @@ print(mean(output_cal$samples.alpha.ca))
 view_tr(output_cal$samples.alpha.co, Alpha.ctrl, title='B)')
 print(mean(output_cal$samples.alpha.co))
 
-output$description <- paste(sim_name, "_normal_calibrated", sep="")
-save_output(output, paste("output_", sim_name, "_normal_calibrated", ".json", sep=""))
-save_params_psgp(paste("params_", sim_name, "_normal_calibrated", ".json", sep=""), prior='normal')
+tag <- "_normal_cal"
+output_cal$description <- paste(sim_name, tag, sep="")
+save_output(output_cal, paste("output_", sim_name, tag, ".json", sep=""))
+save_params_psgp(paste("params_", sim_name, tag, ".json", sep=""), prior='normal')
 
 
 ################################
