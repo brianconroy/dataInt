@@ -15,7 +15,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs_priorsens()
-
+dst <- "/Users/brianconroy/Documents/research/project1/simulations_prior/"
 
 ##################
 # Alpha iteration
@@ -27,8 +27,7 @@ sampling <- "medium"
 prevalence <- "medium"
 true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
 fname <- paste("priorsens_traces_", param, ".png", sep="")
-png(paste("/Users/brianconroy/Documents/research/project1/simulations_prior/", fname, sep=""),
-    width=900, height=700, res=100)
+png(paste(dst, fname, sep=""), width=900, height=700, res=100)
 par(mfrow=c(2,3))
 for (i in 1:5){
  
@@ -55,6 +54,19 @@ for (i in 1:5){
   
 }
 dev.off()
+
+
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (i in 1:5){
+  
+  o <- get_output_priorsens(outputs, 'alpha', i)
+  rows_o <- summarize_mcmc_pscc(o, paste('alpha prior', i))
+  rows_all <- c(rows_o, rows_all)
+  
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_priorsens_mcmc_alpha.txt", path=dst)
 
 
 # log odds scatter plots
@@ -92,6 +104,19 @@ for (i in 1:5){
   
 }
 dev.off()
+
+
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (i in 1:5){
+  
+  o <- get_output_priorsens(outputs, 'phi', i)
+  rows_o <- summarize_mcmc_pscc(o, paste('phi prior', i))
+  rows_all <- c(rows_o, rows_all)
+  
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_priorsens_mcmc_phi.txt", path=dst)
 
 
 # log odds scatter plots
@@ -132,6 +157,19 @@ for (i in 1:5){
 dev.off()
 
 
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (i in 1:5){
+  
+  o <- get_output_priorsens(outputs, 'theta', i)
+  rows_o <- summarize_mcmc_pscc(o, paste('theta prior', i))
+  rows_all <- c(rows_o, rows_all)
+  
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_priorsens_mcmc_theta.txt", path=dst)
+
+
 # log odds scatter plots
 s <- "medium"
 p <- "medium"
@@ -139,9 +177,10 @@ par(mfrow=c(2,3))
 xl <- c(-22, 7)
 yl <- c(-22, 7)
 lodds_true <- calc_log_odds_true(s, p)
-true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+true_params <- load_params(paste('true_params_', s, '_', p, '.json', sep=''))
 for (i in 1:5){
   o <- get_output_priorsens(outputs, 'theta', i)
   lodds <- calc_log_odds_output(o, true_params)
   plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl); abline(0, 1, col=2)
 }
+

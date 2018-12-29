@@ -19,6 +19,7 @@ caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs(tag='size')
 sizes <- c(75, 123, '619_fail', '619_success', 1689, 5495)
+dst <- "/Users/brianconroy/Documents/research/project1/simulations_size/"
 
 
 # log odds scatterplots
@@ -56,8 +57,7 @@ for ( i in 1:length(sizes)){
   counter <- counter + 1
 }
 df_rmse <- ldply(rows, 'data.frame')
-write_latex_table(df_rmse, "latex_size_rmse.txt", 
-                  path="/Users/brianconroy/Documents/research/project1/simulations_size/")
+write_latex_table(df_rmse, "latex_size_rmse.txt", path=dst)
 
 
 # traceplots
@@ -89,3 +89,17 @@ for (s in sizes){
   counter <- counter + 1
   
 }
+
+
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (s in sizes){
+  
+  o <- get_output_general(outputs, tag=paste('size_', s, sep=""))
+  rows_o <- summarize_mcmc_pscc(o, s)
+  rows_all <- c(rows_o, rows_all)
+  
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_size_mcmc.txt", path=dst)
+

@@ -56,3 +56,31 @@ for (s in c("none", "medium", "high")){
   }
 }
 
+
+#######################
+# save priors and other 
+# values in output for
+# priors sensitivity 
+# studies 
+#######################
+
+outputs <- load_sim_outputs_priorsens()
+p <- "theta"
+for (i in 1:5){
+  
+  o <- get_output_priorsens(outputs, p, i)
+  fname <- paste("params_iterate_prior_", p, "_", i, ".json", sep="")
+  tuning_params <- load_output(fname)
+  o$L_w <- tuning_params$L
+  o$L_ca <- tuning_params$L_ca
+  o$L_co <- tuning_params$L_co
+  o$L_a_ca <- tuning_params$L_a_ca
+  o$L_a_co <- tuning_params$L_a_co
+  o$proposal.sd.theta <- tuning_params$proposal.sd.theta
+  o$n.sample <- tuning_params$n.sample
+  o$burnin <- tuning_params$burnin
+  output_name <- paste("output_iterate_prior_", p, "_", i, ".json", sep="")
+  print(output_name)
+  save_output(o, output_name)
+
+}

@@ -16,6 +16,7 @@ caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs(tag='prefSampleGpCC')
 s <- "high"
+dst <- "/Users/brianconroy/Documents/research/project1/simulations_iteration/"
 
 
 # log odds
@@ -43,7 +44,7 @@ for (i in 1:3){
 for (s in c("none", "medium", "high")){
   for (p in c("low", "medium", "high")){
     fname <- paste("traces_", s, "_", p, ".png", sep="")
-    png(paste("/Users/brianconroy/Documents/research/project1/simulations_iteration/", fname, sep=""),
+    png(paste(dst, fname, sep=""),
         width=900, height=700, res=100)
     plot_traces(outputs, s, p)
     dev.off()
@@ -164,3 +165,19 @@ p3 <- ggplot(rmse_high,aes(x=prevalence,y=rmse,fill=factor(model)))+
   ggtitle('C)')
 
 grid.arrange(p1, p2, p3)
+
+
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (s in c("none", "medium", "high")){
+  for (p in c("low", "medium", "high")){
+    o <- get_output(outputs, s, p, "prefSampleGpCC")
+    rows_o <- summarize_mcmc_pscc(o, s)
+    rows_all <- c(rows_o, rows_all)
+  }
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_iteration_mcmc.txt", path=dst)
+
+
+

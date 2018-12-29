@@ -1,6 +1,66 @@
 library(jsonlite)
 
 
+summarize_mcmc_pscc <- function(output, model_desc){
+  
+  rows <- list()
+  
+  rows[[1]] <- list(
+    model=model_desc,
+    parameter='n.sample',
+    value=output$n.sample
+  )
+  rows[[2]] <- list(
+    model=model_desc,
+    parameter='burnin',
+    value=output$burnin
+  )
+  rows[[3]] <- list(
+    model=model_desc,
+    parameter='proposal.sd.theta',
+    value=output$proposal.sd.theta
+  )
+  rows[[4]] <- list(
+    model=model_desc,
+    parameter='L (w)',
+    value=output$L_w
+  )
+  rows[[5]] <- list(
+    model=model_desc,
+    parameter='L (beta case)',
+    value=output$L_ca
+  )
+  rows[[6]] <- list(
+    model=model_desc,
+    parameter='L (beta control)',
+    value=output$L_co
+  )
+  rows[[7]] <- list(
+    model=model_desc,
+    parameter='L (alpha case)',
+    value=output$L_a_ca
+  )
+  rows[[8]] <- list(
+    model=model_desc,
+    parameter='L (alpha control)',
+    value=output$L_a_co
+  )
+  rows[[9]] <- list(
+    model=model_desc,
+    parameter='m',
+    value=1000
+  )
+  rows[[10]] <- list(
+    model=model_desc,
+    parameter='target acceptance',
+    value=0.65
+  )
+  
+  return(rows)
+  
+}
+
+
 load_priors <- function(param, index){
   
   f1 <- 'simParams_alpha_prior.txt'

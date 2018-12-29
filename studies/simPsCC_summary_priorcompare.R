@@ -16,6 +16,7 @@ caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs(tag='priorcompare')
 priors <- c("normal_uncal", "normal_cal", "tnormal_uncal", "tnormal_cal")
+dst <- "/Users/brianconroy/Documents/research/project1/simulations_priorcompare/"
 
 
 # log odds scatterplots
@@ -50,8 +51,7 @@ for ( i in 1:length(priors)){
   counter <- counter + 1
 }
 df_rmse <- ldply(rows, 'data.frame')
-write_latex_table(df_rmse, "latex_priorcompare_rmse.txt", 
-                  path="/Users/brianconroy/Documents/research/project1/simulations_priorcompare/")
+write_latex_table(df_rmse, "latex_priorcompare_rmse.txt", path=dst)
 
 
 # traceplots
@@ -59,7 +59,7 @@ true_params <- load_params('true_params_priorcompare.json')
 for (p in priors){
   
   fname <- paste("priorcompare_traces_", p, ".png", sep="")
-  png(paste("/Users/brianconroy/Documents/research/project1/simulations_priorcompare/", fname, sep=""),
+  png(paste(dst, fname, sep=""),
       width=900, height=700, res=100)
   par(mfrow=c(2,3))
   o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
@@ -80,3 +80,16 @@ for (p in priors){
   plot(x=truevals$W, y=w.hat, xlab="True W", ylab="Estimated W"); abline(0, 1, col='2')
   
 }
+
+
+# export tuning parameters to LaTeX
+rows_all <- c()
+for (p in priors){
+  
+  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
+  rows_o <- summarize_mcmc_pscc(o, p)
+  rows_all <- c(rows_o, rows_all)
+  
+}
+df_mcmc <- ldply(rows_all, 'data.frame')
+write_latex_table(df_mcmc, "latex_priorcompare_mcmc.txt", path=dst)
