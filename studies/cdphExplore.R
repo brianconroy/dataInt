@@ -1,8 +1,70 @@
+library(R.utils)
+sourceDirectory('Documents/research/dataInt/R/')
+ca <- getState('california')
+caWin <- as.owin(ca)
+
+#########
+# coyotes
+#########
+
+src <- "/Users/brianconroy/Documents/research/cdph/data/"
+coyotes <- read.csv(paste(src, "CDPH_coyote_recoded_full.csv", sep=""), header=T, sep=",")
+
+names(coyotes)
+xy <- matrix(coyotes$Long_QC)
+xy <- cbind(xy, coyotes$Lat_QC)
+plot(caWin)
+points(xy, col='2')
+
+
+par(mfrow=c(1,2))
+plot(caWin, main='coyotes')
+points(xy, col='2')
+
+plot_rodents(rodents, 'rodents')
+
 
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
 
 names(rodents)
+
+# distribution of sampling sites by species
+table(rodents$Short_Name)
+
+rodents_cagsq <- rodents[rodents$Short_Name == 'CA G Sq',]
+rodents_chips <- rodents[rodents$Short_Name == 'Chipmunk, S',]
+rodents_chipy <- rodents[rodents$Short_Name == 'Chipmunk, YP',]
+rodents_chipl <- rodents[rodents$Short_Name == 'Chipmunk, LP',]
+rodents_gmgsq <- rodents[rodents$Short_Name == 'GM G Sq',]
+
+
+plot_rodents <- function(df, title=''){
+  xy <- matrix(df$Lon_Add_Fix)
+  xy <- cbind(xy, df$Lat_Add_Fix)
+  plot(caWin, main=title)
+  points(xy, col='2')
+}
+
+
+par(mfrow=c(3,2))
+plot_rodents(rodents_cagsq, 'CA G Sq')
+plot_rodents(rodents_chips, 'Chipmunk, S')
+plot_rodents(rodents_chipy, 'Chipmunk, YP')
+plot_rodents(rodents_chipl, 'Chipmunk, LP')
+plot_rodents(rodents_gmgsq, 'GM G Sq')
+
+
+
+coords_neg <- matrix(rodents_neg$Lon_Add_Fix)
+coords_neg <- cbind(coords_neg, rodents_neg$Lat_Add_Fix)
+points(coords_neg)
+coords_pos <- matrix(rodents_pos$Lon_Add_Fix)
+coords_pos <- cbind(coords_pos, rodents_pos$Lat_Add_Fix)
+points(coords_pos, col='2')
+
+
+
 
 tr <- summary(rodents$Res)
 print(tr)
