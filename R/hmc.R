@@ -26,7 +26,7 @@ Uw <- function(y.l, x.c, y.c, alpha, beta.c, w, sigma, loc.stats){
 }
 
 
-Ucase <- function(y, w, x, beta, alpha){
+Ubeta <- function(y, w, x, beta, alpha){
   
   # likelihood
   logd <- 0
@@ -139,7 +139,7 @@ dU_w <- function(y.l, x.c, y.c, alpha, beta.c, w, sigma.inv, loc.stats){
 }
 
 
-dU_case <- function(y, w, x, beta, alpha){
+dU_beta <- function(y, w, x, beta, alpha){
   
   grad <- array(0, c(length(beta), 1))
   lin_preds <- x %*% beta + alpha * w
@@ -268,7 +268,7 @@ wHmcUpdate <- function(y.l, x.c, y.c, alpha, beta.c, w, sigma, sigma.inv, loc.st
 
 
 
-caseHmcUpdate <- function(y, w, x, beta, alpha, delta_c, L_c){
+betaHmcUpdate <- function(y, w, x, beta, alpha, delta_c, L_c){
   
   
   # sample random momentum
@@ -276,7 +276,7 @@ caseHmcUpdate <- function(y, w, x, beta, alpha, delta_c, L_c){
   
   # simulate Hamiltonian dynamics
   bcurr <- matrix(beta)
-  pStar <- p0 - 0.5 * delta_c * dU_case(y, w, x, bcurr, alpha)
+  pStar <- p0 - 0.5 * delta_c * dU_beta(y, w, x, bcurr, alpha)
   
   # first full step for position
   bStar <- bcurr + delta_c*pStar
@@ -284,18 +284,18 @@ caseHmcUpdate <- function(y, w, x, beta, alpha, delta_c, L_c){
   # full steps
   for (jL in 1:c(L_c-1)){
     # momentum
-    pStar <- pStar - delta_c * dU_case(y, w, x, bStar, alpha)
+    pStar <- pStar - delta_c * dU_beta(y, w, x, bStar, alpha)
     
     # position
     bStar <- bStar + delta_c*pStar
   }
   
   # last half step
-  pStar <- pStar - 0.5 * delta_c * dU_case(y, w, x, bStar, alpha)
+  pStar <- pStar - 0.5 * delta_c * dU_beta(y, w, x, bStar, alpha)
   
   # evaluate energies
-  U0 <- Ucase(y, w, x, bcurr, alpha)
-  UStar <- Ucase(y, w, x, bStar, alpha)
+  U0 <- Ubeta(y, w, x, bcurr, alpha)
+  UStar <- Ubeta(y, w, x, bStar, alpha)
   
   K0 <- K(p0)
   KStar <- K(pStar)

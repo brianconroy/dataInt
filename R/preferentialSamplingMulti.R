@@ -138,9 +138,6 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   deltas_aca <- array(NA, c(n.sample, 1))
   deltas_aco <- array(NA, c(n.sample, 1))
   
-  prior.mean.beta <- rep(0, p.c) # ToDo change
-  prior.var.beta <- rep(1000, p.c)
-  
   accept <- rep(0, 6) # ToDo change
   
   progressBar <- txtProgressBar(style = 3)
@@ -163,33 +160,51 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
     R.i <- sigma.i/phi.i
     phi.i <- 1/rgamma(1, N/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
     
-    ## sample from beta.case
-    # w.i.sub <- w.i[locs$ids]
-    # beta.out.ca <- caseHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
-    # beta.ca <- beta.out.ca$beta
-    # 
-    # ## sample from alpha case
-    # alpha.out.ca <- alphaHmcUpdate(Y.ca, w.i.sub, X.c, beta.ca, alpha.ca.i, 
-    #                                a_ca_tuning$delta_curr, prior_alpha_ca_mean, prior_alpha_ca_var, L_a_ca)
-    # alpha.ca.i <- alpha.out.ca$alpha
-    # 
-    # ## sample from beta.ctrl
-    # beta.out.co <- caseHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
-    # beta.co <- beta.out.co$beta
-    # 
-    # ## sample from alpha control
-    # alpha.out.co <- alphaHmcUpdate(Y.co, w.i.sub, X.c, beta.co, alpha.co.i, 
-    #                                a_co_tuning$delta_curr, prior_alpha_co_mean, prior_alpha_co_var, L_a_co)
-    # alpha.co.i <- alpha.out.co$alpha
+    # sample from beta.cases, beta.ctrls, and alphas
+    beta.ca.accepts <- c()
+    beta.ca.as <- c()
+    beta.co.accepts <- c()
+    beta.co.as <- c()
+    alpha.ca.accepts <- c()
+    alpha.ca.as <- c()
+    alpha.co.accepts <- c()
+    alpha.co.as <- c()
+    for (k in 1:N.d){
+      w.i.sub <- w.i[locs[[k]]$ids]
+      x.k <- case.data[[k]]$x.standardised
+      beta.out.ca.k <- betaHmcUpdate(case.data[[k]]$y, w.i.sub, x.k, beta.ca[[k]], alpha.ca.i[[k]], ca_tuning[[k]]$delta_curr, L_ca[k])
+      beta.ca.accepts[k] <- beta.out.ca.k$accept
+      beta.ca.as[k] <- beta.out.ca.k$a
+      beta.ca[[k]] <- beta.out.ca.k$beta
+      
+      beta.out.co.k <- betaHmcUpdate(ctrl.data[[k]]$y, w.i.sub, x.k, beta.co[[k]], alpha.co.i[[k]], co_tuning[[k]]$delta_curr, L_co[k])
+      beta.co.accepts[k] <- beta.out.co.k$accept
+      beta.co.as[k] <- beta.out.co.k$a
+      beta.co[[k]] <- beta.out.co.k$beta
+      
+      alpha.out.ca <- alphaHmcUpdate(case.data[[k]]$y, w.i.sub, x.k, beta.ca[[k]], alpha.ca.i[[k]],
+                                     a_ca_tuning[[k]]$delta_curr, prior_alpha_ca_mean[[k]], prior_alpha_ca_var[[k]], L_a_ca[k])
+      alpha.ca.accepts[k] <- alpha.out.ca$accept
+      alpha.ca.as[k] <- alpha.out.ca$a
+      alpha.ca.i[[k]] <- alpha.out.ca$alpha
+      
+      alpha.out.co <- alphaHmcUpdate(ctrl.data[[k]]$y, w.i.sub, x.k, beta.co[[k]], alpha.co.i[[k]],
+                                     a_co_tuning[[k]]$delta_curr, prior_alpha_co_mean[[k]], prior_alpha_co_var[[k]], L_a_co[k])
+      alpha.co.accepts[k] <- alpha.out.co$accept
+      alpha.co.as[k] <- alpha.out.co$a
+      alpha.co.i[[k]] <- alpha.out.co$alpha
+    }
     
     if (i > burnin){
       
       j <- i - burnin
       
-      # samples.beta.ca[j,] <- beta.ca
-      # samples.beta.co[j,] <- beta.co
-      # samples.alpha.ca[j,] <- alpha.ca.i
-      # samples.alpha.co[j,] <- alpha.co.i
+      for (k in 1:N.d){
+        samples.beta.ca[k,j,] <- beta.ca[[k]]
+        samples.beta.co[k,j,] <- beta.co[[k]]
+        samples.alpha.ca[k,j,] <- alpha.ca.i[[k]]
+        samples.alpha.co[k,j,] <- alpha.co.i[[k]]
+      }
       samples.theta[j,] <- theta.i
       samples.phi[j,] <- phi.i
       samples.w[j,] <- t(w.i)
@@ -207,22 +222,30 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
       w_tuning <- update_tuning(w_tuning, w.out.i$a, i, w.out.i$accept)
       deltas_w <- c(deltas_w, w_tuning$delta_curr)
     }
-    # if (self_tune_aca){
-    #   a_ca_tuning <- update_tuning(a_ca_tuning, alpha.out.ca$a, i, alpha.out.ca$accept)
-    #   deltas_aca <- c(deltas_aca, a_ca_tuning$delta_curr)
-    # }
-    # if (self_tune_aco){
-    #   a_co_tuning <- update_tuning(a_co_tuning, alpha.out.co$a, i, alpha.out.co$accept)
-    #   deltas_aco <- c(deltas_aco, a_co_tuning$delta_curr)
-    # }
-    # if (self_tune_ca){
-    #   ca_tuning <- update_tuning(ca_tuning, beta.out.ca$a, i, beta.out.ca$accept)
-    #   deltas_ca <- c(deltas_ca, ca_tuning$delta_curr)
-    # }
-    # if (self_tune_co){
-    #   co_tuning <- update_tuning(co_tuning, beta.out.co$a, i, beta.out.co$accept)
-    #   deltas_co <- c(deltas_co, co_tuning$delta_curr)
-    # }
+    if (self_tune_aca){
+      for (k in 1:N.d){
+        a_ca_tuning[[k]] <- update_tuning(a_ca_tuning[[k]], alpha.ca.as[k], i, alpha.ca.accepts[k])
+        # deltas_aca <- c(deltas_aca, a_ca_tuning$delta_curr)
+      }
+    }
+    if (self_tune_aco){
+      for (k in 1:N.d){
+        a_co_tuning[[k]] <- update_tuning(a_co_tuning[[k]], alpha.co.as[k], i, alpha.co.accepts[k])
+        # deltas_aco <- c(deltas_aco, a_co_tuning$delta_curr)
+      }
+    }
+    if (self_tune_ca){
+      for (k in 1:N.d){
+        ca_tuning[[k]] <- update_tuning(ca_tuning[[k]], beta.ca.as[k], i, beta.ca.accepts[k])
+        # deltas_ca <- c(deltas_ca, ca_tuning$delta_curr)
+      }
+    }
+    if (self_tune_co){
+      for (k in 1:N.d){
+        co_tuning[[k]] <- update_tuning(co_tuning[[k]], beta.co.as[k], i, beta.co.accepts[k])
+        # deltas_co <- c(deltas_co, co_tuning$delta_curr)
+      }
+    }
     
     if(i %in% percentage.points){
       setTxtProgressBar(progressBar, i/n.sample)

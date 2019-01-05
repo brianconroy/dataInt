@@ -183,8 +183,8 @@ wHmcUpdateLogit <- function(y, w, sigma, sigma.inv, delta, L){
 view_logistic_output <- function(output){
   
   par(mfrow=c(1,3))
-  plot(y=colMeans(output$samples.w), x=W); abline(0, 1, col=2)
-  padded_plot(output$samples.theta, Theta)
-  padded_plot(output$samples.phi, Phi)
+  plot(y=colMeans(output$samples.w), x=W, ylab='Estimated W', main='A)'); abline(0, 1, col=2)
+  padded_plot(output$samples.theta, Theta, title='B)')
+  padded_plot(output$samples.phi, Phi, title='C)')
   
 }

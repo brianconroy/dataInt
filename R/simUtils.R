@@ -356,20 +356,20 @@ get_pad <- function(val, typ){
 }
 
 
-padded_plot <- function(y, trueval, ylab=''){
+padded_plot <- function(y, trueval, ylab='', title=''){
   
   ymax <- max(y)
   ymin <- min(y)
   if (trueval < ymin){
     lb <- get_pad(trueval, 'lower')
     ub <- get_pad(ymax, 'upper')
-    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
+    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub), main=title); abline(h=trueval, col='2')
   } else if (trueval > ymax){
     ub <- get_pad(trueval, 'upper')
     lb <- get_pad(ymin, 'lower')
-    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub)); abline(h=trueval, col='2')
+    plot(y, typ='l', ylab=ylab, ylim=c(lb, ub), main=title); abline(h=trueval, col='2')
   } else{
-    plot(y, typ='l', ylab=ylab); abline(h=trueval, col='2')
+    plot(y, typ='l', ylab=ylab, main=title); abline(h=trueval, col='2')
   }
   
 }

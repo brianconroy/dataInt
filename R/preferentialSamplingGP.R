@@ -226,7 +226,7 @@ prefSampleGp <- function(data, n.sample, burnin, L_w, L_c, L_a, proposal.sd.thet
     
     ## sample from beta.c
     w.i.sub <- w.i[locs$ids]
-    beta.out.c <- caseHmcUpdate(Y.c, w.i[locs$ids], X.c, beta.c, alpha.i, c_tuning$delta_curr, L_c)
+    beta.out.c <- betaHmcUpdate(Y.c, w.i[locs$ids], X.c, beta.c, alpha.i, c_tuning$delta_curr, L_c)
     beta.c <- beta.out.c$beta
     
     ## sample from alpha
@@ -458,7 +458,7 @@ prefSampleGpCC_flat <- function(data, n.sample, burnin,
     
     ## sample from beta.case
     w.i.sub <- w.i[locs$ids]
-    beta.out.ca <- caseHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
+    beta.out.ca <- betaHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
     beta.ca <- beta.out.ca$beta
     
     ## sample from alpha case
@@ -467,7 +467,7 @@ prefSampleGpCC_flat <- function(data, n.sample, burnin,
     alpha.ca.i <- alpha.out.ca$alpha
     
     ## sample from beta.ctrl
-    beta.out.co <- caseHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
+    beta.out.co <- betaHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
     beta.co <- beta.out.co$beta
     
     ## sample from alpha control
@@ -736,7 +736,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
     
     ## sample from beta.case
     w.i.sub <- w.i[locs$ids]
-    beta.out.ca <- caseHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
+    beta.out.ca <- betaHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
     beta.ca <- beta.out.ca$beta
     
     ## sample from alpha case
@@ -745,7 +745,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
     alpha.ca.i <- alpha.out.ca$alpha
     
     ## sample from beta.ctrl
-    beta.out.co <- caseHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
+    beta.out.co <- betaHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
     beta.co <- beta.out.co$beta
     
     ## sample from alpha control
@@ -971,7 +971,7 @@ prefSampleGpCC_truncnorm <- function(data, n.sample, burnin,
     
     ## sample from beta.case
     w.i.sub <- w.i[locs$ids]
-    beta.out.ca <- caseHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
+    beta.out.ca <- betaHmcUpdate(Y.ca, w.i[locs$ids], X.c, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca)
     beta.ca <- beta.out.ca$beta
     
     ## sample from alpha case
@@ -981,7 +981,7 @@ prefSampleGpCC_truncnorm <- function(data, n.sample, burnin,
     alpha.ca.i <- alpha.out.ca$alpha
     
     ## sample from beta.ctrl
-    beta.out.co <- caseHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
+    beta.out.co <- betaHmcUpdate(Y.co, w.i[locs$ids], X.c, beta.co, alpha.co.i, co_tuning$delta_curr, L_co)
     beta.co <- beta.out.co$beta
     
     ## sample from alpha control

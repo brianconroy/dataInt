@@ -197,6 +197,7 @@ theta_h <- mean(output_uncal$samples.theta)
 # w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=200, L=10,
 #                       prior_phi=prior_phi, prior_theta=prior_theta)
 # view_logistic_output(w_output)
+
 # save_output(w_output, "w_inival_output_priorcompare.json")
 w_output <- load_output("w_inival_output_priorcompare.json")
 w_i <- colMeans(w_output$samples.w)
