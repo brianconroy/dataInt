@@ -1,6 +1,5 @@
 
 
-
 logisticGp <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
                       w_initial=NULL, theta_initial=NULL, phi_initial=NULL,
                       prior_phi, prior_theta){
@@ -43,7 +42,7 @@ logisticGp <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
     ## sample from w
     sigma.i <- Exponential(d, range=theta.i, phi=phi.i)
     sigma.inv.i <- solve(sigma.i)
-    w.out.i <- wHmcUpdateLogit(y, w.i, sigma.i, sigma.inv.i, w_tuning$delta_curr, L_w)
+    w.out.i <- wHmcUpdateLogit(y, w.i, sigma.i, sigma.inv.i, w_tuning$delta_curr, L)
     w.i <- w.out.i$w
     
     ## sample from theta

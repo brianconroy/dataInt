@@ -3,8 +3,8 @@
 prefSampleMulti_1 <- function(data, n.sample, burnin, 
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=0.3,
-                           m_aca=2000, m_aco=2000, m_ca=700, m_co=700, m_w=700, 
-                           target_aca=0.75, target_aco=0.75, target_ca=0.75, target_co=0.75, target_w=0.75, 
+                           m_aca=NULL, m_aco=NULL, m_ca=NULL, m_co=NULL, m_w=NULL, 
+                           target_aca=NULL, target_aco=NULL, target_ca=NULL, target_co=NULL, target_w=NULL, 
                            self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
@@ -133,12 +133,19 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   }
   
   deltas_w <- c()
-  deltas_ca <- array(NA, c(n.sample, N.p))
-  deltas_co <- array(NA, c(n.sample, N.p))
-  deltas_aca <- array(NA, c(n.sample, 1))
-  deltas_aco <- array(NA, c(n.sample, 1))
+  deltas_ca <- array(NA, c(n.sample, N.d))
+  deltas_co <- array(NA, c(n.sample, N.d))
+  deltas_aca <- array(NA, c(n.sample, N.d))
+  deltas_aco <- array(NA, c(n.sample, N.d))
   
-  accept <- rep(0, 6) # ToDo change
+  accept <- list(
+    w=0,
+    theta=0,
+    beta.ca=rep(0, N.d),
+    beta.co=rep(0, N.d),
+    alpha.ca=rep(0, N.d),
+    alpha.co=rep(0, N.d)
+  )
   
   progressBar <- txtProgressBar(style = 3)
   percentage.points <- round((1:100/100)*n.sample)
@@ -209,13 +216,14 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
       samples.phi[j,] <- phi.i
       samples.w[j,] <- t(w.i)
       
-      accept[1] <- accept[1] + w.out.i$accept
-      # accept[2] <- accept[2] + theta.out$accept
-      # accept[3] <- accept[3] + beta.out.ca$accept
-      # accept[4] <- accept[4] + beta.out.co$accept
-      # accept[5] <- accept[5] + alpha.out.ca$accept
-      # accept[6] <- accept[6] + alpha.out.co$accept
-      
+      accept$w <- accept$w + w.out.i$accept
+      accept$theta <- accept$theta + theta.out$accept
+      for (k in 1:N.d){
+        accept$beta.ca[k] <-  accept$beta.ca[k] + beta.ca.accepts[k]
+        accept$beta.co[k] <-  accept$beta.co[k] + beta.co.accepts[k]
+        accept$alpha.ca[k] <- accept$alpha.ca[k] + alpha.ca.accepts[k]
+        accept$alpha.co[k] <- accept$alpha.co[k] + alpha.co.accepts[k]
+      }
     }
     
     if (self_tune_w){
@@ -225,25 +233,25 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
     if (self_tune_aca){
       for (k in 1:N.d){
         a_ca_tuning[[k]] <- update_tuning(a_ca_tuning[[k]], alpha.ca.as[k], i, alpha.ca.accepts[k])
-        # deltas_aca <- c(deltas_aca, a_ca_tuning$delta_curr)
+        deltas_aca[i,k] <- a_ca_tuning[[k]]$delta_curr
       }
     }
     if (self_tune_aco){
       for (k in 1:N.d){
         a_co_tuning[[k]] <- update_tuning(a_co_tuning[[k]], alpha.co.as[k], i, alpha.co.accepts[k])
-        # deltas_aco <- c(deltas_aco, a_co_tuning$delta_curr)
+        deltas_aco[i,k] <- a_co_tuning[[k]]$delta_curr
       }
     }
     if (self_tune_ca){
       for (k in 1:N.d){
         ca_tuning[[k]] <- update_tuning(ca_tuning[[k]], beta.ca.as[k], i, beta.ca.accepts[k])
-        # deltas_ca <- c(deltas_ca, ca_tuning$delta_curr)
+        deltas_ca[i,k] <- ca_tuning[[k]]$delta_curr
       }
     }
     if (self_tune_co){
       for (k in 1:N.d){
         co_tuning[[k]] <- update_tuning(co_tuning[[k]], beta.co.as[k], i, beta.co.accepts[k])
-        # deltas_co <- c(deltas_co, co_tuning$delta_curr)
+        deltas_co[i,k] <- co_tuning[[k]]$delta_curr
       }
     }
     
@@ -254,6 +262,9 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   }
   
   accept <- accept/n.keep
+  for (h in 1:length(accept)){
+    accept[[h]] <- accept[[h]]/n.keep
+  }
   
   output <- list()
   output$accept <- accept

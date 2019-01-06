@@ -85,5 +85,63 @@ data <- list(
 )
 
 
+# calibrated initial values
+w_output <- logisticGp(y=locs1$status, d, n.sample=1000, burnin=200, L=10,
+                      prior_phi=prior_phi, prior_theta=prior_theta)
+view_logistic_output(w_output)
+
+save_output(w_output, "w_inival_output_priorcompare.json")
+
+w_output <- load_output("w_inival_output_priorcompare.json")
+w_i <- colMeans(w_output$samples.w)
+theta_i <- mean(w_output$samples.theta)
+phi_i <- mean(w_output$samples.phi)
+
+ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
+
+prior_alpha_ca_mean <- Alpha.case
+prior_alpha_co_mean <- Alpha.ctrl
+prior_alpha_ca_var <- 4
+prior_alpha_co_var <- 4
+
+n.sample <- 2000
+burnin <- 500
+L_w <- 8
+L_ca <- c(8, 8)
+L_co <- c(8, 8)
+L_a_ca <- c(8, 8)
+L_a_co <- c(8, 8)
+proposal.sd.theta <- 0.15
+
+m_aca <- c(1000, 1000)
+m_aco <- c(1000, 1000)
+m_ca <- c(1000, 1000)
+m_co <- c(1000, 1000)
+m_w <- 1000
+
+target_aca <- c(0.65, 0.65)
+target_aco <- c(0.65, 0.65)
+target_ca <- c(0.65, 0.65)
+target_co <- c(0.65, 0.65)
+target_w <- 0.65
+
+prior_alpha_ca_var <- c(Alpha.case1, Alpha.case2)
+prior_alpha_ca_var <- c(Alpha.case1, Alpha.case2)
 
 
+output <- prefSampleMulti_1(data, n.sample, burnin, 
+                            L_w, L_ca, L_co, L_a_ca, L_a_co,
+                            proposal.sd.theta=0.3,
+                            m_aca=NULL, m_aco=NULL, m_ca=NULL, m_co=NULL, m_w=NULL, 
+                            target_aca=NULL, target_aco=NULL, target_ca=NULL, target_co=NULL, target_w=NULL, 
+                            self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
+                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
+                            theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
+                            prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var)
