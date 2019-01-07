@@ -9,7 +9,7 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
                            theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
-                           prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var){
+                           prior_phi, prior_theta, prior_alpha_ca_mean, prior_alpha_co_mean, prior_alpha_ca_var, prior_alpha_co_var){
   
   
   ## setup
@@ -261,7 +261,6 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
     
   }
   
-  accept <- accept/n.keep
   for (h in 1:length(accept)){
     accept[[h]] <- accept[[h]]/n.keep
   }

@@ -86,29 +86,41 @@ data <- list(
 
 
 # calibrated initial values
-w_output <- logisticGp(y=locs1$status, d, n.sample=1000, burnin=200, L=10,
-                      prior_phi=prior_phi, prior_theta=prior_theta)
-view_logistic_output(w_output)
+# w_output <- logisticGp(y=locs1$status, d, n.sample=1000, burnin=200, L=10,
+#                       prior_phi=prior_phi, prior_theta=prior_theta)
+# view_logistic_output(w_output)
+# save_output(w_output, "w_inival_output_multi.json")
 
-save_output(w_output, "w_inival_output_priorcompare.json")
-
-w_output <- load_output("w_inival_output_priorcompare.json")
+w_output <- load_output("w_inival_output_multi.json")
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
 
-ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
-alpha_ca_i <- coefficients(ini_case)[4]
-beta_ca_i <- coefficients(ini_case)[1:3]
+# NRGK
+alpha_ca_i <- list()
+alpha_co_i <- list()
+beta_ca_i <- list()
+beta_co_i <- list()
+N.d <- length(data$case.data)
+for (k in 1:N.d){
+  ini_case <- glm(data$case.data[[k]]$y ~ data$case.data[[k]]$x.standardised + w_i[data$locs[[k]]$ids] - 1, family='poisson')
+  alpha_ca_i[[k]] <- unname(coefficients(ini_case)[4])
+  beta_ca_i[[k]] <- unname(coefficients(ini_case)[1:3])
+  
+  ini_ctrl <- glm(data$ctrl.data[[k]]$y ~ data$ctrl.data[[k]]$x.standardised + w_i[data$locs[[k]]$ids] - 1, family='poisson')
+  alpha_co_i[[k]] <- unname(coefficients(ini_ctrl)[4])
+  beta_co_i[[k]] <- unname(coefficients(ini_ctrl)[1:3])
+}
 
-ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
-alpha_co_i <- coefficients(ini_ctrl)[4]
-beta_co_i <- coefficients(ini_ctrl)[1:3]
+# alpha_ca_i <- list(Alpha.case1, Alpha.case2)
+# alpha_co_i <- list(Alpha.ctrl1, Alpha.ctrl2)
+# beta_ca_i <- list(beta.case1, beta.case2)
+# beta_co_i <- list(beta.ctrl1, beta.ctrl2)
 
-prior_alpha_ca_mean <- Alpha.case
-prior_alpha_co_mean <- Alpha.ctrl
-prior_alpha_ca_var <- 4
-prior_alpha_co_var <- 4
+prior_alpha_ca_mean <- c(Alpha.case1, Alpha.case2)
+prior_alpha_co_mean <- c(Alpha.ctrl1, Alpha.ctrl2)
+prior_alpha_ca_var <- c(4, 4)
+prior_alpha_co_var <- c(4, 4)
 
 n.sample <- 2000
 burnin <- 500
@@ -119,29 +131,64 @@ L_a_ca <- c(8, 8)
 L_a_co <- c(8, 8)
 proposal.sd.theta <- 0.15
 
-m_aca <- c(1000, 1000)
-m_aco <- c(1000, 1000)
-m_ca <- c(1000, 1000)
-m_co <- c(1000, 1000)
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
 m_w <- 1000
 
-target_aca <- c(0.65, 0.65)
-target_aco <- c(0.65, 0.65)
-target_ca <- c(0.65, 0.65)
-target_co <- c(0.65, 0.65)
+target_aca <- 0.65
+target_aco <- 0.65
+target_ca <- 0.65
+target_co <- 0.65
 target_w <- 0.65
-
-prior_alpha_ca_var <- c(Alpha.case1, Alpha.case2)
-prior_alpha_ca_var <- c(Alpha.case1, Alpha.case2)
-
 
 output <- prefSampleMulti_1(data, n.sample, burnin, 
                             L_w, L_ca, L_co, L_a_ca, L_a_co,
                             proposal.sd.theta=0.3,
-                            m_aca=NULL, m_aco=NULL, m_ca=NULL, m_co=NULL, m_w=NULL, 
-                            target_aca=NULL, target_aco=NULL, target_ca=NULL, target_co=NULL, target_w=NULL, 
+                            m_aca=m_aca, m_aco=m_aca, m_ca=m_aca, m_co=m_aca, m_w=m_aca, 
+                            target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
                             self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
                             delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
-                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
-                            theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
-                            prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var)
+                            beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                            theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                            prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_mean=prior_alpha_ca_mean,
+                            prior_alpha_co_mean=prior_alpha_co_mean,
+                            prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+
+plot(apply(output$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+w.hat <- colMeans(output$samples.w)
+plot(x=W, y=w.hat); abline(0, 1, col=2)
+summary(100*(W-w.hat)/W)
+view_tr_w(output$samples.w, w_true=W)
+
+view_tr(output$samples.theta, Theta)
+print(mean(output$samples.theta)); print(Theta)
+
+view_tr(output$samples.phi, Phi)
+print(mean(output$samples.phi)); print(Phi)
+
+par(mfrow=c(2,2))
+view_tr(output$samples.alpha.ca[1,,], Alpha.case1)
+view_tr(output$samples.alpha.ca[2,,], Alpha.case2)
+
+view_tr(output$samples.alpha.co[1,,], Alpha.ctrl1)
+view_tr(output$samples.alpha.co[2,,], Alpha.ctrl2)
+
+par(mfrow=c(2,3))
+padded_plot(output$samples.beta.ca[1,,1], beta.case1[1])
+padded_plot(output$samples.beta.ca[1,,2], beta.case1[2])
+padded_plot(output$samples.beta.ca[1,,3], beta.case1[3])
+
+padded_plot(output$samples.beta.co[1,,1], beta.ctrl1[1])
+padded_plot(output$samples.beta.co[1,,2], beta.ctrl1[2])
+padded_plot(output$samples.beta.co[1,,3], beta.ctrl1[3])
+
+padded_plot(output$samples.beta.ca[2,,1], beta.case2[1])
+padded_plot(output$samples.beta.ca[2,,2], beta.case2[2])
+padded_plot(output$samples.beta.ca[2,,3], beta.case2[3])
+
+padded_plot(output$samples.beta.co[2,,1], beta.ctrl2[1])
+padded_plot(output$samples.beta.co[2,,2], beta.ctrl2[2])
+padded_plot(output$samples.beta.co[2,,3], beta.ctrl2[3])
+
