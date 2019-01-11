@@ -95,7 +95,7 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   } else {
     a_ca_tuning <- list()
     for (i in 1:N.d){
-      a_ca_tuning[[i]] <- list(delta_curr=delta_aca)
+      a_ca_tuning[[i]] <- list(delta_curr=delta_aca[i])
     }
   }
   if (self_tune_aco){
@@ -106,7 +106,7 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   } else {
     a_co_tuning <- list()
     for (i in 1:N.d){
-      a_co_tuning[[i]] <- list(delta_curr=delta_aco)
+      a_co_tuning[[i]] <- list(delta_curr=delta_aco[i])
     }
   }
   if (self_tune_ca){
@@ -117,7 +117,7 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   } else {
     ca_tuning <- list()
     for (i in 1:N.d){
-      ca_tuning[[i]] <- list(delta_curr=delta_ca)
+      ca_tuning[[i]] <- list(delta_curr=delta_ca[i])
     }
   }
   if (self_tune_co){
@@ -128,7 +128,7 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   } else {
     co_tuning <- list()
     for (i in 1:N.d){
-      co_tuning[[i]] <- list(delta_curr=delta_co)
+      co_tuning[[i]] <- list(delta_curr=delta_co[i])
     }
   }
   
@@ -284,6 +284,11 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   output$L_co <- L_co
   output$L_a_ca <- L_a_ca 
   output$L_a_co <- L_a_co
+  output$m_w <- m_w
+  output$m_aca <- m_aca
+  output$m_aco <- m_aco
+  output$m_ca <- m_ca
+  output$m_co <- m_co
   output$proposal.sd.theta <- proposal.sd.theta
   output$prior_phi <- prior_phi
   output$prior_theta <- prior_theta
@@ -293,5 +298,92 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   output$burnin <- burnin
   
   return(output)
+  
+}
+
+
+continueMCMC_multi <- function(data, output, n.sample){
+  
+  # get initial values
+  n.sample.old <- nrow(output$samples.beta.ca[1,,])
+  beta_ca_initial <- list()
+  beta_co_initial <- list()
+  alpha_ca_initial <- list()
+  alpha_co_initial <- list()
+  for (j in 1:dim(output$samples.alpha.ca)[1]){
+    beta_ca_initial[[j]] <- output$samples.beta.ca[j,n.sample.old,]
+    beta_co_initial[[j]] <- output$samples.beta.co[j,n.sample.old,]
+    alpha_ca_initial[[j]] <- output$samples.alpha.ca[j,n.sample.old,]
+    alpha_co_initial[[j]] <- output$samples.alpha.co[j,n.sample.old,]
+  }
+  w_initial <- output$samples.w[n.sample.old,]
+  theta_initial <- output$samples.theta[n.sample.old]
+  phi_initial <- output$samples.phi[n.sample.old]
+  
+  # get tuning parameters
+  delta_w <- tail(output$deltas_w, 1)
+  delta_aca <- tail(output$deltas_aca, 1)
+  delta_aco <- tail(output$deltas_aco, 1)
+  delta_ca <- tail(output$deltas_ca, 1)
+  delta_co <- tail(output$deltas_co, 1)
+  L_w <- output$L_w
+  L_ca <- output$L_ca
+  L_co <- output$L_co
+  L_a_ca <- output$L_a_ca 
+  L_a_co <- output$L_a_co
+  proposal.sd.theta <- output$proposal.sd.theta
+  
+  # get priors
+  prior_phi <- output$prior_phi
+  prior_theta <- output$prior_theta
+  more_output <- prefSampleMulti_1(data, n.sample, burnin=0, 
+                                   L_w, L_ca, L_co, L_a_ca, L_a_co,
+                                   proposal.sd.theta=0.3,
+                                   m_aca=m_aca, m_aco=m_aca, m_ca=m_aca, m_co=m_aca, m_w=m_aca, 
+                                   target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
+                                   self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
+                                   delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
+                                   beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
+                                   theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
+                                   prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_mean=prior_alpha_ca_mean,
+                                   prior_alpha_co_mean=prior_alpha_co_mean,
+                                   prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+  
+  # combine outputs
+  new_output <- output
+  new_output$n.sample <- new_output$n.sample + n.sample
+  samples.alpha.ca <- array(NA, c(2, n.sample.old + n.sample, 1))
+  samples.alpha.co <- array(NA, c(2, n.sample.old + n.sample, 1))
+  samples.beta.ca <- array(NA, c(2, n.sample.old + n.sample, 3))
+  samples.beta.co <- array(NA, c(2, n.sample.old + n.sample, 3))
+  for (j in 1:dim(output$samples.alpha.ca)[1]){
+    samples.alpha.ca[j,,] <- matrix(c(new_output$samples.alpha.ca[j,,], more_output$samples.alpha.ca[j,,]))
+    samples.alpha.co[j,,] <- matrix(c(new_output$samples.alpha.co[j,,], more_output$samples.alpha.co[j,,]))
+    samples.beta.ca[j,,] <- rbind(new_output$samples.beta.ca[j,,], more_output$samples.beta.ca[j,,])
+    samples.beta.co[j,,] <- rbind(new_output$samples.beta.co[j,,], more_output$samples.beta.co[j,,])
+  }
+  new_output$samples.alpha.ca <- samples.alpha.ca
+  new_output$samples.alpha.co <- samples.alpha.co
+  new_output$samples.beta.ca <- samples.beta.ca
+  new_output$samples.beta.co <- samples.beta.co
+  new_output$samples.phi <- matrix(c(new_output$samples.phi, more_output$samples.phi))
+  new_output$samples.theta <- matrix(c(new_output$samples.theta, more_output$samples.theta))
+  new_output$samples.w <- rbind(new_output$samples.w, more_output$samples.w)
+  new_output$deltas_aca <- new_output$deltas_aca
+  new_output$deltas_aco <- new_output$deltas_aco
+  new_output$deltas_co <- new_output$deltas_co
+  new_output$deltas_ca <- new_output$deltas_ca
+  new_output$deltas_w <- new_output$deltas_w
+  
+  new_output$accept$w <- (new_output$n.sample * new_output$accept$w + n.sample * more_output$accept$w)/(new_output$n.sample + n.sample)
+  new_output$accept$theta <- (new_output$n.sample * new_output$accept$theta + n.sample * more_output$accept$theta)/(new_output$n.sample + n.sample)
+  for (k in 1:dim(output$samples.alpha.ca)[1]){
+    new_output$accept$beta.ca[k] <- (new_output$n.sample * new_output$accept$beta.ca[k] + n.sample * more_output$accept$beta.ca[k])/(new_output$n.sample + n.sample)
+    new_output$accept$beta.co[k] <- (new_output$n.sample * new_output$accept$beta.co[k] + n.sample * more_output$accept$beta.co[k])/(new_output$n.sample + n.sample)
+    new_output$accept$alpha.ca[k] <- (new_output$n.sample * new_output$accept$alpha.ca[k] + n.sample * more_output$accept$alpha.ca[k])/(new_output$n.sample + n.sample)
+    new_output$accept$alpha.co[k] <- (new_output$n.sample * new_output$accept$alpha.co[k] + n.sample * more_output$accept$alpha.co[k])/(new_output$n.sample + n.sample)
+  }
+  
+  return(new_output)
   
 }

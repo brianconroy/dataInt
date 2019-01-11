@@ -84,3 +84,19 @@ for (i in 1:5){
   save_output(o, output_name)
 
 }
+
+
+#####################
+# Multispecies
+# rename description
+#####################
+
+
+outputs <- load_sim_outputs(tag='simMulti')
+for (o in outputs){
+  if (grepl('species2', o$description)){
+    o$description <- gsub("separate_species2", "separate2", o$description)
+    print(o$description)
+    save_output(o, paste("output_", o$description, ".json", sep=""))
+  }
+}

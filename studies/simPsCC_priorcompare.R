@@ -29,6 +29,18 @@ Theta <- 6
 Phi <- 12
 
 
+#### Write simulation parameters to LaTeX
+sim_config <- list(
+  list(parameter="Alpha (case)", value=as.character(Alpha.case)),
+  list(parameter="Alpha (case)",value=as.character(Alpha.ctrl)),
+  list(parameter="Beta (case)", value=paste(beta.case, collapse=", ")),
+  list(parameter="Beta (ctrl)", value=paste(beta.ctrl, collapse=", ")),
+  list(parameter="Range", value=as.character(Theta)),
+  list(parameter="Phi", value=as.character(Phi))
+)
+write_latex_table(ldply(sim_config, "data.frame"), fname="sim_params.txt", path="/Users/brianconroy/Documents/research/project1/simulations_priorcompare/")
+
+
 #### Priors
 prior_theta <- c(6, 1)
 prior_phi <- c(18, 204)

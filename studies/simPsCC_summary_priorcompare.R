@@ -25,14 +25,17 @@ xl <- c(-22, 10)
 yl <- c(-22, 10)
 rmses <- c()
 true_params <- load_params('true_params_priorcompare.json')
-for (p in priors){
+labs <- c("A)", "B)", "C)", "D)")
+for (i in 1:length(priors)){
   
+  p <- priors[i]
+  lab <- labs[i]
   o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
   lodds <- calc_log_odds_output(o, true_params)
   lodds_true <- calc_log_odds_true_general(true_params)
   rmse <- sqrt(mean((lodds-lodds_true)^2))
   rmses <- c(rmses, rmse)
-  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl); abline(0, 1, col=2)
+  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl, main=lab); abline(0, 1, col=2)
 
 }
 

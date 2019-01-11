@@ -5,10 +5,23 @@ burnin_after <- function(output, n.burn){
   n.curr <- output$n.sample - output$burnin
   i.start <- n.burn + 1
   output$burnin <- output$burnin + n.burn
-  output$samples.alpha.ca <- output$samples.alpha.ca[i.start:n.curr]
-  output$samples.alpha.co <- output$samples.alpha.co[i.start:n.curr]
-  output$samples.beta.ca <- output$samples.beta.ca[i.start:n.curr,]
-  output$samples.beta.co <- output$samples.beta.co[i.start:n.curr,]
+  if (length(dim(output$samples.alpha.ca)) == 2){
+    output$samples.alpha.ca <- output$samples.alpha.ca[i.start:n.curr]
+    output$samples.alpha.co <- output$samples.alpha.co[i.start:n.curr]
+    output$samples.beta.ca <- output$samples.beta.ca[i.start:n.curr,]
+    output$samples.beta.co <- output$samples.beta.co[i.start:n.curr,]
+  } else {
+    new.aca <- array(NA, c(2,n.curr-i.start+1,1))
+    new.aco <- array(NA, c(2,n.curr-i.start+1,1))
+    for (j in 1:2){
+      new.aca[j,,] <- matrix(output$samples.alpha.ca[j,i.start:n.curr,])
+      new.aco[j,,] <- matrix(output$samples.alpha.co[j,i.start:n.curr,])
+    }
+    output$samples.alpha.ca <- new.aca
+    output$samples.alpha.co <- new.aco
+    output$samples.beta.ca <- output$samples.beta.ca[,i.start:n.curr,]
+    output$samples.beta.co <- output$samples.beta.co[,i.start:n.curr,]
+  }
   output$samples.w <- output$samples.w[i.start:n.curr,]
   output$samples.phi <- output$samples.phi[i.start:n.curr]
   output$samples.theta <- output$samples.theta[i.start:n.curr]
@@ -31,11 +44,25 @@ burnin_after <- function(output, n.burn){
 continueMCMC <- function(data, output, n.sample){
   
   # get initial values
-  n.sample.old <- nrow(output$samples.beta.ca)
-  beta_ca_initial <- output$samples.beta.ca[n.sample.old,]
-  beta_co_initial <- output$samples.beta.co[n.sample.old,]
-  alpha_ca_initial <- output$samples.alpha.ca[n.sample.old]
-  alpha_co_initial <- output$samples.alpha.co[n.sample.old]
+  if (length(dim(output$samples.alpha.ca)) == 2){
+    n.sample.old <- nrow(output$samples.beta.ca)
+    beta_ca_initial <- output$samples.beta.ca[n.sample.old,]
+    beta_co_initial <- output$samples.beta.co[n.sample.old,]
+    alpha_ca_initial <- output$samples.alpha.ca[n.sample.old]
+    alpha_co_initial <- output$samples.alpha.co[n.sample.old]
+  } else {
+    n.sample.old <- nrow(output$samples.beta.ca[1,,])
+    beta_ca_initial <- list()
+    beta_co_initial <- list()
+    alpha_ca_initial <- list()
+    alpha_co_initial <- list()
+    for (j in 1:2){
+      beta_ca_initial[[j]] <- output$samples.beta.ca[j,n.sample.old,]
+      beta_co_initial[[j]] <- output$samples.beta.co[j,n.sample.old,]
+      alpha_ca_initial[[j]] <- output$samples.alpha.ca[j,n.sample.old,]
+      alpha_co_initial[[j]] <- output$samples.alpha.co[j,n.sample.old,]
+    }
+  }
   w_initial <- output$samples.w[n.sample.old,]
   theta_initial <- output$samples.theta[n.sample.old]
   phi_initial <- output$samples.phi[n.sample.old]
@@ -56,7 +83,7 @@ continueMCMC <- function(data, output, n.sample){
   # get priors
   prior_phi <- output$prior_phi
   prior_theta <- output$prior_theta
-  if (!is.null(output$prior_alpha_ca_var)){
+  if (length(dim(output$samples.alpha.ca)) == 2){
     prior_alpha_ca_var <- output$prior_alpha_ca_var
     prior_alpha_co_var <- output$prior_alpha_co_var
     more_output <- prefSampleGpCC(data, n.sample, burnin=0, 
@@ -70,18 +97,19 @@ continueMCMC <- function(data, output, n.sample){
                                   prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, 
                                   prior_alpha_co_var=prior_alpha_ca_var)
   } else {
-    more_output <- prefSampleGpCC_gamma(data, n.sample, burnin=0, 
-                                  L_w=L_w, L_ca=L_ca, L_co=L_co, L_a_ca=L_a_ca, L_a_co=L_a_co,
-                                  proposal.sd.theta=proposal.sd.theta,
-                                  self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
-                                  delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
-                                  beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, 
-                                  alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
-                                  theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
-                                  prior_phi=prior_phi, prior_theta=prior_theta)
+    more_output <- prefSampleMulti_1(data, n.sample, burnin=0, 
+                                L_w, L_ca, L_co, L_a_ca, L_a_co,
+                                proposal.sd.theta=0.3,
+                                m_aca=m_aca, m_aco=m_aca, m_ca=m_aca, m_co=m_aca, m_w=m_aca, 
+                                target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
+                                self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
+                                delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
+                                beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
+                                theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
+                                prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_mean=prior_alpha_ca_mean,
+                                prior_alpha_co_mean=prior_alpha_co_mean,
+                                prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
   }
-  
-  
   
   # combine outputs
   new_output <- output

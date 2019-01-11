@@ -12,6 +12,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 #### Simulation parameters
+
 Alpha.case1 <- 0.5
 Alpha.ctrl1 <- -0.5
 Alpha.case2 <- 1

@@ -105,6 +105,54 @@ calc_log_odds_output <- function(output, true_params){
 }
 
 
+calc_log_odds_multi <- function(output, true_params, species, output_type){
+  
+  location_indicators <- as.logical(true_params$data$locs$status[[species]])
+  x_standard <- load_x_standard(location_indicators)
+  
+  w.hat <- colMeans(output$samples.w)
+  if (output_type == '_multi'){
+    beta_ca_h <- colMeans(output$samples.beta.ca[species,,])
+    beta_co_h <- colMeans(output$samples.beta.co[species,,])
+    alpha_ca_h <- mean(output$samples.alpha.ca[species,,])
+    alpha_co_h <- mean(output$samples.alpha.co[species,,])
+  } else {
+    beta_ca_h <- colMeans(output$samples.beta.ca)
+    beta_co_h <- colMeans(output$samples.beta.co)
+    alpha_ca_h <- mean(output$samples.alpha.ca)
+    alpha_co_h <- mean(output$samples.alpha.co)
+  }
+  
+  lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds.ps)
+  
+}
+
+
+calc_log_odds_true_multi <- function(true_params, species){
+  
+  location_indicators <- as.logical(true_params$data$locs$status[[species]])
+  x_standard <- load_x_standard(location_indicators)
+  if (species == 1){
+    beta.case <- true_params$beta.case1
+    beta.ctrl <- true_params$beta.ctrl1
+    Alpha.case <- true_params$Alpha.case1
+    Alpha.ctrl <- true_params$Alpha.ctrl1
+    W <- true_params$W1
+  } else if (species == 2){
+    beta.case <- true_params$beta.case2
+    beta.ctrl <- true_params$beta.ctrl2
+    Alpha.case <- true_params$Alpha.case2
+    Alpha.ctrl <- true_params$Alpha.ctrl2
+    W <- true_params$W2
+  }
+  
+  lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.true)
+  
+}
+
+
 get_output_priorsens <- function(outputs, param, number){
   
   output_target <- list()
@@ -441,6 +489,50 @@ plot_traces_general <- function(output, true_params){
   padded_plot(output$samples.alpha.co, ylab='Alpha (control)', true_params$Alpha.ctrl[1])
   padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
   padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  par(mfrow=c(1,1))
+  
+}
+
+
+plot_traces_multi <- function(output, true_params, species, output_type){
+  
+  if (species == 1){
+    beta.case <- true_params$beta.case1
+    beta.ctrl <- true_params$beta.ctrl1
+    alpha.case <- true_params$Alpha.case1
+    alpha.ctrl <- true_params$Alpha.ctrl1
+  } else if (species == 2){
+    beta.case <- true_params$beta.case2
+    beta.ctrl <- true_params$beta.ctrl2
+    alpha.case <- true_params$Alpha.case2
+    alpha.ctrl <- true_params$Alpha.ctrl2
+  }
+  
+  par(mfrow=c(3,4))
+  if (output_type == '_multi'){
+    padded_plot(output$samples.beta.ca[species,,1], ylab='Beta 0 (case)', beta.case[1])
+    padded_plot(output$samples.beta.ca[species,,2], ylab='Beta 1 (case)', beta.case[2])
+    padded_plot(output$samples.beta.ca[species,,3], ylab='Beta 2 (case)', beta.case[3])
+    padded_plot(output$samples.beta.co[species,,1], ylab='Beta 0 (control)', beta.ctrl[1])
+    padded_plot(output$samples.beta.co[species,,2], ylab='Beta 1 (control)', beta.ctrl[2])
+    padded_plot(output$samples.beta.co[species,,3], ylab='Beta 2 (control)', beta.ctrl[3])
+    padded_plot(output$samples.alpha.ca[species,,1], ylab='Alpha (case)', Alpha.case[1])
+    padded_plot(output$samples.alpha.co[species,,1], ylab='Alpha (control)', Alpha.ctrl[1])
+    padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
+    padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  } else {
+    padded_plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', beta.case[1])
+    padded_plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', beta.case[2])
+    padded_plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', beta.case[3])
+    padded_plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', beta.ctrl[1])
+    padded_plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', beta.ctrl[2])
+    padded_plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', beta.ctrl[3])
+    padded_plot(output$samples.alpha.ca, ylab='Alpha (case)', Alpha.case[1])
+    padded_plot(output$samples.alpha.co, ylab='Alpha (control)', Alpha.ctrl[1])
+    padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
+    padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  }
+  
   par(mfrow=c(1,1))
   
 }
@@ -833,6 +925,29 @@ save_true_params <- function(sampling, prevalence){
   store$location_ids <- locs$ids
   write(toJSON(store), path)
   
+  
+}
+
+
+save_true_params_multi <- function(tag){
+  
+  fname <- paste('true_params_', tag, '.json', sep='')
+  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  store <- list()
+  store$Alpha.case1 <- Alpha.case1
+  store$Alpha.ctrl1 <- Alpha.ctrl1
+  store$Alpha.case2 <- Alpha.case2
+  store$Alpha.ctrl2 <- Alpha.ctrl2
+  store$beta.case1 <- beta.case1
+  store$beta.ctrl1 <- beta.ctrl1
+  store$beta.case2 <- beta.case2
+  store$beta.ctrl2 <- beta.ctrl2
+  store$W1 <- W1
+  store$W2 <- W2
+  store$Theta <- Theta
+  store$Phi <- Phi
+  store$data <- data
+  write(toJSON(store), path)
   
 }
 
