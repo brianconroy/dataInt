@@ -198,7 +198,7 @@ print(mean(output$samples.theta)); print(Theta)
 view_tr(output$samples.phi, Phi)
 print(mean(output$samples.phi)); print(Phi)
 
-par(mfrow=c(3,2))
+par(mfrow=c(4,2))
 for (i in 1:n_species){
   multispecies_plot(output$samples.alpha.ca, i, 'Alpha.case')
 }

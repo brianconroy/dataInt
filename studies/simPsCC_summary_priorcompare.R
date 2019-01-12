@@ -96,3 +96,36 @@ for (p in priors){
 }
 df_mcmc <- ldply(rows_all, 'data.frame')
 write_latex_table(df_mcmc, "latex_priorcompare_mcmc.txt", path=dst)
+
+
+# summary table of alpha estimates
+# model # parameter # estimate # bias
+# (start with alpha case)
+true_params <- load_params('true_params_priorcompare.json')
+Alpha.case <- true_params$Alpha.case
+Alpha.ctrl <- true_params$Alpha.ctrl
+rows <- list()
+counter <- 1
+for (p in priors){
+  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
+  rows[[counter]] <- list(
+    model=p,
+    parameter="alpha (case)",
+    estimate=round(mean(o$samples.alpha.ca), 3),
+    true_value=Alpha.case,
+    bias=round(mean(o$samples.alpha.ca), 3)-Alpha.case
+  )
+  counter <- counter + 1
+}
+for (p in priors){
+  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
+  rows[[counter]] <- list(
+    model=p,
+    parameter="alpha (control)",
+    estimate=round(mean(o$samples.alpha.co), 3),
+    true_value=Alpha.ctrl,
+    bias=round(mean(o$samples.alpha.co), 3)-Alpha.ctrl
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(rows, 'data.frame'), "latex_priorcompare_alpha_estimates.txt", path=dst)

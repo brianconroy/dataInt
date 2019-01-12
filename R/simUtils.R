@@ -174,6 +174,34 @@ calc_log_odds_true_multi <- function(true_params, species){
 }
 
 
+#' calc_log_odds_true_multi_general
+#' 
+#' general multispecies output where 
+#' true_params store values as matrices for 
+#' different species.
+#'
+#' @param true_params (list)
+#' @param species (numeric) 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+calc_log_odds_true_multi_general <- function(true_params, species){
+  
+  location_indicators <- as.logical(true_params$data$locs$status[[species]])
+  x_standard <- load_x_standard(location_indicators)
+  beta.case <- true_params$beta.cases[species,]
+  beta.ctrl <- true_params$beta.ctrls[species,]
+  Alpha.case <- true_params$alpha.cases[species,]
+  Alpha.ctrl <- true_params$alpha.ctrls[species,]
+  W <- true_params$W
+  lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.true)
+  
+}
+
+
 get_output_priorsens <- function(outputs, param, number){
   
   output_target <- list()
