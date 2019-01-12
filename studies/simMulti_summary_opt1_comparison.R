@@ -365,4 +365,29 @@ for (p in perturbs){
   }
   
 }
-write_latex_table(ldply(rows, 'data.frame'), "latex_multi_params.txt", path=dst)
+df <- ldply(rows, 'data.frame')
+write_latex_table(df, "latex_multi_params.txt", path=dst)
+
+boxplot(bias ~ model, 
+        data=df[! df$parameter %in% c('theta', 'phi') & df$w == 'same',], 
+        names=c('Multispecies', 'Separate (1)', 'Pooled', 'Separate (2)'),
+        xlab='Model',
+        ylab='Bias')
+boxplot(bias ~ model, 
+        data=df[! df$parameter %in% c('theta', 'phi') & df$w != 'same',],
+        names=c('Multispecies', 'Separate (1)', 'Pooled', 'Separate (2)'),
+        xlab='Model',
+        ylab='Bias')
+
+sums <- c()
+for (m in c('_multi', '_separate1', '_separate2', '_pooled')){
+  rowsm <- df[df$model == m & !df$parameter %in% c('theta', 'phi') & df$w =='same',]
+  sums <- rbind(sums, c(model=m, w='same', round(summary(rowsm$bias), 3)))
+}
+
+for (m in c('_multi', '_separate1', '_separate2', '_pooled')){
+  rowsm <- df[df$model == m & !df$parameter %in% c('theta', 'phi') & df$w =='different',]
+  sums <- rbind(sums, c(model=m, w='different', round(summary(rowsm$bias), 3)))
+}
+sums <- data.frame(sums)
+write_latex_table(sums, "latex_multi_bias_summary.txt", path=dst)

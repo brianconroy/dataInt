@@ -11,9 +11,10 @@ burnin_after <- function(output, n.burn){
     output$samples.beta.ca <- output$samples.beta.ca[i.start:n.curr,]
     output$samples.beta.co <- output$samples.beta.co[i.start:n.curr,]
   } else {
-    new.aca <- array(NA, c(2,n.curr-i.start+1,1))
-    new.aco <- array(NA, c(2,n.curr-i.start+1,1))
-    for (j in 1:2){
+    n_s <- dim(output$samples.alpha.ca)[1]
+    new.aca <- array(NA, c(n_s,n.curr-i.start+1,1))
+    new.aco <- array(NA, c(n_s,n.curr-i.start+1,1))
+    for (j in 1:n_s){
       new.aca[j,,] <- matrix(output$samples.alpha.ca[j,i.start:n.curr,])
       new.aco[j,,] <- matrix(output$samples.alpha.co[j,i.start:n.curr,])
     }

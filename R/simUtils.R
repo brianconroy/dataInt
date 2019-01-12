@@ -1,6 +1,27 @@
 library(jsonlite)
 
 
+multispecies_plot <- function(samples, species, parameter, beta_id=NULL){
+  
+  if (grepl('Alpha.case', parameter)){
+    true <- data_store$alpha.cases[species]
+  } else if (grepl('Alpha.ctrl', parameter)){
+    true <- data_store$alpha.ctrl[species]
+  } else if (grepl('beta.case', parameter)){
+    true <- data_store$beta.cases[species, beta_id]
+  } else if (grepl('beta.ctrl', parameter)){
+    true <- data_store$beta.ctrls[species, beta_id]
+  } 
+  
+  if (!is.null(beta_id)){
+    padded_plot(samples[species,,beta_id], true)
+  } else {
+    padded_plot(samples[species,,], true)
+  }
+  
+}
+
+
 summarize_mcmc_pscc <- function(output, model_desc){
   
   rows <- list()

@@ -15,7 +15,6 @@ prefSampleMulti_1 <- function(data, n.sample, burnin,
   ## setup
   case.data <- data$case.data
   ctrl.data <- data$ctrl.data
-  X.c <- case.data[[1]]$x.standardised
   locs <- data$locs
   N.w <- length(locs[[1]]$status)
   N.d <- length(locs)
@@ -306,6 +305,7 @@ continueMCMC_multi <- function(data, output, n.sample){
   
   # get initial values
   n.sample.old <- nrow(output$samples.beta.ca[1,,])
+  n_s <- dim(output$samples.alpha.ca)[1]
   beta_ca_initial <- list()
   beta_co_initial <- list()
   alpha_ca_initial <- list()
@@ -352,10 +352,10 @@ continueMCMC_multi <- function(data, output, n.sample){
   # combine outputs
   new_output <- output
   new_output$n.sample <- new_output$n.sample + n.sample
-  samples.alpha.ca <- array(NA, c(2, n.sample.old + n.sample, 1))
-  samples.alpha.co <- array(NA, c(2, n.sample.old + n.sample, 1))
-  samples.beta.ca <- array(NA, c(2, n.sample.old + n.sample, 3))
-  samples.beta.co <- array(NA, c(2, n.sample.old + n.sample, 3))
+  samples.alpha.ca <- array(NA, c(n_s, n.sample.old + n.sample, 1))
+  samples.alpha.co <- array(NA, c(n_s, n.sample.old + n.sample, 1))
+  samples.beta.ca <- array(NA, c(n_s, n.sample.old + n.sample, 3))
+  samples.beta.co <- array(NA, c(n_s, n.sample.old + n.sample, 3))
   for (j in 1:dim(output$samples.alpha.ca)[1]){
     samples.alpha.ca[j,,] <- matrix(c(new_output$samples.alpha.ca[j,,], more_output$samples.alpha.ca[j,,]))
     samples.alpha.co[j,,] <- matrix(c(new_output$samples.alpha.co[j,,], more_output$samples.alpha.co[j,,]))
