@@ -103,3 +103,79 @@ for (s in sizes){
 df_mcmc <- ldply(rows_all, 'data.frame')
 write_latex_table(df_mcmc, "latex_size_mcmc.txt", path=dst)
 
+# save params to table
+sizes <- c(75, 123, '619_success', 1689, 5495)
+rows <- list()
+counter <- 1
+for (s in sizes){
+  params <- load_sim_params_size(s)
+  rows[[counter]] <- list(
+    size=params$size,
+    prevalence=params$prev,
+    beta.case=params$beta.case,
+    beta.ctrl=params$beta.ctrl,
+    alpha.case=params$alpha.case,
+    alpha.ctrl=params$alpha.ctrl
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(rows, 'data.frame'), "latex_size_params.txt", path=dst)
+
+
+# table of bias for alpha params
+# summary table of bias
+rows_alpha <- list()
+counter <- 1
+for (s in sizes){
+  true_params <- load_params(paste('true_params_size_', s, '.json', sep=''))
+  o <- get_output_general(outputs, tag=paste('size_', s, sep=""))
+  rows_alpha[[counter]] <- list(
+    size=s,
+    parameter="alpha (case)",
+    estimate=round(mean(o$samples.alpha.ca), 3),
+    bias=round(mean(o$samples.alpha.ca), 3) - true_params$Alpha.case
+  )
+  counter <- counter + 1
+}
+for (s in sizes){
+  true_params <- load_params(paste('true_params_size_', s, '.json', sep=''))
+  o <- get_output_general(outputs, tag=paste('size_', s, sep=""))
+  rows_alpha[[counter]] <- list(
+    size=s,
+    parameter="alpha (control)",
+    estimate=round(mean(o$samples.alpha.co), 3),
+    bias=round(mean(o$samples.alpha.co), 3) - true_params$Alpha.ctrl
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(rows_alpha, 'data.frame'), "latex_alpha_bias.txt", path=dst)
+
+
+rows_beta <- list()
+counter <- 1
+for (s in sizes){
+  true_params <- load_params(paste('true_params_size_', s, '.json', sep=''))
+  o <- get_output_general(outputs, tag=paste('size_', s, sep=""))
+  for (i in 1:3){
+    rows_beta[[counter]] <- list(
+      size=s,
+      parameter=paste("beta (case)", i-1),
+      estimate=round(mean(o$samples.beta.ca[,i]), 3),
+      bias=round(mean(o$samples.beta.ca[,i]), 3) - true_params$beta.case[i]
+    )
+    counter <- counter + 1
+  }
+  for (i in 1:3){
+    rows_beta[[counter]] <- list(
+      size=s,
+      parameter=paste("beta (control)", i-1),
+      estimate=round(mean(o$samples.beta.co[,i]), 3),
+      bias=round(mean(o$samples.beta.co[,i]), 3) - true_params$beta.ctrl[i]
+    )
+    counter <- counter + 1
+  }
+  
+}
+rows_beta <- ldply(rows_beta, 'data.frame')
+boxplot(bias ~ size, data=rows_beta, names=c(75, 123, '619 (uncal)', 
+                                             '619 (cal)', 1689, 5495), ylab='bias', xlab='size')

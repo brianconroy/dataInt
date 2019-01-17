@@ -71,8 +71,11 @@ r <- caPr.disc[[1]]
 locs <- simLocW(W, r, beta=0, seed=11) # 42
 sum(locs$status)
 hist(W)
-plot(r)
-points(locs$coords)
+rw <- r
+rw[][!is.na(rw[])] <- W
+pal <- colorRampPalette(c("blue","red"))
+plot(rw, col=pal(10))
+points(locs$coords, pch=16)
 
 
 #### Simulate counts given locations

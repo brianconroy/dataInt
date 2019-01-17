@@ -94,43 +94,38 @@ for (n_s in species_ns){
 # estimates
 ############
 
-
-
-# traceplots
-perturbs <- c("low", "high")
-models <- c("_multi", "_separate1", "_pooled")
-species <- c(1)
-
-for (p in perturbs){
-  for (m in models){
-    for (s in species){
-      true_params <- load_params(paste("true_params_simMulti_opt1_comparison_", p, ".json", sep=""))
-      o <- get_output_general(outputs, tag=paste('simMulti_opt1_comparison_', p, m, sep=""))
-      
-      fname <- paste("multi_opt1_traces_", p, m, "_", s, ".png", sep="")
-      png(paste(dst, fname, sep=""),
-          width=900, height=700, res=100)
-      plot_traces_multi(o, true_params, s, m)
-      dev.off()
-    }
+alpha_est <- list()
+counter <- 1
+for (n_s in species_ns){
+  o <- get_output_general(outputs, tag=paste('simMulti_opt1_iteration_', n_s, sep=""))
+  for (species in 1:n_s){
+    alpha_est[[counter]] <- list(
+      species=species,
+      total_species=n_s,
+      parameter="alpha (case)",
+      estimate=round(mean(o$samples.alpha.ca[species,,]), 3),
+      true_value=true_params$alpha.cases[species,],
+      bias=round(mean(o$samples.alpha.ca[species,,]), 3)-true_params$alpha.cases[species,]
+    )
+    counter <- counter + 1
   }
 }
-
-perturbs <- c("low", "high")
-models <- c("_multi", "_separate_species2", "_pooled")
-species <- c(2)
-
-for (p in perturbs){
-  for (m in models){
-    for (s in species){
-      true_params <- load_params(paste("true_params_simMulti_opt1_comparison_", p, ".json", sep=""))
-      o <- get_output_general(outputs, tag=paste('simMulti_opt1_comparison_', p, m, sep=""))
-      
-      fname <- paste("multi_opt1_traces_", p, m, "_", s, ".png", sep="")
-      png(paste(dst, fname, sep=""),
-          width=900, height=700, res=100)
-      plot_traces_multi(o, true_params, s, m)
-      dev.off()
-    }
+for (n_s in species_ns){
+  o <- get_output_general(outputs, tag=paste('simMulti_opt1_iteration_', n_s, sep=""))
+  for (species in 1:n_s){
+    alpha_est[[counter]] <- list(
+      species=species,
+      total_species=n_s,
+      parameter="alpha (control)",
+      estimate=round(mean(o$samples.alpha.co[species,,]), 3),
+      true_value=true_params$alpha.ctrls[species,],
+      bias=round(mean(o$samples.alpha.co[species,,]), 3)-true_params$alpha.ctrls[species,]
+    )
+    counter <- counter + 1
   }
 }
+alpha_df <- ldply(alpha_est, 'data.frame')
+boxplot(bias ~ total_species, data=alpha_df[alpha_df$parameter=='alpha (case)',],
+        xlab='Total Species', ylab='Bias')
+boxplot(bias ~ total_species, data=alpha_df[alpha_df$parameter=='alpha (control)',],
+        xlab='Total Species', ylab='Bias')

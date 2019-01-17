@@ -12,7 +12,7 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 # sizes: 75, 123, 619, 1689, 5495
-size <- "5495"
+size <- "619"
 sim_name <- paste("simPsCC_size_", size, sep="")
 
 
@@ -78,6 +78,11 @@ hist(W)
 plot(r)
 points(locs$coords)
 
+rw <- r
+rw[][!is.na(rw[])] <- W
+pal <- colorRampPalette(c("blue","red"))
+plot(rw, col=pal(8))
+points(locs$coords, pch=16)
 
 #### Simulate counts given locations
 cov.disc <- caPr.disc
