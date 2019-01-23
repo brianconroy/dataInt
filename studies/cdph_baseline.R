@@ -5,7 +5,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 caPr <- load_prism_pcs()
-caPr.disc <- aggregate(caPr, fact=8)
+caPr.disc <- aggregate(caPr, fact=5)
 N <- n_values(caPr.disc[[1]])
 plot(caPr.disc)
 
@@ -43,6 +43,7 @@ names(counts_neg) <- c('cell', 'count_neg')
 counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
 counts_all$cell <- as.numeric(as.character(counts_all$cell))
 counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
+counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
 counts_all <- counts_all[with(counts_all, order(cell)),]
 
 # location data
@@ -88,8 +89,6 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 # fit model
 ###########
 
-iterate_ig_variance
-
 prior_theta <- c(6, 2)
 prior_phi <- c(15, 200)
 
@@ -97,7 +96,7 @@ g_var(6, 2)
 ig_var(15, 200)
 
 # W initial value
-w_output <- logisticGp(y=locs$status, d, n.sample=3000, burnin=800, L=10,
+w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
                       prior_phi=prior_phi, prior_theta=prior_theta,
                       proposal.sd.theta=0.20)
 w_output$accept
@@ -155,7 +154,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 output <- burnin_after(output, n.burn=2000)
 
-output <- continueMCMC(data, output, n.sample=2000)
+output <- continueMCMC(data, output, n.sample=10000)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
@@ -175,3 +174,9 @@ view_tr(output$samples.beta.co[,3])
 par(mfrow=c(1,1))
 view_tr(output$samples.theta)
 view_tr(output$samples.phi)
+
+###########
+# downscale
+###########
+
+
