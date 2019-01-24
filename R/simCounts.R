@@ -627,7 +627,7 @@ simConditionalGp <- function(r, loc.stats, beta, beta.samp, alpha, global.center
 }
 
 
-simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE, seed=NULL){
+simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE, seed=NULL, offset=1){
   
   
   # extract covariate values at survey locations
@@ -655,7 +655,7 @@ simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE,
   
   
   # simulate counts
-  rates <- exp(x.standardised %*% beta + alpha * w.sub)
+  rates <- exp(log(offset) + x.standardised %*% beta + alpha * w.sub)
   if (!is.null(seed)){ set.seed(seed) }
   counts <- sapply(rates, function(x){rpois(n=1, x)})
   

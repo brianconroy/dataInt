@@ -74,6 +74,7 @@ for (n_s in species_ns){
   lodds <- calc_log_odds_multi(o, true_params, species, output_type='_multi')
   lodds_true <- calc_log_odds_true_multi_general(true_params, species)
   plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', main=lab); abline(0, 1, col=2)
+  counter <- counter + 1
 }
 
 ###

@@ -201,9 +201,10 @@ par(mfrow=c(1,2))
 plot(rw)
 plot(p)
 
-par(mfrow=c(1,1))
-plot(p)
-points(locs$coords, col=2, pch=16)
+par(mfrow=c(1,2))
+plot(rw)
+plot(rw)
+points(locs$coords, col=1, pch=16)
 
 ################
 # calculate risk 
@@ -217,17 +218,29 @@ beta.co.hat <- colMeans(output$samples.beta.co)
 
 X_low <- load_x_ca(factor=5)
 lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+risk_low <- exp(lodds_low/(1 - lodds_low))
 
 r_lodds_low <- caPr.disc[[1]]
 r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
 plot(r_lodds_low)
 
+r_risk_low <- caPr.disc[[1]]
+r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+plot(r_risk_low)
+
 X_high <- load_x_ca()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+risk_high <- exp(lodds_high/(1-lodds_high))
 
 r_lodds_high <- caPr[[2]]
 r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
 plot(r_lodds_high)
+
+r_risk_high <- caPr[[2]]
+r_risk_high[][!is.na(r_risk_high[])] <- risk_high
+
+pal <- colorRampPalette(c("blue","red"))
+plot(r_risk_high, col=pal(15))
 
 par(mfrow=c(1,2))
 plot(r_lodds_low)
