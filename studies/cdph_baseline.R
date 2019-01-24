@@ -96,16 +96,17 @@ g_var(6, 2)
 ig_var(15, 200)
 
 # W initial value
-w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
-                      prior_phi=prior_phi, prior_theta=prior_theta,
-                      proposal.sd.theta=0.20)
-w_output$accept
-view_tr_w(w_output$samples.w)
-view_tr(w_output$samples.theta)
-view_tr(w_output$samples.phi)
-
-hist(colMeans(w_output$samples.w))
-save_output(w_output, "w_inival_output_cdph.json")
+# w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
+#                       prior_phi=prior_phi, prior_theta=prior_theta,
+#                       proposal.sd.theta=0.20)
+# w_output$accept
+# view_tr_w(w_output$samples.w)
+# view_tr(w_output$samples.theta)
+# view_tr(w_output$samples.phi)
+# 
+# hist(colMeans(w_output$samples.w))
+# save_output(w_output, "w_inival_output_cdph.json")
+w_output <- load_output("w_inival_output_cdph.json")
 
 # w_output <- load_output("w_inival_output_priorcompare.json")
 w_i <- colMeans(w_output$samples.w)
@@ -122,10 +123,10 @@ beta_co_i <- coefficients(ini_ctrl)[1:3]
 
 prior_alpha_ca_mean <- 1
 prior_alpha_co_mean <- -1
-prior_alpha_ca_var <- 4
-prior_alpha_co_var <- 4
+prior_alpha_ca_var <- 6
+prior_alpha_co_var <- 6
 
-n.sample <- 2000
+n.sample <- 4000
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -152,9 +153,9 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                              prior_phi=prior_phi, prior_theta=prior_theta,
                              prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
-output <- burnin_after(output, n.burn=2000)
+output <- burnin_after(output, n.burn=500)
 
-output <- continueMCMC(data, output, n.sample=10000)
+output <- continueMCMC(data, output, n.sample=3000)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
@@ -175,8 +176,82 @@ par(mfrow=c(1,1))
 view_tr(output$samples.theta)
 view_tr(output$samples.phi)
 
+output$description <- "cdph baseline"
+save_output(output, "output_cdph_baseline.json")
+
 ###########
 # downscale
 ###########
 
+# interpolate w
+w.hat <- colMeans(output$samples.w)
+rw <- caPr.disc[[1]]
+rw[][!is.na(rw[])] <- w.hat
 
+xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+v <- getValues(rw)
+
+tps <- Tps(xy, v)
+p <- raster(caPr[[2]])
+p <- interpolate(p, tps)
+p <- mask(p, caPr[[1]])
+w.hat_ds <- p[][!is.na(p[])]
+
+par(mfrow=c(1,2))
+plot(rw)
+plot(p)
+
+par(mfrow=c(1,1))
+plot(p)
+points(locs$coords, col=2, pch=16)
+
+################
+# calculate risk 
+# surfaces
+################
+
+alpha.ca.hat <- mean(output$samples.alpha.ca)
+alpha.co.hat <- mean(output$samples.alpha.co)
+beta.ca.hat <- colMeans(output$samples.beta.ca)
+beta.co.hat <- colMeans(output$samples.beta.co)
+
+X_low <- load_x_ca(factor=5)
+lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+
+r_lodds_low <- caPr.disc[[1]]
+r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+plot(r_lodds_low)
+
+X_high <- load_x_ca()
+lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+
+r_lodds_high <- caPr[[2]]
+r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+plot(r_lodds_high)
+
+par(mfrow=c(1,2))
+plot(r_lodds_low)
+plot(r_lodds_high)
+
+# compare to naive model
+mod.ca <- glm(case.data$y ~ case.data$x.standardised - 1, family='poisson')
+mod.co <- glm(ctrl.data$y ~ ctrl.data$x.standardised - 1, family='poisson')
+
+beta.ca.hat_p <- unname(coefficients(mod.ca))
+beta.co.hat_p <- unname(coefficients(mod.co))
+
+lodds_low_p <- X_low %*% beta.ca.hat_p - X_low %*% beta.co.hat_p
+r_lodds_low_p <- caPr.disc[[1]]
+r_lodds_low_p[][!is.na(r_lodds_low_p[])] <- lodds_low_p
+plot(r_lodds_low_p)
+
+lodds_high_p <- X_high %*% beta.ca.hat_p - X_high %*% beta.co.hat_p
+r_lodds_high_p <- caPr[[2]]
+r_lodds_high_p[][!is.na(r_lodds_high_p[])] <- lodds_high_p
+plot(r_lodds_high_p)
+
+par(mfrow=c(1,2))
+plot(r_lodds_high_p)
+plot(r_lodds_high)
+
+plot(y=r_lodds_high_p[], x=r_lodds_high[], xlab='log odds (preferential sampling)', ylab='log odds (poisson)'); abline(0, 1, col=2)

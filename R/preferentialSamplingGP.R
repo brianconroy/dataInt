@@ -5,7 +5,7 @@ burnin_after <- function(output, n.burn){
   n.curr <- output$n.sample - output$burnin
   i.start <- n.burn + 1
   output$burnin <- output$burnin + n.burn
-  if (length(dim(output$samples.alpha.ca)) == 2){
+  if (length(dim(output$samples.alpha.ca)) == 2 | class(output$samples.alpha.ca) == 'numeric'){
     output$samples.alpha.ca <- output$samples.alpha.ca[i.start:n.curr]
     output$samples.alpha.co <- output$samples.alpha.co[i.start:n.curr]
     output$samples.beta.ca <- output$samples.beta.ca[i.start:n.curr,]

@@ -1045,6 +1045,39 @@ load_x_standard <- function(location_indicators){
 }
 
 
+load_x_ca <- function(factor=NULL){
+  
+  caPr <- load_prism_pcs()
+  if (!is.null(factor)){
+    caPr <- aggregate(caPr, fact=factor)
+    x_1 <- caPr[[1]][]
+    x_1 <- x_1[][!is.na(x_1[])]
+    x_2 <- caPr.disc[[2]][]
+    x_2 <- x_2[][!is.na(x_2[])]
+  } else {
+    pc1 <- mask(caPr[[1]], caPr[[2]])
+    pc2 <- caPr[[2]]
+    x_1 <- pc1[]
+    x_1 <- x_1[][!is.na(x_1[])]
+    x_2 <- pc2[]
+    x_2 <- x_2[][!is.na(x_2[])]
+  }
+
+  mu_1 <- mean(x_1)
+  sd_1 <- sd(x_1)
+  mu_2 <- mean(x_2)
+  sd_2 <- sd(x_2)
+  
+  x_1_std <- (x_1 - mu_1)/sd_1
+  x_2_std <- (x_2 - mu_2)/sd_2
+  x_std <- array(1, c(length(x_1), 1))
+  x_std <- cbind(x_std, x_1_std, x_2_std)
+  return(x_std)
+  
+}
+
+
+
 # load mcmc outputs
 load_sim_outputs <- function(tag=''){
   
