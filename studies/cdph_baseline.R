@@ -216,6 +216,7 @@ alpha.co.hat <- mean(output$samples.alpha.co)
 beta.ca.hat <- colMeans(output$samples.beta.ca)
 beta.co.hat <- colMeans(output$samples.beta.co)
 
+# low resolution
 X_low <- load_x_ca(factor=5)
 lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
 risk_low <- exp(lodds_low/(1 - lodds_low))
@@ -228,6 +229,7 @@ r_risk_low <- caPr.disc[[1]]
 r_risk_low[][!is.na(r_risk_low[])] <- risk_low
 plot(r_risk_low)
 
+# high resolution
 X_high <- load_x_ca()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
 risk_high <- exp(lodds_high/(1-lodds_high))
@@ -259,12 +261,19 @@ r_lodds_low_p[][!is.na(r_lodds_low_p[])] <- lodds_low_p
 plot(r_lodds_low_p)
 
 lodds_high_p <- X_high %*% beta.ca.hat_p - X_high %*% beta.co.hat_p
+risk_high_p <- exp(lodds_high_p/(1-lodds_high_p))
+
 r_lodds_high_p <- caPr[[2]]
 r_lodds_high_p[][!is.na(r_lodds_high_p[])] <- lodds_high_p
 plot(r_lodds_high_p)
+
+r_risk_high_p <- caPr[[2]]
+r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
+plot(r_risk_high_p)
 
 par(mfrow=c(1,2))
 plot(r_lodds_high_p)
 plot(r_lodds_high)
 
 plot(y=r_lodds_high_p[], x=r_lodds_high[], xlab='log odds (preferential sampling)', ylab='log odds (poisson)'); abline(0, 1, col=2)
+plot(y=r_risk_high_p[], x=r_risk_high[], xlab='risk (preferential sampling)', ylab='risk (poisson)'); abline(0, 1, col=2)
