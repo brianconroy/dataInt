@@ -12,6 +12,11 @@ plot(caPr.disc)
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
 
+# 'CA G Sq': CA Ground Squirrel
+species <- c('CA G Sq')
+analysis_name <- gsub(' ', '_', paste('analysis', species, sep='_'), fixed=T)
+rodents <- rodents[rodents$Short_Name %in% species,]
+
 coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
 loc.disc <- caPr.disc[[1]]
 cells_all <- cellFromXY(loc.disc, coords_all)
@@ -72,7 +77,6 @@ case.data <- list(
   x=x,
   p=3
 )
-print(sum(case.data$y)) # 1401
 
 # control data
 ctrl.data <- list(
@@ -91,21 +95,40 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 ###########
 
 # W initial value
-# w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
-#                       prior_phi=prior_phi, prior_theta=prior_theta,
-#                       proposal.sd.theta=0.20)
-# w_output$accept
-# view_tr_w(w_output$samples.w)
-# view_tr(w_output$samples.theta)
-# view_tr(w_output$samples.phi)
-# 
-# hist(colMeans(w_output$samples.w))
-# save_output(w_output, "w_inival_output_cdph.json")
-w_output <- load_output("w_inival_output_cdph.json")
+prior_theta <- c(1.136, 3)
+prior_phi <- c(28.5, 500)
+w_output <- logisticGp(y=locs$status, d, n.sample=1500, burnin=500, L=10,
+                      prior_phi=prior_phi, prior_theta=prior_theta,
+                      proposal.sd.theta=0.20)
+w_output$accept
+view_tr_w(w_output$samples.w)
+view_tr(w_output$samples.theta)
+view_tr(w_output$samples.phi)
 
+hist(colMeans(w_output$samples.w))
+save_output(w_output, paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
+# w_output <- load_output("w_inival_output_cdph.json")
+
+# w_output <- load_output("w_inival_output_priorcompare.json")
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
+
+
+# set prior theta and phi to the values estimated
+# in the previous step
+# iterate_g_variance(theta_i, 1, 15)
+
+
+prior_theta <- c(1.136, 3)
+prior_phi <- c(15, 200)
+
+g_var(6, 2)
+ig_var(15, 200)
+
+
+
+
 
 ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
 alpha_ca_i <- coefficients(ini_case)[4]
@@ -114,17 +137,6 @@ beta_ca_i <- coefficients(ini_case)[1:3]
 ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
 alpha_co_i <- coefficients(ini_ctrl)[4]
 beta_co_i <- coefficients(ini_ctrl)[1:3]
-
-# set prior theta and phi to the values estimated
-# in the previous step
-# iterate_g_variance(theta_i, 1, 15)
-# iterate_ig_variance(phi_i, 400, 500)
-
-prior_theta <- c(1.136, 3)
-prior_phi <- c(28.5, 500)
-
-g_var(1.136, 3)
-ig_var(28.5, 500)
 
 prior_alpha_ca_mean <- 0
 prior_alpha_co_mean <- 0
@@ -158,7 +170,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
                              prior_phi=prior_phi, prior_theta=prior_theta,
                              prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
-output <- burnin_after(output, n.burn=200)
+output <- burnin_after(output, n.burn=500)
 
 output <- continueMCMC(data, output, n.sample=3000)
 

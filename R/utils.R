@@ -52,11 +52,11 @@ ig_var <- function(a, b){
 }
 
 
-iterate_ig_variance <- function(phi){
+iterate_ig_variance <- function(phi, lb, ub){
   
   vars <- list()
   c <- 1
-  for (b in 40:400){
+  for (b in lb:ub){
     a <- b/phi + 1
     vars[[c]] <- list(a=a, b=b, v=ig_var(a, b))
     c <- c + 1
