@@ -13,7 +13,10 @@ src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
 
 # 'CA G Sq': CA Ground Squirrel
-species <- c('CA G Sq')
+# 'GM G Sq': Golden Mantle GS
+# 'Pine Squirrel': Douglas Squirrel
+# 'Chipmunk, YP': T. amoeunus
+species <- c('Chipmunk, YP')
 analysis_name <- gsub(' ', '_', paste('analysis', species, sep='_'), fixed=T)
 rodents <- rodents[rodents$Short_Name %in% species,]
 
@@ -47,8 +50,11 @@ names(counts_neg) <- c('cell', 'count_neg')
 # combine counts
 counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
 counts_all$cell <- as.numeric(as.character(counts_all$cell))
+
 counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
-counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
+if (sum(is.na(counts_all$count_neg)) > 0){
+  counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
+}
 counts_all <- counts_all[with(counts_all, order(cell)),]
 
 # location data
@@ -104,12 +110,10 @@ w_output$accept
 view_tr_w(w_output$samples.w)
 view_tr(w_output$samples.theta)
 view_tr(w_output$samples.phi)
-
 hist(colMeans(w_output$samples.w))
 save_output(w_output, paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
-# w_output <- load_output("w_inival_output_cdph.json")
 
-# w_output <- load_output("w_inival_output_priorcompare.json")
+# w_output <- load_output( paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
@@ -117,18 +121,8 @@ phi_i <- mean(w_output$samples.phi)
 
 # set prior theta and phi to the values estimated
 # in the previous step
-# iterate_g_variance(theta_i, 1, 15)
-
-
-prior_theta <- c(1.136, 3)
-prior_phi <- c(15, 200)
-
-g_var(6, 2)
-ig_var(15, 200)
-
-
-
-
+prior_theta <- get_gamma_prior(prior_mean=theta_i, prior_var=10)
+prior_phi <- get_igamma_prior(prior_mean=phi_i, prior_var=10)
 
 ini_case <- glm(case.data$y ~ case.data$x.standardised + w_i[locs$ids] - 1, family='poisson')
 alpha_ca_i <- coefficients(ini_case)[4]
@@ -172,7 +166,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 output <- burnin_after(output, n.burn=500)
 
-output <- continueMCMC(data, output, n.sample=3000)
+output <- continueMCMC(data, output, n.sample=500)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
@@ -193,8 +187,8 @@ par(mfrow=c(1,1))
 view_tr(output$samples.theta)
 view_tr(output$samples.phi)
 
-output$description <- "cdph baseline"
-save_output(output, "output_cdph_baseline.json")
+output$description <- paste("cdph", analysis_name, sep="_")
+save_output(output, paste("cdph_", analysis_name,".json", sep=""))
 
 ###########
 # downscale

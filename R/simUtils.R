@@ -1,6 +1,24 @@
 library(jsonlite)
 
 
+get_gamma_prior <- function(prior_mean, prior_var){
+  
+  shape <- prior_mean^2/prior_var
+  scale <- prior_var/prior_mean
+  return(c(shape, scale))
+  
+}
+
+
+get_igamma_prior <- function(prior_mean, prior_var){
+  
+  scale <- prior_mean^3 * (1/prior_var + 1/prior_mean^2)
+  shape <- scale/prior_mean + 1
+  return(c(shape, scale))
+  
+}
+
+
 multispecies_plot <- function(samples, species, parameter, beta_id=NULL){
   
   if (grepl('Alpha.case', parameter)){
