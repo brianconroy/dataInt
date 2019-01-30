@@ -15,9 +15,12 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 # 'CA G Sq': CA Ground Squirrel
 # 'GM G Sq': Golden Mantle GS
 # 'Pine Squirrel': Douglas Squirrel
-# 'Chipmunk, YP': T. amoeunus
-species <- c('Chipmunk, YP')
-analysis_name <- gsub(' ', '_', paste('analysis', species, sep='_'), fixed=T)
+# 'Chipmunk, YP': T. amoeunus (Yellow Pine)
+# 'Chipmunk, LP': T. speciousus (Lodgepole)??
+# 'Chipmunk, S': T. senex??
+# 'Chipmunk, M': T. merriami??
+species <- c('Chipmunk, YP', 'CA G Sq')
+analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
 rodents <- rodents[rodents$Short_Name %in% species,]
 
 coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
@@ -118,9 +121,6 @@ w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
 
-
-# set prior theta and phi to the values estimated
-# in the previous step
 prior_theta <- get_gamma_prior(prior_mean=theta_i, prior_var=10)
 prior_phi <- get_igamma_prior(prior_mean=phi_i, prior_var=10)
 
