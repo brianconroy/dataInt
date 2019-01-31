@@ -19,7 +19,7 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 # 'Chipmunk, LP': T. speciousus (Lodgepole)??
 # 'Chipmunk, S': T. senex??
 # 'Chipmunk, M': T. merriami??
-species <- c('Chipmunk, YP', 'CA G Sq')
+species <- c('Chipmunk, M')
 analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
 rodents <- rodents[rodents$Short_Name %in% species,]
 
@@ -106,9 +106,14 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 # W initial value
 prior_theta <- c(1.136, 3)
 prior_phi <- c(28.5, 500)
-w_output <- logisticGp(y=locs$status, d, n.sample=1500, burnin=500, L=10,
-                      prior_phi=prior_phi, prior_theta=prior_theta,
-                      proposal.sd.theta=0.20)
+w_output <- logisticGp(y=locs$status, d, n.sample=1700, burnin=800, L=10,
+                       theta_initial=prior_theta[1]*prior_theta[2],
+                       prior_phi=prior_phi[2]/(prior_phi[1] - 1),
+                       prior_phi=prior_phi, prior_theta=prior_theta,
+                       proposal.sd.theta=0.20)
+
+w_output <- burnin_logisticGp_mcmc(w_output, n.burn=700)
+
 w_output$accept
 view_tr_w(w_output$samples.w)
 view_tr(w_output$samples.theta)
@@ -116,7 +121,7 @@ view_tr(w_output$samples.phi)
 hist(colMeans(w_output$samples.w))
 save_output(w_output, paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
 
-# w_output <- load_output( paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
+# w_output <- load_output(paste("w_inival_output_cdph_", analysis_name, ".json", sep=""))
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
@@ -153,16 +158,16 @@ m_co <- 1000
 m_w <- 1000
 
 output <- prefSampleGpCC(data, n.sample, burnin,
-                             L_w, L_ca, L_co, L_a_ca, L_a_co,
-                             proposal.sd.theta=proposal.sd.theta,
-                             m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
-                             target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
-                             self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
-                             delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
-                             beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
-                             theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
-                             prior_phi=prior_phi, prior_theta=prior_theta,
-                             prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+                         L_w, L_ca, L_co, L_a_ca, L_a_co,
+                         proposal.sd.theta=proposal.sd.theta,
+                         m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                         target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                         self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                         delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                         beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                         theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                         prior_phi=prior_phi, prior_theta=prior_theta,
+                         prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
 output <- burnin_after(output, n.burn=500)
 

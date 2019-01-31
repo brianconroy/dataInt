@@ -1,5 +1,27 @@
 
 
+#' logisticGp
+#' 
+#' Fits a spatial logistic regression model.
+#' Updates random effects by Hamiltonian Monte Carlo,
+#' spatial range by MHRW, and marginal variance by Gibbs. 
+#'
+#' @param y (vector) vector of outcomes
+#' @param d (matrix) distance matrix
+#' @param n.sample (numeric) number of samples
+#' @param burnin (numeric) mcmc burnin
+#' @param L (numeric) hamiltonian monte carlo length parameter
+#' @param proposal.sd.theta (numeric) spatial range proposal standard deviation
+#' @param w_initial (numeric) initial value of random effects
+#' @param theta_initial (numeric) initial value of spatial range
+#' @param phi_initial (numeric) initial value of spatial variance
+#' @param prior_phi (numeric) shape and scale parameters of phi prior
+#' @param prior_theta (numeric) shape and scale parameters of theta prior
+#'
+#' @return (list) mcmc samples
+#' @export
+#'
+#' @examples
 logisticGp <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
                       w_initial=NULL, theta_initial=NULL, phi_initial=NULL,
                       prior_phi, prior_theta){
@@ -83,9 +105,60 @@ logisticGp <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
   output$samples.phi <- samples.phi
   output$samples.w <- samples.w
   output$deltas_w <- deltas_w
+  output$burnin <- burnin
+  output$n.sample <- n.sample
+  output$prior_phi <- prior_phi
+  output$prior_theta <- prior_theta
+  output$L <- L
+  output$proposal.sd.theta <- proposal.sd.theta
 
   return(output)
   
+  
+}
+
+
+burnin_logisticGp_mcmc <- function(output, n.burn){
+  
+  n.curr <- output$n.sample - output$burnin
+  i.start <- n.burn + 1
+  output$burnin <- output$burnin + n.burn
+  output$samples.w <- output$samples.w[i.start:n.curr,]
+  output$samples.phi <- output$samples.phi[i.start:n.curr]
+  output$samples.theta <- output$samples.theta[i.start:n.curr]
+  return(output)
+  
+}
+
+
+continue_logisticGp_mcmc <- function(data, output, n.sample){
+  
+  # get initial values
+  n.sample.old <- nrow(output$samples.w)
+  w_initial <- output$samples.w[n.sample.old,]
+  theta_initial <- output$samples.theta[n.sample.old]
+  phi_initial <- output$samples.phi[n.sample.old]
+  
+  # get tuning parameters
+  delta_w <- tail(output$deltas_w, 1)
+  L <- output$L
+  proposal.sd.theta <- output$proposal.sd.theta
+  prior_phi <- output$prior_phi
+  prior_theta <- output$prior_theta
+  
+  more_output <- logisticGp(data$y, d, n.sample, burnin=0, L, proposal.sd.theta=proposal.sd.theta,
+                            w_initial=w_initial, theta_initial=theta_initial, phi_initial=phi_initial,
+                            prior_phi=prior_phi, prior_theta=prior_theta)
+  
+  # merge samples
+  new_output <- output
+  new_output$samples.phi <- c(new_output$samples.phi, more_output$samples.phi)
+  new_output$samples.theta <- c(new_output$samples.theta, more_output$samples.theta)
+  new_output$samples.w <- rbind(new_output$samples.w, more_output$samples.w)
+  new_output$deltas_w <- c(new_output$deltas_w, more_output$deltas_w)
+  new_output$n.sample <- new_output$n.sample + n.sample
+  new_output$accept <- (new_output$n.sample * new_output$accept + n.sample * more_output$accept)/(new_output$n.sample + n.sample)
+  return(new_output)
   
 }
 
