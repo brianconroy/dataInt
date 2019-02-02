@@ -543,19 +543,32 @@ plot_traces <- function(outputs, sampling, prevalence){
 }
 
 
-plot_traces_general <- function(output, true_params){
+plot_traces_general <- function(output, true_params=NULL){
   
   par(mfrow=c(3,4))
-  padded_plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', true_params$beta.case[1])
-  padded_plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', true_params$beta.case[2])
-  padded_plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', true_params$beta.case[3])
-  padded_plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', true_params$beta.ctrl[1])
-  padded_plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', true_params$beta.ctrl[2])
-  padded_plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', true_params$beta.ctrl[3])
-  padded_plot(output$samples.alpha.ca, ylab='Alpha (case)', true_params$Alpha.case[1])
-  padded_plot(output$samples.alpha.co, ylab='Alpha (control)', true_params$Alpha.ctrl[1])
-  padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
-  padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  if (!is.null(true_params)){
+    padded_plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', true_params$beta.case[1])
+    padded_plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', true_params$beta.case[2])
+    padded_plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', true_params$beta.case[3])
+    padded_plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', true_params$beta.ctrl[1])
+    padded_plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', true_params$beta.ctrl[2])
+    padded_plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', true_params$beta.ctrl[3])
+    padded_plot(output$samples.alpha.ca, ylab='Alpha (case)', true_params$Alpha.case[1])
+    padded_plot(output$samples.alpha.co, ylab='Alpha (control)', true_params$Alpha.ctrl[1])
+    padded_plot(output$samples.theta, ylab='Range', true_params$Theta[1])
+    padded_plot(output$samples.phi, ylab='Marginal Variance', true_params$Phi)
+  } else {
+    plot(output$samples.beta.ca[,1], ylab='Beta 0 (case)', type='l')
+    plot(output$samples.beta.ca[,2], ylab='Beta 1 (case)', type='l')
+    plot(output$samples.beta.ca[,3], ylab='Beta 2 (case)', type='l')
+    plot(output$samples.beta.co[,1], ylab='Beta 0 (control)', type='l')
+    plot(output$samples.beta.co[,2], ylab='Beta 1 (control)', type='l')
+    plot(output$samples.beta.co[,3], ylab='Beta 2 (control)', type='l')
+    plot(output$samples.alpha.ca, ylab='Alpha (case)', type='l')
+    plot(output$samples.alpha.co, ylab='Alpha (control)', type='l')
+    plot(output$samples.theta, ylab='Range', type='l')
+    plot(output$samples.phi, ylab='Marginal Variance', type='l')
+  }
   par(mfrow=c(1,1))
   
 }

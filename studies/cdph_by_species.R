@@ -19,7 +19,7 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 # 'Chipmunk, LP': T. speciousus (Lodgepole)??
 # 'Chipmunk, S': T. senex??
 # 'Chipmunk, M': T. merriami??
-species <- c('Chipmunk, M')
+species <- c('Chipmunk, LP')
 analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
 rodents <- rodents[rodents$Short_Name %in% species,]
 
@@ -106,13 +106,13 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 # W initial value
 prior_theta <- c(1.136, 3)
 prior_phi <- c(28.5, 500)
-w_output <- logisticGp(y=locs$status, d, n.sample=1700, burnin=800, L=10,
+w_output <- logisticGp(y=locs$status, d, n.sample=1700, burnin=500, L=10,
                        theta_initial=prior_theta[1]*prior_theta[2],
-                       prior_phi=prior_phi[2]/(prior_phi[1] - 1),
+                       phi_initial=prior_phi[2]/(prior_phi[1] - 1),
                        prior_phi=prior_phi, prior_theta=prior_theta,
                        proposal.sd.theta=0.20)
 
-w_output <- burnin_logisticGp_mcmc(w_output, n.burn=700)
+w_output <- burnin_logisticGp_mcmc(w_output, n.burn=200)
 
 w_output$accept
 view_tr_w(w_output$samples.w)
@@ -171,7 +171,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 output <- burnin_after(output, n.burn=500)
 
-output <- continueMCMC(data, output, n.sample=500)
+output <- continueMCMC(data, output, n.sample=2000)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
