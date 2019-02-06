@@ -1,8 +1,8 @@
-############################
+##############################
 # Summarizes the preferential
-# sampling x prevalence
-# simulation results
-############################
+# prior sensitivity simulation
+# results
+##############################
 
 library(plyr)
 library(grid)
@@ -16,6 +16,38 @@ caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs_priorsens()
 dst <- "/Users/brianconroy/Documents/research/project1/simulations_prior/"
+
+# summarize true parameter values
+sampling <- "medium"
+prevalence <- "medium"
+true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+sim_params <- list()
+sim_params[[1]] <- list(
+  Parameter='Alpha (case)',
+  Value=as.character(true_params$Alpha.case)
+)
+sim_params[[2]] <- list(
+  Parameter='Alpha (control)',
+  Value=as.character(true_params$Alpha.ctrl)
+)
+sim_params[[3]] <- list(
+  Parameter='Beta (case)',
+  Value=paste(true_params$beta.case, collapse=', ')
+)
+sim_params[[4]] <- list(
+  Parameter='Beta (control)',
+  Value=paste(true_params$beta.ctrl, collapse=', ')
+)
+sim_params[[5]] <- list(
+  Parameter='Range',
+  Value=true_params$Theta
+)
+sim_params[[6]] <- list(
+  Parameter='Marginal Variance',
+  Value=true_params$Phi
+)
+write_latex_table(ldply(sim_params, 'data.frame'), "latex_priorsens_sim_params.txt", path=dst)
+
 
 ##################
 # Alpha iteration

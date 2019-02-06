@@ -81,6 +81,10 @@ hist(W)
 plot(r)
 points(locs$coords)
 
+rw <- r
+rw[][!is.na(rw[])] <- W
+plot(rw)
+points(locs$coords, pch=16)
 
 #### Simulate counts given locations
 cov.disc <- caPr.disc

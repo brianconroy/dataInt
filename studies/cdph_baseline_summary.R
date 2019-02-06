@@ -141,115 +141,111 @@ png(paste(dst, fname, sep=""),
 par(mfrow=c(2,3))
 plot_traces_general(output)
 
+# parameter estimates
+params <- summarize_ps_params(output)
+ite_latex_table(params, 'cdph_baseline_params.txt', dst)
 
+# random field (downscaled)
+w.hat <- colMeans(output$samples.w)
+rw <- caPr.disc[[1]]
+rw[][!is.na(rw[])] <- w.hat
 
-# log odds scatterplots
-par(mfrow=c(2,2))
-xl <- c(-22, 10)
-yl <- c(-22, 10)
-rmses <- c()
-true_params <- load_params('true_params_priorcompare.json')
-labs <- c("A)", "B)", "C)", "D)")
-for (i in 1:length(priors)){
-  
-  p <- priors[i]
-  lab <- labs[i]
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  lodds <- calc_log_odds_output(o, true_params)
-  lodds_true <- calc_log_odds_true_general(true_params)
-  rmse <- sqrt(mean((lodds-lodds_true)^2))
-  rmses <- c(rmses, rmse)
-  plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', xlim=xl, ylim=yl, main=lab); abline(0, 1, col=2)
+xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+v <- getValues(rw)
 
-}
+tps <- Tps(xy, v)
+p <- raster(caPr[[2]])
+p <- interpolate(p, tps)
+p <- mask(p, caPr[[1]])
+w.hat_ds <- p[][!is.na(p[])]
 
+par(mfrow=c(1,2))
+plot(rw)
+plot(p)
 
-# log odds rmses table
-rows <- list()
-counter <- 1
-for ( i in 1:length(priors)){
-  p <- priors[i]
-  rmse <- round(rmses[i], 3)
-  new_row <- list(
-    configuration=p,
-    rmse=rmse
-  )
-  rows[[counter]] <- new_row
-  counter <- counter + 1
-}
-df_rmse <- ldply(rows, 'data.frame')
-write_latex_table(df_rmse, "latex_priorcompare_rmse.txt", path=dst)
+par(mfrow=c(1,2))
+plot(rw)
+plot(rw)
+points(locs$coords, col=1, pch=16)
 
+alpha.ca.hat <- mean(output$samples.alpha.ca)
+alpha.co.hat <- mean(output$samples.alpha.co)
+beta.ca.hat <- colMeans(output$samples.beta.ca)
+beta.co.hat <- colMeans(output$samples.beta.co)
 
-# traceplots
-true_params <- load_params('true_params_priorcompare.json')
-for (p in priors){
-  
-  fname <- paste("priorcompare_traces_", p, ".png", sep="")
-  png(paste(dst, fname, sep=""),
-      width=900, height=700, res=100)
-  par(mfrow=c(2,3))
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  plot_traces_general(o, true_params)
-  dev.off()
-  
-}
+# risk map (low resolution)
+X_low <- load_x_ca(factor=5)
+lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+risk_low <- exp(lodds_low/(1 - lodds_low))
 
+r_lodds_low <- caPr.disc[[1]]
+r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+plot(r_lodds_low)
 
-# w scatterplots
-par(mfrow=c(2,2))
-counter <- 1
-truevals <- load_params('true_params_priorcompare.json')
-for (p in priors){
-  
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  w.hat <- colMeans(o$samples.w)
-  plot(x=truevals$W, y=w.hat, xlab="True W", ylab="Estimated W"); abline(0, 1, col='2')
-  
-}
+r_risk_low <- caPr.disc[[1]]
+r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+plot(r_risk_low)
 
+# risk map (downscaled)
+X_high <- load_x_ca()
+lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+risk_high <- exp(lodds_high/(1-lodds_high))
 
-# export tuning parameters to LaTeX
-rows_all <- c()
-for (p in priors){
-  
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  rows_o <- summarize_mcmc_pscc(o, p)
-  rows_all <- c(rows_o, rows_all)
-  
-}
-df_mcmc <- ldply(rows_all, 'data.frame')
-write_latex_table(df_mcmc, "latex_priorcompare_mcmc.txt", path=dst)
+r_lodds_high <- caPr[[2]]
+r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+plot(r_lodds_high)
 
+r_risk_high <- caPr[[2]]
+r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
-# summary table of alpha estimates
-# model # parameter # estimate # bias
-# (start with alpha case)
-true_params <- load_params('true_params_priorcompare.json')
-Alpha.case <- true_params$Alpha.case
-Alpha.ctrl <- true_params$Alpha.ctrl
-rows <- list()
-counter <- 1
-for (p in priors){
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  rows[[counter]] <- list(
-    model=p,
-    parameter="alpha (case)",
-    estimate=round(mean(o$samples.alpha.ca), 3),
-    true_value=Alpha.case,
-    bias=round(mean(o$samples.alpha.ca), 3)-Alpha.case
-  )
-  counter <- counter + 1
-}
-for (p in priors){
-  o <- get_output_general(outputs, tag=paste('priorcompare_', p, sep=""))
-  rows[[counter]] <- list(
-    model=p,
-    parameter="alpha (control)",
-    estimate=round(mean(o$samples.alpha.co), 3),
-    true_value=Alpha.ctrl,
-    bias=round(mean(o$samples.alpha.co), 3)-Alpha.ctrl
-  )
-  counter <- counter + 1
-}
-write_latex_table(ldply(rows, 'data.frame'), "latex_priorcompare_alpha_estimates.txt", path=dst)
+#pal <- colorRampPalette(c("blue","red"))
+plot(r_risk_high)#, col=pal(15))
+
+#################
+# Compare to 
+# reference model
+#################
+
+mod.ca <- glm(case.data$y ~ case.data$x.standardised - 1, family='poisson')
+mod.co <- glm(ctrl.data$y ~ ctrl.data$x.standardised - 1, family='poisson')
+
+beta.ca.hat_p <- unname(coefficients(mod.ca))
+beta.co.hat_p <- unname(coefficients(mod.co))
+
+lodds_low_p <- X_low %*% beta.ca.hat_p - X_low %*% beta.co.hat_p
+r_lodds_low_p <- caPr.disc[[1]]
+r_lodds_low_p[][!is.na(r_lodds_low_p[])] <- lodds_low_p
+plot(r_lodds_low_p)
+
+lodds_high_p <- X_high %*% beta.ca.hat_p - X_high %*% beta.co.hat_p
+risk_high_p <- exp(lodds_high_p/(1-lodds_high_p))
+
+r_lodds_high_p <- caPr[[2]]
+r_lodds_high_p[][!is.na(r_lodds_high_p[])] <- lodds_high_p
+plot(r_lodds_high_p)
+
+r_risk_high_p <- caPr[[2]]
+r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
+
+par(mfrow=c(1,2))
+plot(r_risk_high_p, main='A)')
+plot(r_risk_high, main='B)')
+
+par(mfrow=c(1,1))
+plot(y=r_risk_high_p[], 
+     x=r_risk_high[], 
+     xlab='Risk (Preferential Sampling)', 
+     ylab='Risk (Poisson)'
+     ); abline(0, 1, col=2)
+
+# summary table of risk differences
+r_diff <- abs(r_risk_high_p[][!is.na(r_risk_high_p[])] - r_risk_high[][!is.na(r_risk_high[])])
+r_diff <- 100*r_diff/r_risk_high_p[][!is.na(r_risk_high_p[])]
+r_diff_summary <- round(matrix(summary(r_diff), ncol=6), 4)
+r_diff_summary <- data.frame(r_diff_summary)
+names(r_diff_summary) <- c("Minimum", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max")
+print(r_diff_summary)
+
+# comparison table of parameter estimates
+param_comp <- compare_params(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat)
+write_latex_table(param_comp, 'cdph_baseline_param_comparison.txt', dst)
