@@ -17,6 +17,29 @@ caPr.disc <- aggregate(caPr, fact=8)
 outputs <- load_sim_outputs_priorsens()
 dst <- "/Users/brianconroy/Documents/research/project1/simulations_prior/"
 
+# summarize prior distributions
+priors_alpha <- load_output('simParams_alpha_prior.txt')
+priors_phi <- load_output('simParams_phi_prior.txt')
+priors_theta <- load_output('simParams_theta_prior.txt')
+rows_prior <- list()
+for (i in 1:5){
+  rows_prior[[i]] <- list(
+    Parameter='Phi',
+    Shape=round(priors_phi[i,1], 2),
+    Scale=priors_phi[i,2],
+    Variance=round(ig_var(priors_phi[i,1], priors_phi[i,2]), 2)
+  )
+}
+for (i in 1:5){
+  rows_prior[[i+5]] <- list(
+    Parameter='Theta',
+    Shape=round(priors_theta[i,1], 2),
+    Scale=priors_theta[i,2],
+    Variance=round(g_var(priors_theta[i,1], priors_theta[i,2]), 2)
+  )
+}
+write_latex_table(ldply(rows_prior, 'data.frame'), "latex_priorsens_priors.txt", path=dst)
+
 # summarize true parameter values
 sampling <- "medium"
 prevalence <- "medium"
@@ -196,6 +219,38 @@ for (i in 1:5){
 }
 df_mcmc <- ldply(rows_all, 'data.frame')
 write_latex_table(df_mcmc, "latex_priorsens_mcmc_phi.txt", path=dst)
+
+
+# export n.samples/burnin to LaTeX
+rows_mcmc <- list()
+for (i in 1:5){
+  o <- get_output_priorsens(outputs, 'phi', i)
+  rows_mcmc[[i]] <- list(
+    Parameter='Phi',
+    Prior_Variance=round(ig_var(priors_phi[i,1], priors_phi[i,2]), 2),
+    Number_of_Samples=o$n.sample,
+    Burnin=o$burnin
+  )
+}
+for (i in 1:5){
+  o <- get_output_priorsens(outputs, 'theta', i)
+  rows_mcmc[[i+5]] <- list(
+    Parameter='Theta',
+    Prior_Variance=round(g_var(priors_theta[i,1], priors_theta[i,2]), 2),
+    Number_of_Samples=o$n.sample,
+    Burnin=o$burnin
+  )
+}
+for (i in 1:5){
+  o <- get_output_priorsens(outputs, 'alpha', i)
+  rows_mcmc[[i+10]] <- list(
+    Parameter='Alpha',
+    Prior_Variance=priors_alpha[i],
+    Number_of_Samples=o$n.sample,
+    Burnin=o$burnin
+  )
+}
+write_latex_table(ldply(rows_mcmc, 'data.frame'), 'priorsens_mcmc_nsamples.txt', dst)
 
 
 # export summary table of parameter biases

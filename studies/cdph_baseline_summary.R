@@ -176,7 +176,7 @@ beta.co.hat <- colMeans(output$samples.beta.co)
 # risk map (low resolution)
 X_low <- load_x_ca(factor=5)
 lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
-risk_low <- exp(lodds_low/(1 - lodds_low))
+risk_low <- calc_risk(lodds_low)
 
 r_lodds_low <- caPr.disc[[1]]
 r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
@@ -189,7 +189,7 @@ plot(r_risk_low)
 # risk map (downscaled)
 X_high <- load_x_ca()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
-risk_high <- exp(lodds_high/(1-lodds_high))
+risk_high <- calc_risk(lodds_high)
 
 r_lodds_high <- caPr[[2]]
 r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
@@ -218,7 +218,7 @@ r_lodds_low_p[][!is.na(r_lodds_low_p[])] <- lodds_low_p
 plot(r_lodds_low_p)
 
 lodds_high_p <- X_high %*% beta.ca.hat_p - X_high %*% beta.co.hat_p
-risk_high_p <- exp(lodds_high_p/(1-lodds_high_p))
+risk_high_p <- calc_risk(lodds_high_p)
 
 r_lodds_high_p <- caPr[[2]]
 r_lodds_high_p[][!is.na(r_lodds_high_p[])] <- lodds_high_p

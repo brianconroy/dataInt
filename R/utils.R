@@ -1,5 +1,12 @@
 
 
+calc_risk <- function(lodds){
+  
+  return(exp(lodds)/(1 + exp(lodds)))
+  
+}
+
+
 gen_sim_name <- function(sampling, prevalence){
   
   return(paste("prefSampleGpCC", sampling, prevalence, sep="_"))
