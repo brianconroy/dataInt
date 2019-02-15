@@ -13,9 +13,11 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline/"
+dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=5)
+loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
 N <- n_values(caPr.disc[[1]])
 print(N)
 print(mean(area(caPr.disc[[1]])[]))
@@ -23,7 +25,87 @@ plot(caPr.disc)
 
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
-output <- load_output("output_cdph_baseline.json")
+
+groupings <- list(
+  c('Pine Squirrel'),
+  c('Chipmunk, YP'),
+  c('Chipmunk, LP'),
+  c('Chipmunk, S'),
+  c('Chipmunk, M'),
+  c('CA G Sq'),
+  c('GM G Sq'),
+  c('Chipmunk, YP', 'CA G Sq')
+)
+
+for (species in groupings){
+  
+  print(species)
+  rodents_species <- rodents[rodents$Short_Name %in% species,]
+  analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+  output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
+  data <- assemble_data(rodents_species, loc.disc, caPr.disc)
+  
+  coords <- xyFromCell(caPr.disc, cell=all_ids)
+  d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+  
+  # random field (downscaled)
+  w.hat <- colMeans(output$samples.w)
+  rw <- caPr.disc[[1]]
+  rw[][!is.na(rw[])] <- w.hat
+  
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  
+  alpha.ca.hat <- mean(output$samples.alpha.ca)
+  alpha.co.hat <- mean(output$samples.alpha.co)
+  beta.ca.hat <- colMeans(output$samples.beta.ca)
+  beta.co.hat <- colMeans(output$samples.beta.co)
+  
+  # risk map (low resolution)
+  X_low <- load_x_ca(factor=5)
+  lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+  risk_low <- calc_risk(lodds_low)
+  
+  r_lodds_low <- caPr.disc[[1]]
+  r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+
+  r_risk_low <- caPr.disc[[1]]
+  r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+
+  # risk map (downscaled)
+  X_high <- load_x_ca()
+  lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+  risk_high <- calc_risk(lodds_high)
+  
+  r_lodds_high <- caPr[[2]]
+  r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+
+  r_risk_high <- caPr[[2]]
+  r_risk_high[][!is.na(r_risk_high[])] <- risk_high
+  
+  plot(r_risk_high)
+  fname <- paste("risk_map_", analysis_name, ".png", sep="")
+  png(paste(dst, fname, sep=""),
+      width=900, height=700, res=100)
+  plot(r_risk_high)
+  dev.off()
+  
+}
+
+
+
+
+
+
+
+
+
 
 ##################
 # data description
