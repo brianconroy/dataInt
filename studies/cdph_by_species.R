@@ -19,8 +19,11 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 # 'Chipmunk, LP': T. speciousus (Lodgepole)??
 # 'Chipmunk, S': T. senex??
 # 'Chipmunk, M': T. merriami??
-species <- c('Chipmunk, LP')
-analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+# species <- c('Chipmunk, LP')
+all_species <- unique(rodents$Short_Name)
+species <- as.character(all_species[all_species != 'Pine Squirrel'])
+# analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+analysis_name <- 'analysis_all_but_ds'
 rodents <- rodents[rodents$Short_Name %in% species,]
 
 coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
@@ -171,7 +174,7 @@ output <- prefSampleGpCC(data, n.sample, burnin,
 
 output <- burnin_after(output, n.burn=500)
 
-output <- continueMCMC(data, output, n.sample=2000)
+output <- continueMCMC(data, output, n.sample=500)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)

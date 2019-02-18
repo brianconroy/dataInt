@@ -34,13 +34,20 @@ groupings <- list(
   c('Chipmunk, M'),
   c('CA G Sq'),
   c('GM G Sq'),
-  c('Chipmunk, YP', 'CA G Sq')
+  c('Chipmunk, YP', 'CA G Sq'),
+  c('all_but_ds')
 )
 
 for (species in groupings){
   
   print(species)
-  rodents_species <- rodents[rodents$Short_Name %in% species,]
+  if (species == 'all_but_ds'){
+    all_species <- unique(rodents$Short_Name)
+    species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
+    rodents_species <- rodents[rodents$Short_Name %in% species_group,]
+  } else {
+    rodents_species <- rodents[rodents$Short_Name %in% species,]
+  }
   analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
   output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
   data <- assemble_data(rodents_species, loc.disc, caPr.disc)

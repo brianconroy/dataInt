@@ -19,6 +19,22 @@ s <- "high"
 dst <- "/Users/brianconroy/Documents/research/project1/simulations_iteration/"
 
 
+# summary of simulation parameters
+params_all <- list()
+counter <- 1
+for (s in c('none', 'medium', 'high')){
+  for (p in c('low', 'medium', 'high')){
+    params <- load_sim_params(s, p)
+    params <- params[, !names(params) %in% c('total.y.ca', 'total.y.co')]
+    params$beta.case <- paste('(', gsub(' ', ', ', params$beta.case), ')', sep='')
+    params$beta.ctrl <- paste('(', gsub(' ', ', ', params$beta.ctrl), ')', sep='')
+    params_all[[counter]] <- params
+    counter <- counter + 1
+  }
+}
+write_latex_table(ldply(params_all, 'data.frame'), 'iteration_sim_params.txt', dst)
+
+
 # log odds
   # scatterplots
     # for each sampling level export a 3x3 figure
