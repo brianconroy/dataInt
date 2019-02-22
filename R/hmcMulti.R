@@ -134,3 +134,6 @@ wHmcUpdateMulti <- function(case.data, ctrl.data, alpha.ca, beta.ca,
   return(out)
   
 }
+
+
+# adapt all this to the multivariate gaussian process
