@@ -26,6 +26,7 @@ Tmat <- matrix(c(8, 2, 2, 6), nrow=2)
 Theta <- 6
 H <- Exponential(d, range=Theta, phi=1)
 Sigma <- kronecker(H, Tmat)
+set.seed(42)
 W <-  mvrnorm(n=1, mu=rep(0, ncol(Sigma)), Sigma)
 W1 <- W[seq(1, ncol(Sigma), by=2)]
 W2 <- W[seq(2, ncol(Sigma), by=2)]
@@ -274,10 +275,6 @@ plot(samples.t[,4], type='l'); abline(h=Tmat[2,2], col=2)
 # split it back to W1 and W2
 # do all your other shit
 
-#### Simulate Poisson counts from the Gaussian Processes
-Y1 <- sapply(exp(W1), function(x){rpois(n=1, x)})
-Y2 <- sapply(exp(W2), function(x){rpois(n=1, x)})
-
 #### Simulate locations
 r <- caPr.disc[[1]]
 locs1 <- simLocW(W1, r, beta=0, seed=11)
@@ -298,8 +295,8 @@ Alpha.case2 <- 1
 Alpha.ctrl2 <- -1
 beta.case1 <- c(0.25, 0.75, -0.50)
 beta.ctrl1 <- c(2.75, 0.5, 0.5)
-beta.case2 <- c(0.25, 0.8, -1)
-beta.ctrl2 <- c(2.5, 0.5, 0.5)
+beta.case2 <- c(2, 0.8, -0.5)
+beta.ctrl2 <- c(2, 0.5, 0.5)
 
 case.data1 <- simConditionalGp2(caPr.disc, locs1, beta.case1, Alpha.case1, W1, seed=42)
 ctrl.data1 <- simConditionalGp2(caPr.disc, locs1, beta.ctrl1, Alpha.ctrl1, W1, seed=40)
@@ -312,3 +309,86 @@ print(sum(case.data2$y)/sum(case.data2$y + ctrl.data2$y))
 case.data=list(case.data1, case.data2)
 ctrl.data=list(ctrl.data1, ctrl.data2)
 
+# alpha.ca <- list(Alpha.case1, Alpha.case2)
+# beta.ca <- list(beta.case1, beta.case2)
+# alpha.co <- list(Alpha.ctrl1, Alpha.ctrl2)
+# beta.co <- list(beta.ctrl1, beta.ctrl2)
+# w <- W
+# sigma <- Sigma
+# sigma.inv <- solve(sigma)
+L_w <- 8
+L_ca <- c(8, 8)
+L_co <- c(8, 8)
+L_a_ca <- c(8, 8)
+L_a_co <- c(8, 8)
+proposal.sd.theta <- 0.15
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+target_aca <- 0.65
+target_aco <- 0.65
+target_ca <- 0.65
+target_co <- 0.65
+target_w <- 0.65
+
+n <- length(W1)
+n.sample <- 2000
+burnin <- 0
+n.keep <- n.sample - burnin
+accept <- list(w=0)
+samples.w <- array(NA, c(n.keep, ncol(Sigma)))
+
+## initial values 
+T.i <- Tmat
+theta.i <- Theta
+H.i <- Exponential(d, range=theta.i, phi=1)
+H.inv.i <- solve(H.i)
+w.i <- rep(0, length(W))
+alpha.ca.i <- list(Alpha.case1, Alpha.case2)
+alpha.co.i <- list(Alpha.ctrl1, Alpha.ctrl2)
+beta.ca <- list(beta.case1, beta.case2)
+beta.co <- list(beta.ctrl1, beta.ctrl2)
+
+self_tune_w <- T
+deltas_w <- c()
+w_tuning <- initialize_tuning(m=500, target=0.65)
+
+cat("Generating", n.sample, " samples\n")
+progressBar <- txtProgressBar(style = 3)
+percentage.points <- round((1:100/100)*n.sample)
+
+sigma.i <- kronecker(H.i, T.i)
+sigma.inv.i <- kronecker(solve(H.i), solve(T.i))
+
+for (i in 1:n.sample){
+  
+  ## sample from w
+  w.out.i <- wHmcUpdateMVGP(case.data, ctrl.data, alpha.ca.i, beta.ca,
+                            alpha.co.i, beta.co, w.i, sigma.i, sigma.inv.i, locs, w_tuning$delta_curr, L_w)
+  w.i <- w.out.i$w
+  
+  samples.w[i,] <- t(w.i)
+  
+  accept$w <- accept$w + w.out.i$accept
+  
+  if (self_tune_w){
+    w_tuning <- update_tuning(w_tuning, w.out.i$a, i, w.out.i$accept)
+    deltas_w <- c(deltas_w, w_tuning$delta_curr)
+  }
+  
+  if(i %in% percentage.points){
+    setTxtProgressBar(progressBar, i/n.sample)
+  }
+}
+
+accept$w <- accept$w/n.keep
+print(accept)
+plot(deltas_w)
+w.hat <- colMeans(samples.w)
+plot(x=W, y=w.hat); abline(0, 1, col=2)
+view_tr_w(samples.w, w_true=W)
+plot(apply(samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
