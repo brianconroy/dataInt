@@ -470,23 +470,35 @@ self_tune_ca=TRUE
 self_tune_co=TRUE
 
 # calibrated initial values
-
 y <- list(locs1$status, locs2$status)
 prior_t=list(scale=matrix(c(5, 0, 0, 5), nrow=2), df=4)
 w_output <- logisticMVGP(y, D, n.sample=1000, burnin=200, L=10, 
                          prior_t=prior_t, prior_theta=c(3,2))
-view_logistic_output(w_output_1)
-save_output(w_output_1, "w_inival_output_multi_1.json")
+w.hat <- colMeans(w_output$samples.w)
+plot(x=W, y=w.hat); abline(0, 1, col=2)
+save_output(w_output, "w_inival_output_mvgp.json")
 
+w_initial=colMeans(w_output$samples.w)
+theta_initial <- mean(w_output$samples.theta)
+t_initial <- matrix(colMeans(w_output$samples.t), nrow=2)
 
-beta_ca_initial=NULL
-beta_co_initial=NULL
-alpha_ca_initial=NULL
-alpha_co_initial=NULL
-theta_initial=NULL
-t_initial=NULL
-
-w_initial=rep(0, length(W))
+alpha_ca_initial <- list()
+alpha_co_initial <- list()
+beta_ca_initial <- list()
+beta_co_initial <- list()
+N.d <- length(data$case.data)
+for (k in 1:N.d){
+  k_seq <- seq(s, length(w_i), by=N.d)
+  w_k <- w_i[k_seq]
+  
+  ini_case <- glm(data$case.data[[k]]$y ~ data$case.data[[k]]$x.standardised + w_k[data$locs[[k]]$ids] - 1, family='poisson')
+  alpha_ca_initial[[k]] <- unname(coefficients(ini_case)[4])
+  beta_ca_initial[[k]] <- unname(coefficients(ini_case)[1:3])
+  
+  ini_ctrl <- glm(data$ctrl.data[[k]]$y ~ data$ctrl.data[[k]]$x.standardised + w_k[data$locs[[k]]$ids] - 1, family='poisson')
+  alpha_co_initial[[k]] <- unname(coefficients(ini_ctrl)[4])
+  beta_co_initial[[k]] <- unname(coefficients(ini_ctrl)[1:3])
+}
 
 Omega <- matrix(c(5, 0, 0, 5), nrow=2)
 r <- 4
@@ -499,35 +511,47 @@ prior_alpha_co_mean <- c(Alpha.ctrl1, Alpha.ctrl2)
 prior_alpha_ca_var <- c(4, 4)
 prior_alpha_co_var <- c(4, 4)
 
-print(colMeans(samples.t))
+output <- prefSampleMVGP(data, d, n.sample, burnin,
+                           L_w, L_ca, L_co, L_a_ca, L_a_co,
+                           proposal.sd.theta=0.3,
+                           m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, 
+                           target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
+                           self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                           delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
+                           beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
+                           theta_initial=theta_initial, t_initial=t_initial, w_initial=w_initial,
+                           prior_phi, prior_theta, prior_alpha_ca_mean, prior_alpha_co_mean, prior_alpha_ca_var, prior_alpha_co_var,
+                           prior_t)
 
-plot(samples.theta, type='l'); abline(h=Theta, col=2)
-plot(samples.alpha.ca[1,,], type='l'); abline(h=Alpha.case1, col=2)
-plot(samples.alpha.ca[2,,], type='l'); abline(h=Alpha.case2, col=2)
-plot(samples.alpha.co[1,,], type='l'); abline(h=Alpha.ctrl1, col=2)
-plot(samples.alpha.co[2,,], type='l'); abline(h=Alpha.ctrl2, col=2)
-plot(samples.beta.ca[1,,1], type='l'); abline(h=beta.case1[1], col=2)
-plot(samples.beta.ca[1,,2], type='l'); abline(h=beta.case1[2], col=2)
-plot(samples.beta.ca[1,,3], type='l'); abline(h=beta.case1[3], col=2)
-plot(samples.beta.ca[2,,1], type='l'); abline(h=beta.case2[1], col=2)
-plot(samples.beta.ca[2,,2], type='l'); abline(h=beta.case2[2], col=2)
-plot(samples.beta.ca[2,,3], type='l'); abline(h=beta.case2[3], col=2)
+print(colMeans(output$samples.t))
+
+plot(output$samples.theta, type='l'); abline(h=Theta, col=2)
+plot(output$samples.alpha.ca[1,,], type='l'); abline(h=Alpha.case1, col=2)
+plot(output$samples.alpha.ca[2,,], type='l'); abline(h=Alpha.case2, col=2)
+plot(output$samples.alpha.co[1,,], type='l'); abline(h=Alpha.ctrl1, col=2)
+plot(output$samples.alpha.co[2,,], type='l'); abline(h=Alpha.ctrl2, col=2)
+plot(output$samples.beta.ca[1,,1], type='l'); abline(h=beta.case1[1], col=2)
+plot(output$samples.beta.ca[1,,2], type='l'); abline(h=beta.case1[2], col=2)
+plot(output$samples.beta.ca[1,,3], type='l'); abline(h=beta.case1[3], col=2)
+plot(output$samples.beta.ca[2,,1], type='l'); abline(h=beta.case2[1], col=2)
+plot(output$samples.beta.ca[2,,2], type='l'); abline(h=beta.case2[2], col=2)
+plot(output$samples.beta.ca[2,,3], type='l'); abline(h=beta.case2[3], col=2)
 
 par(mfrow=c(2,3))
-plot(samples.beta.co[1,,1], type='l'); abline(h=beta.ctrl1[1], col=2)
-plot(samples.beta.co[1,,2], type='l'); abline(h=beta.ctrl1[2], col=2)
-plot(samples.beta.co[1,,3], type='l'); abline(h=beta.ctrl1[3], col=2)
-plot(samples.beta.co[2,,1], type='l'); abline(h=beta.ctrl2[1], col=2)
-plot(samples.beta.co[2,,2], type='l'); abline(h=beta.ctrl2[2], col=2)
-plot(samples.beta.co[2,,3], type='l'); abline(h=beta.ctrl2[3], col=2)
+plot(output$samples.beta.co[1,,1], type='l'); abline(h=beta.ctrl1[1], col=2)
+plot(output$samples.beta.co[1,,2], type='l'); abline(h=beta.ctrl1[2], col=2)
+plot(output$samples.beta.co[1,,3], type='l'); abline(h=beta.ctrl1[3], col=2)
+plot(output$samples.beta.co[2,,1], type='l'); abline(h=beta.ctrl2[1], col=2)
+plot(output$samples.beta.co[2,,2], type='l'); abline(h=beta.ctrl2[2], col=2)
+plot(output$samples.beta.co[2,,3], type='l'); abline(h=beta.ctrl2[3], col=2)
 
 accept$w <- accept$w/n.keep
 print(accept)
 plot(deltas_w)
-w.hat <- colMeans(samples.w)
+w.hat <- colMeans(output$samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)
-view_tr_w(samples.w, w_true=W)
-plot(apply(samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+view_tr_w(output$samples.w, w_true=W)
+plot(apply(output$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
 
 
 # set initial values for w

@@ -301,7 +301,7 @@ table_params <- function(outputs, sampling, prevalence){
       true_params,
       output_sp_ca
     )
-    rows[[counter + 1]] <- make_row(
+    rows[[counter + 2]] <- make_row(
       prevalence,
       sampling,
       "PR",
@@ -309,7 +309,7 @@ table_params <- function(outputs, sampling, prevalence){
       true_params,
       betas
     )
-    counter <- counter + 3
+    counter <- counter + 4
   }
   
   ps <- c("Alpha (case)", "Alpha (control)", "Theta", "Phi")
@@ -340,9 +340,52 @@ make_row <- function(prevalence, sampling, model, parameter, true_params, output
     parameter=parameter,
     estimate=est,
     true=true,
-    bias=est-true
+    bias=round(est-true, 3)
   )
   return(row)
+  
+}
+
+
+make_row_wide <- function(outputs, sampling, prevalence, param, output_tag, model_name){
+  row <- list(
+    Sampling=sampling,
+    Model=model_name,
+    Parameter=param
+  )
+  for (prevalence in c("low", "medium", "high")){
+    if (output_tag != "poisson"){
+      output <- get_output(outputs, sampling, prevalence, output_tag)
+    } else {
+      output <- load_params(paste('estimates_poisson_prefSampleGpCC_', sampling, '_', prevalence, '.json', sep=''))
+      output$description <- "Poisson Regression"
+    }
+    est <- get_estimate(output, param)
+    true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+    true <- get_true_val(true_params, param)
+    row[prevalence] <- paste(est, " (", round(est-true, 3), ")", sep="")
+  }
+  return(row)
+}
+
+
+table_params_wide <- function(outputs, sampling){
+  
+  shared <- c("Beta 0 (case)", "Beta 1 (case)", "Beta 2 (case)", 
+              "Beta 0 (control)", "Beta 1 (control)", "Beta 2 (control)")
+  rows <- list()
+  counter <- 1
+  for (param in shared){
+    rows[[counter]] <- make_row_wide(outputs, sampling, prevalence, param, 'prefSampleGpCC', 'PrefSample')
+    if (grepl("case", param)){
+      rows[[counter+1]] <- make_row_wide(outputs, sampling, prevalence, param, 'spatial_poisson_case', 'SpatPoisson')
+    } else {
+      rows[[counter+2]] <- make_row_wide(outputs, sampling, prevalence, param, 'spatial_poisson_ctrl', 'SpatPoisson')
+    }
+    rows[[counter+3]] <- make_row_wide(outputs, sampling, prevalence, param, 'poisson', 'Poisson')
+    counter <- counter + 4
+  }
+  return(ldply(rows, 'data.frame'))
   
 }
 

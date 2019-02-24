@@ -196,4 +196,34 @@ df_mcmc <- ldply(rows_all, 'data.frame')
 write_latex_table(df_mcmc, "latex_iteration_mcmc.txt", path=dst)
 
 
+# parameter biases
+for (s in c("none", "medium", "high")){
+  biases <- table_params_wide(outputs, s)
+  write_latex_table(biases, paste("latex_iteration_bias_", s, ".txt", sep=""), path=dst)
+}
+
+
+# model 1 specific parameter biases
+for (s in c("none", "medium", "high")){
+  rows <- list()
+  for (p in c("low", "medium", "high")){
+    output_ps <- get_output(outputs, s, p, 'prefSampleGpCC')
+    true_params <- load_params(paste('true_params_', s, '_', p, '.json', sep=''))
+    params <- c("Alpha (case)", "Alpha (control)", "Theta", "Phi")
+    for (param in params){
+      rows[[counter]] <- make_row(
+        p,
+        s,
+        "PS",
+        param,
+        true_params,
+        output_ps
+      )
+      counter <- counter + 1
+    }
+  }
+  rows_df <- ldply(rows, 'data.frame')
+  rows_df <- rows_df[,!colnames(rows_df) %in% c('model', 'true')]
+  write_latex_table(rows_df, paste("latex_iteration_bias_model1_", s, ".txt", sep=""), path=dst)
+}
 
