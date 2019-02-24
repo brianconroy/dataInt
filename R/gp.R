@@ -77,6 +77,45 @@ wLogisticUpdate <- function(y, w, mu, sigma, proposal.sd){
 }
 
 
+rangeMVGPupdate <- function(h.i, t.i, w.i, d, theta.i, proposal.sd, prior){
+  
+  w.i <- as.numeric(w.i)
+  
+  # proposal
+  theta.new <- rlnorm(1, meanlog=log(theta.i), sdlog=proposal.sd)
+  q.new <- dlnorm(theta.new, meanlog=log(theta.i), sdlog=proposal.sd, log=T)
+  q.old <- dlnorm(theta.i, meanlog=log(theta.new), sdlog=proposal.sd, log=T)
+  
+  # covariance matrices
+  h.new <- Exponential(d, range=theta.new, phi=1)
+  
+  # likelihoods
+  loglik.curr <- dmvnorm(w.i, sigma=kronecker(h.i, t.i), log=T)
+  loglik.new <- dmvnorm(w.i, sigma=kronecker(h.new, t.i), log=T)
+  like.diff <- loglik.new - loglik.curr
+  
+  # priors
+  shape <- prior[1]
+  scale <- prior[2]
+  prior.curr <- dgamma(theta.i, shape=shape, scale=scale, log=T)
+  prior.new <- dgamma(theta.new, shape=shape, scale=scale, log=T)
+  prior.diff <- prior.new - prior.curr
+  
+  out <- list()
+  acceptance <- exp(like.diff + prior.diff + q.old - q.new)
+  if(runif(1) <= acceptance) {
+    out$theta <- theta.new
+    out$accept <- 1
+  } else { 
+    out$theta <- theta.i
+    out$accept <- 0
+  }
+  
+  return(out)
+  
+}
+
+
 wPoissonUpdate <- function(y, w, mu, sigma, proposal.sd){
   
   w.new <- w

@@ -21,10 +21,10 @@ plot(caPr.disc)
 #### Simulate a 2d multivariate gaussian process 
 cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
 coords <- xyFromCell(caPr.disc, cell=cells.all)
-d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 Tmat <- matrix(c(8, 2, 2, 6), nrow=2)
 Theta <- 6
-H <- Exponential(d, range=Theta, phi=1)
+H <- Exponential(D, range=Theta, phi=1)
 Sigma <- kronecker(H, Tmat)
 set.seed(42)
 W <-  mvrnorm(n=1, mu=rep(0, ncol(Sigma)), Sigma)
@@ -141,7 +141,7 @@ samples.theta <- array(NA, c(n.keep, 1))
 ## initial values 
 T.i <- Tmat
 theta.i <- 3
-H.i <- Exponential(d, range=theta.i, phi=1)
+H.i <- Exponential(D, range=theta.i, phi=1)
 H.inv.i <- solve(H.i)
 w.i <- W
 
@@ -205,7 +205,7 @@ samples.t <- array(NA, c(n.keep, ncell(Tmat)))
 ## initial values 
 T.i <- matrix(c(3, 0, 0, 3), nrow=2)
 theta.i <- 3
-H.i <- Exponential(d, range=theta.i, phi=1)
+H.i <- Exponential(D, range=theta.i, phi=1)
 H.inv.i <- solve(H.i)
 w.i <- W
 
@@ -228,7 +228,7 @@ for (i in 1:n.sample){
   theta.i <- theta.out$theta
   
   ## sample from T
-  H.i <- Exponential(d, range=theta.i, phi=1)
+  H.i <- Exponential(D, range=theta.i, phi=1)
   H.inv.i <- solve(H.i)
   r_ <- r + n
   Omega_ <- Omega
@@ -336,7 +336,7 @@ target_co <- 0.65
 target_w <- 0.65
 
 n <- length(W1)
-n.sample <- 2000
+n.sample <- 1000
 burnin <- 0
 n.keep <- n.sample - burnin
 accept <- list(w=0)
@@ -345,7 +345,7 @@ samples.w <- array(NA, c(n.keep, ncol(Sigma)))
 ## initial values 
 T.i <- Tmat
 theta.i <- Theta
-H.i <- Exponential(d, range=theta.i, phi=1)
+H.i <- Exponential(D, range=theta.i, phi=1)
 H.inv.i <- solve(H.i)
 w.i <- rep(0, length(W))
 alpha.ca.i <- list(Alpha.case1, Alpha.case2)
@@ -392,3 +392,145 @@ w.hat <- colMeans(samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)
 view_tr_w(samples.w, w_true=W)
 plot(apply(samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+
+
+#################
+# Now test the 
+# actual function
+#################
+
+#### Simulate locations
+r <- caPr.disc[[1]]
+locs1 <- simLocW(W1, r, beta=0, seed=11)
+locs2 <- simLocW(W2, r, beta=0, seed=42)
+sum(locs1$status)
+sum(locs2$status)
+par(mfrow=c(1,2))
+plot(r)
+points(locs1$coords)
+plot(r)
+points(locs2$coords)
+locs=list(locs1, locs2)
+
+#### Simulate counts given locations
+Alpha.case1 <- 0.5
+Alpha.ctrl1 <- -0.5
+Alpha.case2 <- 1
+Alpha.ctrl2 <- -1
+beta.case1 <- c(0.25, 0.75, -0.50)
+beta.ctrl1 <- c(2.75, 0.5, 0.5)
+beta.case2 <- c(2, 0.8, -0.5)
+beta.ctrl2 <- c(2, 0.5, 0.5)
+
+case.data1 <- simConditionalGp2(caPr.disc, locs1, beta.case1, Alpha.case1, W1, seed=42)
+ctrl.data1 <- simConditionalGp2(caPr.disc, locs1, beta.ctrl1, Alpha.ctrl1, W1, seed=40)
+print(sum(case.data1$y)/sum(case.data1$y + ctrl.data1$y))
+
+case.data2 <- simConditionalGp2(caPr.disc, locs2, beta.case2, Alpha.case2, W2, seed=42)
+ctrl.data2 <- simConditionalGp2(caPr.disc, locs2, beta.ctrl2, Alpha.ctrl2, W2, seed=40)
+print(sum(case.data2$y)/sum(case.data2$y + ctrl.data2$y))
+
+case.data=list(case.data1, case.data2)
+ctrl.data=list(ctrl.data1, ctrl.data2)
+
+data <- list(
+  locs=list(locs1, locs2),
+  case.data=list(case.data1, case.data2),
+  ctrl.data=list(ctrl.data1, ctrl.data2)
+)
+
+# defaults
+n.sample <- 1000
+burnin <- 0
+L_w <- 8
+L_ca <- c(8, 8)
+L_co <- c(8, 8)
+L_a_ca <- c(8, 8)
+L_a_co <- c(8, 8)
+proposal.sd.theta <- 0.15
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+target_aca <- 0.65
+target_aco <- 0.65
+target_ca <- 0.65
+target_co <- 0.65
+target_w <- 0.65
+
+proposal.sd.theta=0.3
+
+self_tune_w=TRUE
+self_tune_aca=TRUE
+self_tune_aco=TRUE
+self_tune_ca=TRUE
+self_tune_co=TRUE
+
+# calibrated initial values
+
+y <- list(locs1$status, locs2$status)
+prior_t=list(scale=matrix(c(5, 0, 0, 5), nrow=2), df=4)
+w_output <- logisticMVGP(y, D, n.sample=1000, burnin=200, L=10, 
+                         prior_t=prior_t, prior_theta=c(3,2))
+view_logistic_output(w_output_1)
+save_output(w_output_1, "w_inival_output_multi_1.json")
+
+
+beta_ca_initial=NULL
+beta_co_initial=NULL
+alpha_ca_initial=NULL
+alpha_co_initial=NULL
+theta_initial=NULL
+t_initial=NULL
+
+w_initial=rep(0, length(W))
+
+Omega <- matrix(c(5, 0, 0, 5), nrow=2)
+r <- 4
+print(Omega/(r - ncol(Tmat) - 1))
+prior_t=list(scale=Omega, df=r)
+prior_theta = c(3, 2)
+
+prior_alpha_ca_mean <- c(Alpha.case1, Alpha.case2)
+prior_alpha_co_mean <- c(Alpha.ctrl1, Alpha.ctrl2)
+prior_alpha_ca_var <- c(4, 4)
+prior_alpha_co_var <- c(4, 4)
+
+print(colMeans(samples.t))
+
+plot(samples.theta, type='l'); abline(h=Theta, col=2)
+plot(samples.alpha.ca[1,,], type='l'); abline(h=Alpha.case1, col=2)
+plot(samples.alpha.ca[2,,], type='l'); abline(h=Alpha.case2, col=2)
+plot(samples.alpha.co[1,,], type='l'); abline(h=Alpha.ctrl1, col=2)
+plot(samples.alpha.co[2,,], type='l'); abline(h=Alpha.ctrl2, col=2)
+plot(samples.beta.ca[1,,1], type='l'); abline(h=beta.case1[1], col=2)
+plot(samples.beta.ca[1,,2], type='l'); abline(h=beta.case1[2], col=2)
+plot(samples.beta.ca[1,,3], type='l'); abline(h=beta.case1[3], col=2)
+plot(samples.beta.ca[2,,1], type='l'); abline(h=beta.case2[1], col=2)
+plot(samples.beta.ca[2,,2], type='l'); abline(h=beta.case2[2], col=2)
+plot(samples.beta.ca[2,,3], type='l'); abline(h=beta.case2[3], col=2)
+
+par(mfrow=c(2,3))
+plot(samples.beta.co[1,,1], type='l'); abline(h=beta.ctrl1[1], col=2)
+plot(samples.beta.co[1,,2], type='l'); abline(h=beta.ctrl1[2], col=2)
+plot(samples.beta.co[1,,3], type='l'); abline(h=beta.ctrl1[3], col=2)
+plot(samples.beta.co[2,,1], type='l'); abline(h=beta.ctrl2[1], col=2)
+plot(samples.beta.co[2,,2], type='l'); abline(h=beta.ctrl2[2], col=2)
+plot(samples.beta.co[2,,3], type='l'); abline(h=beta.ctrl2[3], col=2)
+
+accept$w <- accept$w/n.keep
+print(accept)
+plot(deltas_w)
+w.hat <- colMeans(samples.w)
+plot(x=W, y=w.hat); abline(0, 1, col=2)
+view_tr_w(samples.w, w_true=W)
+plot(apply(samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+
+
+# set initial values for w
+# prefSampleMVGP
+
+

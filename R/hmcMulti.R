@@ -140,39 +140,34 @@ Uw_mvgp <- function(locs, case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, bet
   
   logd <- 0
   
-  w_separate <- list()
   n_species <- length(case.data)
-  for (d in 1:n_species){
-    w_separate[[d]] <- w[seq(d, ncol(sigma), by=n_species)]
-  }
-  
-  for (d in 1:n_species){
-    loc_pred <- w_separate[[d]]
-    w_d <- w_separate[[d]]
+  for (s in 1:n_species){
+    
+    w_d <- w[seq(s, ncol(sigma), by=n_species)]
     
     # likelihood: locations
-    y.d <- locs[[d]]$status
+    y.d <- locs[[s]]$status
     for (i in 1:length(y.d)){
-      logd <- logd + dbinom(y.d[i], size=1, prob=expit(loc_pred[i]), log=T)
+      logd <- logd + dbinom(y.d[i], size=1, prob=expit(w_d[i]), log=T)
     }
     
-    # # likelihood: case counts
-    # x.d <- case.data[[d]]$x.standardised
-    # y.d <- case.data[[d]]$y
-    # w.sub.d <- w_d[as.logical(locs[[d]]$status)]
-    # count_pred <- x.d %*% beta.ca[[d]] + alpha.ca[[d]] * w.sub.d
-    # rates <- exp(count_pred)
-    # for (i in 1:length(y.d)){
-    #   logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
-    # }
-    # 
-    # # likelihood: control counts
-    # y.d <- ctrl.data[[d]]$y
-    # count_pred <- x.d %*% beta.co[[d]] + alpha.co[[d]] * w.sub.d
-    # rates <- exp(count_pred)
-    # for (i in 1:length(y.d)){
-    #   logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
-    # }
+    # likelihood: case counts
+    x.d <- case.data[[s]]$x.standardised
+    y.d <- case.data[[s]]$y
+    w.sub.d <- w_d[as.logical(locs[[s]]$status)]
+    count_pred <- x.d %*% beta.ca[[s]] + alpha.ca[[s]] * w.sub.d
+    rates <- exp(count_pred)
+    for (i in 1:length(y.d)){
+      logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
+    }
+
+    # likelihood: control counts
+    y.d <- ctrl.data[[s]]$y
+    count_pred <- x.d %*% beta.co[[s]] + alpha.co[[s]] * w.sub.d
+    rates <- exp(count_pred)
+    for (i in 1:length(y.d)){
+      logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
+    }
     
   }
   
@@ -188,33 +183,28 @@ dU_w_mvgp <- function(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co
   
   grad <- array(0, c(length(w), 1))
   
-  w_separate <- list()
   n_species <- length(case.data)
-  for (d in 1:n_species){
-    w_separate[[d]] <- w[seq(d, ncol(sigma.inv), by=n_species)]
-  }
-  
-  for (d in 1:n_species){
+  for (s in 1:n_species){
     
-    w_d <- w_separate[[d]]
-    d_seq <- seq(d, ncol(sigma.inv), by=n_species)
+    w_d <- w[seq(s, ncol(sigma.inv), by=n_species)]
+    d_seq <- seq(s, ncol(sigma.inv), by=n_species)
     
     # location contribution
-    y.l <- locs[[d]]$status
+    y.l <- locs[[s]]$status
     grad[d_seq] <- y.l - expit(w_d)
     
-    # # case contribution
-    # x.c <- case.data[[d]]$x.standardised
-    # y.ca <- case.data[[d]]$y
-    # lin.count <- x.c %*% beta.ca[[d]]
-    # d_id <- locs[[d]]$ids
-    # grad[d_seq[d_id]] <- grad[d_seq[d_id]] +  alpha.ca[[d]] * (y.ca - exp(lin.count + alpha.ca[[d]] * w_d[d_id]))
-    # 
-    # # control contribution
-    # y.co <- ctrl.data[[d]]$y
-    # lin.count <- x.c %*% beta.co[[d]]
-    # grad[d_seq[d_id]] <- grad[d_seq[d_id]] +  alpha.co[[d]] * (y.co - exp(lin.count + alpha.co[[d]] * w_d[d_id]))
-    # 
+    # case contribution
+    x.c <- case.data[[s]]$x.standardised
+    y.ca <- case.data[[s]]$y
+    lin.count <- x.c %*% beta.ca[[s]]
+    d_id <- locs[[s]]$ids
+    grad[d_seq[d_id]] <- grad[d_seq[d_id]] +  alpha.ca[[s]] * (y.ca - exp(lin.count + alpha.ca[[s]] * w_d[d_id]))
+
+    # control contribution
+    y.co <- ctrl.data[[s]]$y
+    lin.count <- x.c %*% beta.co[[s]]
+    grad[d_seq[d_id]] <- grad[d_seq[d_id]] +  alpha.co[[s]] * (y.co - exp(lin.count + alpha.co[[s]] * w_d[d_id]))
+
   }
   
   # prior contribution

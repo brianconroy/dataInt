@@ -1,6 +1,6 @@
 
 
-prefSampleMVGP <- function(data, n.sample, burnin, 
+prefSampleMVGP <- function(data, d, n.sample, burnin,
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=0.3,
                            m_aca=NULL, m_aco=NULL, m_ca=NULL, m_co=NULL, m_w=NULL, 
@@ -8,8 +8,9 @@ prefSampleMVGP <- function(data, n.sample, burnin,
                            self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, 
                            beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
-                           theta_initial=NULL, phi_initial=NULL, w_initial=NULL,
-                           prior_phi, prior_theta, prior_alpha_ca_mean, prior_alpha_co_mean, prior_alpha_ca_var, prior_alpha_co_var){
+                           theta_initial=NULL, t_initial=NULL, w_initial=NULL,
+                           prior_phi, prior_theta, prior_alpha_ca_mean, prior_alpha_co_mean, prior_alpha_ca_var, prior_alpha_co_var,
+                           prior_t){
   
   
   ## setup
@@ -22,7 +23,7 @@ prefSampleMVGP <- function(data, n.sample, burnin,
   
   ## starting values
   if (is.null(w_initial)){
-    w.i <- rnorm(N.w)
+    w.i <- rnorm(N.w*N.d)
   } else {
     w.i <- w_initial
   }
@@ -63,18 +64,22 @@ prefSampleMVGP <- function(data, n.sample, burnin,
   } else {
     theta.i <- theta_initial
   }
-  if (is.null(phi_initial)){
-    phi.i <- runif(1, 3.5, 4.5)
+  if (is.null(t_initial)){
+    t.i <- matrix(c(3, 0, 0, 3), nrow=2)
   } else {
-    phi.i <- phi_initial
+    t.i <- t_initial
   }
+  H.i <- Exponential(d, range=theta.i, phi=1)
+  H.inv.i <- solve(H.i)
   
+  Omega <- prior_t$scale
+  r <- prior_t$df
   
   # storage
   n.keep <- n.sample - burnin
-  samples.w <- array(NA, c(n.keep, N.w))
+  samples.w <- array(NA, c(n.keep, N.w * N.d))
   samples.theta <- array(NA, c(n.keep, 1))
-  samples.phi <- array(NA, c(n.keep, 1))
+  samples.t <- array(NA, c(n.keep, N.d * N.d))
   samples.alpha.ca <- array(NA, c(N.d, n.keep, 1))
   samples.alpha.co <- array(NA, c(N.d, n.keep, 1))
   samples.beta.ca <- array(NA, c(N.d, n.keep, N.p))
@@ -152,19 +157,29 @@ prefSampleMVGP <- function(data, n.sample, burnin,
   for (i in 1:n.sample){
     
     ## sample from w
-    sigma.i <- Exponential(d, range=theta.i, phi=phi.i)
-    sigma.inv.i <- solve(sigma.i)
-    w.out.i <- wHmcUpdateMulti(case.data, ctrl.data, alpha.ca.i, beta.ca,
-                               alpha.co.i, beta.co, w.i, sigma.i, sigma.inv.i, locs, w_tuning$delta_curr, L_w)
+    sigma.i <- kronecker(H.i, t.i)
+    sigma.inv.i <- kronecker(solve(H.i), solve(t.i))
+    w.out.i <- wHmcUpdateMVGP(case.data, ctrl.data, alpha.ca.i, beta.ca,
+                              alpha.co.i, beta.co, w.i, sigma.i, sigma.inv.i, locs, w_tuning$delta_curr, L_w)
     w.i <- w.out.i$w
-    
+
     ## sample from theta
-    theta.out <- rangeMhUpdate(theta.i, as.numeric(w.i), d, phi.i, proposal.sd.theta, a=prior_theta[1], b=prior_theta[2])
+    theta.out <- rangeMVGPupdate(H.i, t.i, w.i, d, theta.i, proposal.sd.theta, prior_theta)
     theta.i <- theta.out$theta
+    H.i <- Exponential(d, range=theta.i, phi=1)
+    H.inv.i <- solve(H.i)
     
-    ## sample from phi
-    R.i <- sigma.i/phi.i
-    phi.i <- 1/rgamma(1, N/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
+    ## sample from T
+    r_ <- r + N.w
+    Omega_ <- Omega
+    w1.i <- w.i[seq(1, length(w.i), by=N.d)]
+    w2.i <- w.i[seq(2, length(w.i), by=N.d)]
+    for (a in 1:N.w){
+      for (b in 1:N.w){
+        Omega_ <- Omega_ + H.inv.i[a, b] * matrix(c(w1.i[b], w2.i[b])) %*% t(matrix(c(w1.i[a], w2.i[a])))
+      }
+    }
+    t.i <- riwish(r_, Omega_)
     
     # sample from beta.cases, beta.ctrls, and alphas
     beta.ca.accepts <- c()
@@ -176,26 +191,27 @@ prefSampleMVGP <- function(data, n.sample, burnin,
     alpha.co.accepts <- c()
     alpha.co.as <- c()
     for (k in 1:N.d){
-      w.i.sub <- w.i[locs[[k]]$ids]
+      w.i.k <- w.i[seq(k, length(w.i), by=N.d)]
+      w.i.sub <- w.i.k[locs[[k]]$ids]
       x.k <- case.data[[k]]$x.standardised
-      beta.out.ca.k <- betaHmcUpdate(case.data[[k]]$y, w.i.sub, x.k, beta.ca[[k]], alpha.ca.i[[k]], ca_tuning[[k]]$delta_curr, L_ca[k])
+      beta.out.ca.k <- betaHmcUpdate(case.data[[k]]$y, w.i.sub, x.k, beta.ca[[k]], alpha.ca.i[[k]], ca_tuning[[k]]$delta_curr, L_ca[k], offset=0)
       beta.ca.accepts[k] <- beta.out.ca.k$accept
       beta.ca.as[k] <- beta.out.ca.k$a
       beta.ca[[k]] <- beta.out.ca.k$beta
       
-      beta.out.co.k <- betaHmcUpdate(ctrl.data[[k]]$y, w.i.sub, x.k, beta.co[[k]], alpha.co.i[[k]], co_tuning[[k]]$delta_curr, L_co[k])
+      beta.out.co.k <- betaHmcUpdate(ctrl.data[[k]]$y, w.i.sub, x.k, beta.co[[k]], alpha.co.i[[k]], co_tuning[[k]]$delta_curr, L_co[k], offset=0)
       beta.co.accepts[k] <- beta.out.co.k$accept
       beta.co.as[k] <- beta.out.co.k$a
       beta.co[[k]] <- beta.out.co.k$beta
       
       alpha.out.ca <- alphaHmcUpdate(case.data[[k]]$y, w.i.sub, x.k, beta.ca[[k]], alpha.ca.i[[k]],
-                                     a_ca_tuning[[k]]$delta_curr, prior_alpha_ca_mean[[k]], prior_alpha_ca_var[[k]], L_a_ca[k])
+                                     a_ca_tuning[[k]]$delta_curr, prior_alpha_ca_mean[[k]], prior_alpha_ca_var[[k]], L_a_ca[k], offset=0)
       alpha.ca.accepts[k] <- alpha.out.ca$accept
       alpha.ca.as[k] <- alpha.out.ca$a
       alpha.ca.i[[k]] <- alpha.out.ca$alpha
       
       alpha.out.co <- alphaHmcUpdate(ctrl.data[[k]]$y, w.i.sub, x.k, beta.co[[k]], alpha.co.i[[k]],
-                                     a_co_tuning[[k]]$delta_curr, prior_alpha_co_mean[[k]], prior_alpha_co_var[[k]], L_a_co[k])
+                                     a_co_tuning[[k]]$delta_curr, prior_alpha_co_mean[[k]], prior_alpha_co_var[[k]], L_a_co[k], offset=0)
       alpha.co.accepts[k] <- alpha.out.co$accept
       alpha.co.as[k] <- alpha.out.co$a
       alpha.co.i[[k]] <- alpha.out.co$alpha
@@ -212,7 +228,7 @@ prefSampleMVGP <- function(data, n.sample, burnin,
         samples.alpha.co[k,j,] <- alpha.co.i[[k]]
       }
       samples.theta[j,] <- theta.i
-      samples.phi[j,] <- phi.i
+      samples.t[j,] <- t.i
       samples.w[j,] <- t(w.i)
       
       accept$w <- accept$w + w.out.i$accept
@@ -271,7 +287,7 @@ prefSampleMVGP <- function(data, n.sample, burnin,
   output$samples.alpha.ca <- samples.alpha.ca
   output$samples.alpha.co <- samples.alpha.co
   output$samples.theta <- samples.theta
-  output$samples.phi <- samples.phi
+  output$samples.t <- samples.t
   output$samples.w <- samples.w
   output$deltas_w <- deltas_w
   output$deltas_aca <- deltas_aca
@@ -289,7 +305,7 @@ prefSampleMVGP <- function(data, n.sample, burnin,
   output$m_ca <- m_ca
   output$m_co <- m_co
   output$proposal.sd.theta <- proposal.sd.theta
-  output$prior_phi <- prior_phi
+  output$prior_t <- prior_t
   output$prior_theta <- prior_theta
   output$prior_alpha_ca_var <- prior_alpha_ca_var
   output$prior_alpha_co_var <- prior_alpha_co_var

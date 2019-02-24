@@ -1,5 +1,117 @@
 
 
+logisticMVGP <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
+                         w_initial=NULL, theta_initial=NULL, t_initial=NULL,
+                         prior_t, prior_theta){
+  
+  
+  N.d <- length(y)
+  
+  # initial values
+  N.w <- ncol(d)
+  if (is.null(w_initial)){
+    w.i <- rnorm(N.w*N.d)
+  } else {
+    w.i <- w_initial
+  }
+  if (is.null(theta_initial)){
+    theta.i <- runif(1, 5, 7)
+  } else {
+    theta.i <- theta_initial
+  }
+  if (is.null(t_initial)){
+    t.i <- matrix(c(3, 0, 0, 3), nrow=2)
+  } else {
+    t.i <- t_initial
+  }
+  H.i <- Exponential(d, range=theta.i, phi=1)
+  H.inv.i <- solve(H.i)
+  
+  Omega <- prior_t$scale
+  r <- prior_t$df
+  
+  # storage
+  accept <- rep(0, 2)
+  n.keep <- n.sample - burnin
+  samples.w <- array(NA, c(n.keep, N.w * N.d))
+  samples.theta <- array(NA, c(n.keep, 1))
+  samples.t <- array(NA, c(n.keep, N.d * N.d))
+  
+  # dual averaging quantities
+  w_tuning <- initialize_tuning(m=700, target=0.75)
+  deltas_w <- c()
+  
+  progressBar <- txtProgressBar(style = 3)
+  percentage.points <- round((1:100/100)*n.sample)
+  
+  for (i in 1:n.sample){
+    
+    ## sample from w
+    sigma.i <- kronecker(H.i, t.i)
+    sigma.inv.i <- kronecker(solve(H.i), solve(t.i))
+    w.out.i <- wHmcUpdateMVGPLogit(w.i, sigma.i, sigma.inv.i, y, w_tuning$delta_curr, L)
+    w.i <- w.out.i$w
+    
+    ## sample from theta
+    theta.out <- rangeMVGPupdate(H.i, t.i, w.i, d, theta.i, proposal.sd.theta, prior_theta)
+    theta.i <- theta.out$theta
+    H.i <- Exponential(d, range=theta.i, phi=1)
+    H.inv.i <- solve(H.i)
+    
+    ## sample from T
+    r_ <- r + N.w
+    Omega_ <- Omega
+    w1.i <- w.i[seq(1, length(w.i), by=N.d)]
+    w2.i <- w.i[seq(2, length(w.i), by=N.d)]
+    for (a in 1:N.w){
+      for (b in 1:N.w){
+        Omega_ <- Omega_ + H.inv.i[a, b] * matrix(c(w1.i[b], w2.i[b])) %*% t(matrix(c(w1.i[a], w2.i[a])))
+      }
+    }
+    t.i <- riwish(r_, Omega_)
+    
+    if (i > burnin){
+      
+      j <- i - burnin
+      
+      samples.theta[j,] <- theta.i
+      samples.t[j,] <- t.i
+      samples.w[j,] <- t(w.i)
+      
+      accept[1] <- accept[1] + w.out.i$accept
+      accept[2] <- accept[2] + theta.out$accept
+      
+    }
+    
+    w_tuning <- update_tuning(w_tuning, w.out.i$a, i, w.out.i$accept)
+    deltas_w <- c(deltas_w, w_tuning$delta_curr)
+    
+    if(i %in% percentage.points){
+      setTxtProgressBar(progressBar, i/n.sample)
+    }
+    
+  }
+  
+  accept <- accept/n.keep
+  
+  output <- list()
+  output$accept <- accept
+  output$samples.theta <- samples.theta
+  output$samples.t <- samples.t
+  output$samples.w <- samples.w
+  output$deltas_w <- deltas_w
+  output$burnin <- burnin
+  output$n.sample <- n.sample
+  output$prior_t <- prior_t
+  output$prior_theta <- prior_theta
+  output$L <- L
+  output$proposal.sd.theta <- proposal.sd.theta
+  
+  return(output)
+  
+  
+}
+
 #' logisticGp
 #' 
 #' Fits a spatial logistic regression model.
@@ -258,5 +370,106 @@ view_logistic_output <- function(output){
   plot(y=colMeans(output$samples.w), x=W, ylab='Estimated W', main='A)'); abline(0, 1, col=2)
   padded_plot(output$samples.theta, Theta, title='B)')
   padded_plot(output$samples.phi, Phi, title='C)')
+  
+}
+
+
+Uw_mvgp_logit <- function(y, w, sigma){
+  
+  logd <- 0
+  
+  n_species <- length(y)
+  for (s in 1:n_species){
+    
+    w_d <- w[seq(s, ncol(sigma), by=n_species)]
+    # likelihood: locations
+    y.d <- y[[s]]
+    for (i in 1:length(y.d)){
+      logd <- logd + dbinom(y.d[i], size=1, prob=expit(w_d[i]), log=T)
+    }
+    
+  }
+  
+  # prior
+  logd <- logd + dmvnorm(as.numeric(w), rep(0, length(w)), sigma, log=T)
+  
+  return(-logd)
+  
+}
+
+
+dU_w_mvgp_logit <- function(w, sigma.inv, y){
+  
+  grad <- array(0, c(length(w), 1))
+  
+  n_species <- length(y)
+  for (s in 1:n_species){
+    
+    w_d <- w[seq(s, ncol(sigma.inv), by=n_species)]
+    d_seq <- seq(s, ncol(sigma.inv), by=n_species)
+    
+    # location contribution
+    y.l <- locs[[s]]$status
+    grad[d_seq] <- y.l - expit(w_d)
+    
+  }
+  
+  # prior contribution
+  grad <- grad + t(-t(w) %*% sigma.inv)
+  
+  return(-grad)
+  
+}
+
+
+wHmcUpdateMVGPLogit <- function(w, sigma, sigma.inv, y, delta, L){
+  
+  # sample random momentum
+  p0 <- matrix(rnorm(length(w)))
+  
+  # simulate Hamiltonian dynamics
+  wcurr <- matrix(w)
+  pStar <- p0 - 0.5 * delta * dU_w_mvgp_logit(wcurr, sigma.inv, y)
+  
+  # first full step for position
+  wStar <- wcurr + delta*pStar
+  
+  # full steps
+  for (jL in 1:c(L-1)){
+    # momentum
+    pStar <- pStar - delta * dU_w_mvgp_logit(wStar, sigma.inv, y)
+    
+    # position
+    wStar <- wStar + delta*pStar
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta * dU_w_mvgp_logit(wStar, sigma.inv, y)
+  
+  # evaluate energies
+  U0 <- Uw_mvgp_logit(y, wcurr, sigma)
+  UStar <- Uw_mvgp_logit(y, wStar, sigma)
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  alpha <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  if (is.na(alpha)){
+    alpha <- 0
+  }
+  
+  if (runif(1, 0, 1) < alpha){
+    wnext <- wStar
+    accept <- 1
+  } else {
+    wnext <- wcurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$w <- wnext
+  out$accept <- accept
+  out$a <- alpha
+  return(out)
   
 }
