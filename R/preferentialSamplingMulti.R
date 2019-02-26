@@ -1,5 +1,59 @@
 
 
+#' prefSampleMVGP
+#' 
+#' Preferential sampling model for multiple species
+#' with a multivariate Gaussian process.
+#'
+#' @param data 
+#' @param d 
+#' @param n.sample 
+#' @param burnin 
+#' @param L_w 
+#' @param L_ca 
+#' @param L_co 
+#' @param L_a_ca 
+#' @param L_a_co 
+#' @param proposal.sd.theta 
+#' @param m_aca 
+#' @param m_aco 
+#' @param m_ca 
+#' @param m_co 
+#' @param m_w 
+#' @param target_aca 
+#' @param target_aco 
+#' @param target_ca 
+#' @param target_co 
+#' @param target_w 
+#' @param self_tune_w 
+#' @param self_tune_aca 
+#' @param self_tune_aco 
+#' @param self_tune_ca 
+#' @param self_tune_co 
+#' @param delta_w 
+#' @param delta_aca 
+#' @param delta_aco 
+#' @param delta_ca 
+#' @param delta_co 
+#' @param beta_ca_initial 
+#' @param beta_co_initial 
+#' @param alpha_ca_initial 
+#' @param alpha_co_initial 
+#' @param theta_initial 
+#' @param t_initial 
+#' @param w_initial 
+#' @param prior_phi 
+#' @param prior_theta 
+#' @param prior_alpha_ca_mean 
+#' @param prior_alpha_co_mean 
+#' @param prior_alpha_ca_var 
+#' @param prior_alpha_co_var 
+#' @param prior_t 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 prefSampleMVGP <- function(data, d, n.sample, burnin,
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=0.3,
@@ -312,6 +366,120 @@ prefSampleMVGP <- function(data, d, n.sample, burnin,
   output$n.sample <- n.sample
   output$burnin <- burnin
   
+  return(output)
+  
+}
+
+
+continueMCMC_mvgp <- function(data, d, output, n.sample){
+  
+  # get initial values
+  n.sample.old <- nrow(output$samples.beta.ca[1,,])
+  n_s <- dim(output$samples.alpha.ca)[1]
+  beta_ca_initial <- list()
+  beta_co_initial <- list()
+  alpha_ca_initial <- list()
+  alpha_co_initial <- list()
+  for (j in 1:dim(output$samples.alpha.ca)[1]){
+    beta_ca_initial[[j]] <- output$samples.beta.ca[j,n.sample.old,]
+    beta_co_initial[[j]] <- output$samples.beta.co[j,n.sample.old,]
+    alpha_ca_initial[[j]] <- output$samples.alpha.ca[j,n.sample.old,]
+    alpha_co_initial[[j]] <- output$samples.alpha.co[j,n.sample.old,]
+  }
+  w_initial <- output$samples.w[n.sample.old,]
+  theta_initial <- output$samples.theta[n.sample.old]
+  t_initial <- matrix(output$samples.t[n.sample.old,], ncol=2)
+  
+  # get tuning parameters
+  delta_w <- tail(output$deltas_w, 1)
+  delta_aca <- tail(output$deltas_aca, 1)
+  delta_aco <- tail(output$deltas_aco, 1)
+  delta_ca <- tail(output$deltas_ca, 1)
+  delta_co <- tail(output$deltas_co, 1)
+  L_w <- output$L_w
+  L_ca <- output$L_ca
+  L_co <- output$L_co
+  L_a_ca <- output$L_a_ca 
+  L_a_co <- output$L_a_co
+  proposal.sd.theta <- output$proposal.sd.theta
+  
+  # get priors
+  prior_phi <- output$prior_phi
+  prior_t <- output$prior_t
+  more_output <- prefSampleMVGP(data, d, n.sample, burnin=0, 
+                                   L_w, L_ca, L_co, L_a_ca, L_a_co,
+                                   proposal.sd.theta=proposal.sd.theta,
+                                   m_aca=m_aca, m_aco=m_aca, m_ca=m_aca, m_co=m_aca, m_w=m_aca, 
+                                   target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
+                                   self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
+                                   delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
+                                   beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
+                                   theta_initial=theta_initial, t_initial=t_initial, w_initial=w_initial,
+                                   prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_mean=prior_alpha_ca_mean,
+                                   prior_alpha_co_mean=prior_alpha_co_mean,
+                                   prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var,
+                                   prior_t=prior_t)
+  
+  # combine outputs
+  new_output <- output
+  new_output$n.sample <- new_output$n.sample + n.sample
+  samples.alpha.ca <- array(NA, c(n_s, n.sample.old + n.sample, 1))
+  samples.alpha.co <- array(NA, c(n_s, n.sample.old + n.sample, 1))
+  samples.beta.ca <- array(NA, c(n_s, n.sample.old + n.sample, 3))
+  samples.beta.co <- array(NA, c(n_s, n.sample.old + n.sample, 3))
+  for (j in 1:dim(output$samples.alpha.ca)[1]){
+    samples.alpha.ca[j,,] <- matrix(c(new_output$samples.alpha.ca[j,,], more_output$samples.alpha.ca[j,,]))
+    samples.alpha.co[j,,] <- matrix(c(new_output$samples.alpha.co[j,,], more_output$samples.alpha.co[j,,]))
+    samples.beta.ca[j,,] <- rbind(new_output$samples.beta.ca[j,,], more_output$samples.beta.ca[j,,])
+    samples.beta.co[j,,] <- rbind(new_output$samples.beta.co[j,,], more_output$samples.beta.co[j,,])
+  }
+  new_output$samples.alpha.ca <- samples.alpha.ca
+  new_output$samples.alpha.co <- samples.alpha.co
+  new_output$samples.beta.ca <- samples.beta.ca
+  new_output$samples.beta.co <- samples.beta.co
+  
+  new_output$samples.t <- rbind(new_output$samples.t, more_output$samples.t)
+  new_output$samples.theta <- matrix(c(new_output$samples.theta, more_output$samples.theta))
+  new_output$samples.w <- rbind(new_output$samples.w, more_output$samples.w)
+  # new_output$deltas_aca <- new_output$deltas_aca
+  # new_output$deltas_aco <- new_output$deltas_aco
+  # new_output$deltas_co <- new_output$deltas_co
+  # new_output$deltas_ca <- new_output$deltas_ca
+  # new_output$deltas_w <- new_output$deltas_w
+  
+  new_output$accept$w <- (new_output$n.sample * new_output$accept$w + n.sample * more_output$accept$w)/(new_output$n.sample + n.sample)
+  new_output$accept$theta <- (new_output$n.sample * new_output$accept$theta + n.sample * more_output$accept$theta)/(new_output$n.sample + n.sample)
+  for (k in 1:dim(output$samples.alpha.ca)[1]){
+    new_output$accept$beta.ca[k] <- (new_output$n.sample * new_output$accept$beta.ca[k] + n.sample * more_output$accept$beta.ca[k])/(new_output$n.sample + n.sample)
+    new_output$accept$beta.co[k] <- (new_output$n.sample * new_output$accept$beta.co[k] + n.sample * more_output$accept$beta.co[k])/(new_output$n.sample + n.sample)
+    new_output$accept$alpha.ca[k] <- (new_output$n.sample * new_output$accept$alpha.ca[k] + n.sample * more_output$accept$alpha.ca[k])/(new_output$n.sample + n.sample)
+    new_output$accept$alpha.co[k] <- (new_output$n.sample * new_output$accept$alpha.co[k] + n.sample * more_output$accept$alpha.co[k])/(new_output$n.sample + n.sample)
+  }
+  
+  return(new_output)
+  
+}
+
+
+burnin_mvgp <- function(output, n.burn){
+  
+  n.curr <- output$n.sample - output$burnin
+  i.start <- n.burn + 1
+  output$burnin <- output$burnin + n.burn
+  n_s <- dim(output$samples.alpha.ca)[1]
+  new.aca <- array(NA, c(n_s,n.curr-i.start+1,1))
+  new.aco <- array(NA, c(n_s,n.curr-i.start+1,1))
+  for (j in 1:n_s){
+    new.aca[j,,] <- matrix(output$samples.alpha.ca[j,i.start:n.curr,])
+    new.aco[j,,] <- matrix(output$samples.alpha.co[j,i.start:n.curr,])
+  }
+  output$samples.alpha.ca <- new.aca
+  output$samples.alpha.co <- new.aco
+  output$samples.beta.ca <- output$samples.beta.ca[,i.start:n.curr,]
+  output$samples.beta.co <- output$samples.beta.co[,i.start:n.curr,]
+  output$samples.w <- output$samples.w[i.start:n.curr,]
+  output$samples.t <- output$samples.t[i.start:n.curr,]
+  output$samples.theta <- output$samples.theta[i.start:n.curr]
   return(output)
   
 }

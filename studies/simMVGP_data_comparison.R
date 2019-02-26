@@ -7,6 +7,7 @@
 library(plyr)
 library(mvtnorm)
 library(R.utils)
+library(MCMCpack)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
@@ -89,6 +90,7 @@ params <- list(
   beta.ctrl1=beta.ctrl1,
   beta.case2=beta.case2,
   beta.ctrl2=beta.ctrl2,
+  Theta=Theta,
   Tmat=Tmat
 )
 save_output(params, "simMVGP_comparison_params_none.json")
@@ -173,6 +175,7 @@ params <- list(
   beta.ctrl1=beta.ctrl1,
   beta.case2=beta.case2,
   beta.ctrl2=beta.ctrl2,
+  Theta=Theta,
   Tmat=Tmat
 )
 save_output(params, "simMVGP_comparison_params_medium.json")
@@ -257,6 +260,7 @@ params <- list(
   beta.ctrl1=beta.ctrl1,
   beta.case2=beta.case2,
   beta.ctrl2=beta.ctrl2,
+  Theta=Theta,
   Tmat=Tmat
 )
 save_output(params, "simMVGP_comparison_params_high.json")
