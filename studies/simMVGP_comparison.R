@@ -19,8 +19,8 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sim <- "simMVGP_comparison"
-level <- "none"
-sim_name <- paste(sim, '_', level, sep="_")
+level <- "high"
+sim_name <- paste(sim, level, sep="_")
 
 
 #### Load simulation parameters
@@ -35,6 +35,7 @@ beta.ctrl1 <- params$beta.ctrl1
 beta.ctrl2 <- params$beta.ctrl2
 Theta <- params$Theta
 Tmat <- params$Tmat
+W <- params$W
 
 
 # #### Write simulation parameters to LaTeX
@@ -205,7 +206,7 @@ output <- prefSampleMVGP(data, D, n.sample, burnin,
                          prior_t)
 
 # optional: continue running the Markov chain
-output <- continueMCMC_mvgp(data, D, output, n.sample=1000)
+output <- continueMCMC_mvgp(data, D, output, n.sample=500)
 
 # optional: additional burnin
 output <- burnin_mvgp(output, n.burn=500)
@@ -213,10 +214,10 @@ output <- burnin_mvgp(output, n.burn=500)
 print(colMeans(output$samples.t))
 
 plot(output$samples.theta, type='l'); abline(h=Theta, col=2)
-plot(output$samples.alpha.ca[1,,], type='l'); abline(h=Alpha.case1, col=2)
-plot(output$samples.alpha.ca[2,,], type='l'); abline(h=Alpha.case2, col=2)
-plot(output$samples.alpha.co[1,,], type='l'); abline(h=Alpha.ctrl1, col=2)
-plot(output$samples.alpha.co[2,,], type='l'); abline(h=Alpha.ctrl2, col=2)
+plot(output$samples.alpha.ca[1,,], type='l', ylim=c(0,1)); abline(h=Alpha.case1, col=2)
+plot(output$samples.alpha.ca[2,,], type='l', ylim=c(0.5,2)); abline(h=Alpha.case2, col=2)
+plot(output$samples.alpha.co[1,,], type='l', ylim=c(-1, -0.4)); abline(h=Alpha.ctrl1, col=2)
+plot(output$samples.alpha.co[2,,], type='l', ylim=c(-1.5, -0.75)); abline(h=Alpha.ctrl2, col=2)
 plot(output$samples.beta.ca[1,,1], type='l'); abline(h=beta.case1[1], col=2)
 plot(output$samples.beta.ca[1,,2], type='l'); abline(h=beta.case1[2], col=2)
 plot(output$samples.beta.ca[1,,3], type='l'); abline(h=beta.case1[3], col=2)
@@ -232,16 +233,24 @@ plot(output$samples.beta.co[2,,1], type='l'); abline(h=beta.ctrl2[1], col=2)
 plot(output$samples.beta.co[2,,2], type='l'); abline(h=beta.ctrl2[2], col=2)
 plot(output$samples.beta.co[2,,3], type='l'); abline(h=beta.ctrl2[3], col=2)
 
-accept$w <- accept$w/n.keep
-print(accept)
-plot(deltas_w)
+print(output$accept)
+par(mfrow=c(1,1))
 w.hat <- colMeans(output$samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)
+w.hat1 <- w.hat[seq(1,ncol(D),by=2)]
+w.hat2 <- w.hat[seq(2,ncol(D),by=2)]
+plot(x=W[seq(1,ncol(D),by=2)], y=w.hat1); abline(0, 1, col=2)
+plot(x=W[seq(2,ncol(D),by=2)], y=w.hat2); abline(0, 1, col=2)
 view_tr_w(output$samples.w, w_true=W)
 plot(apply(output$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
+
 plot(output$samples.t[,1], type='l'); abline(h=Tmat[1], col=2)
 plot(output$samples.t[,2], type='l'); abline(h=Tmat[2], col=2)
 plot(output$samples.t[,4], type='l'); abline(h=Tmat[4], col=2)
+
+tag <- paste(sim_name, 'mvgp', sep="_")
+output$description <- tag
+save_output(output, paste("output_", tag, ".json", sep=""))
 
 
 #################
@@ -260,6 +269,20 @@ data1 <- list(
   locs=locs1
 )
 
+
+# calibrated initial values
+prior_phi <- c(18, 204)
+w_output_s1 <- logisticGp(y=locs1$status, D, n.sample=1000, burnin=200, L=10,
+                          prior_phi=prior_phi, prior_theta=prior_theta)
+plot(x=colMeans(w_output_s1$samples.w), y=W[seq(1, length(W), by=2)]); abline(0, 1, col=2)
+view_tr(w_output_s1$samples.theta, Theta)
+save_output(w_output_s1, paste("w_inival_output_comparison_species1_", level, ".json", sep=""))
+
+# w_output <- load_output("w_inival_output_multi.json")
+w_i <- colMeans(w_output_s1$samples.w)
+theta_i <- mean(w_output_s1$samples.theta)
+phi_i <- mean(w_output_s1$samples.phi)
+
 ini_case <- glm(case.data1$y ~ case.data1$x.standardised + w_i[locs1$ids] - 1, family='poisson')
 alpha_ca_i <- coefficients(ini_case)[4]
 beta_ca_i <- coefficients(ini_case)[1:3]
@@ -273,7 +296,7 @@ prior_alpha_co_mean <- Alpha.ctrl1
 prior_alpha_ca_var <- 4
 prior_alpha_co_var <- 4
 
-n.sample <- 2000
+n.sample <- 2500
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -288,7 +311,7 @@ m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
-output_s1 <- prefSampleGpCC(data1, n.sample, burnin,
+output_s1 <- prefSampleGpCC(data1, D, n.sample, burnin,
                              L_w, L_ca, L_co, L_a_ca, L_a_co,
                              proposal.sd.theta=proposal.sd.theta,
                              m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
@@ -345,20 +368,28 @@ print(mean(output_s1$samples.alpha.ca))
 view_tr(output_s1$samples.alpha.co, Alpha.ctrl1)
 print(mean(output_s1$samples.alpha.co))
 
-tag <- "_separate1"
-output_s1$description <- paste(sim_name, tag, sep="")
-save_output(output_s1, paste("output_", sim_name, tag, ".json", sep=""))
+tag <- paste(sim_name, 'species1', sep="_")
+output_s1$description <- tag
+save_output(output_s1, paste("output_", tag, ".json", sep=""))
 
 
 #################
 ## Second Species
 #################
 
+
 data2 <- list(
   case.data=case.data2,
   ctrl.data=ctrl.data2,
   locs=locs2
 )
+
+prior_phi <- c(18, 204)
+w_output_s2 <- logisticGp(y=locs2$status, D, n.sample=1000, burnin=200, L=10,
+                          prior_phi=prior_phi, prior_theta=prior_theta)
+plot(x=colMeans(w_output_s2$samples.w), y=W[seq(2, length(W), by=2)]); abline(0, 1, col=2)
+view_tr(w_output_s2$samples.theta, Theta)
+save_output(w_output_s2, paste("w_inival_output_comparison_species2_", level, ".json", sep=""))
 
 ini_case <- glm(case.data2$y ~ case.data2$x.standardised + w_i[locs2$ids] - 1, family='poisson')
 alpha_ca_i <- coefficients(ini_case)[4]
@@ -388,7 +419,7 @@ m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
-output_s2 <- prefSampleGpCC(data2, n.sample, burnin,
+output_s2 <- prefSampleGpCC(data2, D, n.sample, burnin,
                             L_w, L_ca, L_co, L_a_ca, L_a_co,
                             proposal.sd.theta=proposal.sd.theta,
                             m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
@@ -401,11 +432,11 @@ output_s2 <- prefSampleGpCC(data2, n.sample, burnin,
                             prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
 # optionally burnin the output_cal more
-output_s2 <- burnin_after(output_s2, n.burn=700)
+output_s2 <- burnin_after(output_s2, n.burn=500)
 
 
 # optionally continue running if necessary
-output_s2 <- continueMCMC(data2, output_s2, n.sample=2000)
+output_s2 <- continueMCMC(data2, output_s2, n.sample=1000)
 
 
 plot(output_s2$deltas_w)
@@ -417,7 +448,7 @@ print(output_s2$accept)
 
 plot(apply(output_s2$samples.w, 1, mean), type='l', col='2'); abline(h=mean(W), col='2')
 w.hat <- colMeans(output_s2$samples.w)
-plot(x=W1, y=w.hat); abline(0, 1, col=2)
+plot(x=W2, y=w.hat); abline(0, 1, col=2)
 summary(100*(W-w.hat)/W)
 view_tr_w(output_s2$samples.w, w_true=W)
 
@@ -439,12 +470,12 @@ view_tr(output_s2$samples.beta.co[,3], beta.ctrl2[3])
 print(colMeans(output_s2$samples.beta.co))
 
 par(mfrow=c(1,2))
-view_tr(output_s2$samples.alpha.ca, Alpha.case1, title='A)')
+view_tr(output_s2$samples.alpha.ca, Alpha.case2, title='A)')
 print(mean(output_s2$samples.alpha.ca))
 
-view_tr(output_s2$samples.alpha.co, Alpha.ctrl1, title='B)')
+view_tr(output_s2$samples.alpha.co, Alpha.ctrl2, title='B)')
 print(mean(output_s2$samples.alpha.co))
 
-tag <- "_separate_species2"
-output_s2$description <- paste(sim_name, tag, sep="")
-save_output(output_s2, paste("output_", sim_name, tag, ".json", sep=""))
+tag <- paste(sim_name, 'species2', sep="_")
+output_s2$description <- tag
+save_output(output_s2, paste("output_", tag, ".json", sep=""))

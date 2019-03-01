@@ -44,10 +44,10 @@ locs2 <- simLocW(W2, r, beta=0, seed=14)
 sum(locs1$status)
 sum(locs2$status)
 par(mfrow=c(1,2))
-plot(r)
-points(locs1$coords)
-plot(r)
-points(locs2$coords)
+plot(r, main='A)')
+points(locs1$coords, pch=16)
+plot(r, main='B)')
+points(locs2$coords, pch=16)
 locs=list(locs1, locs2)
 
 #### Simulate counts given locations
@@ -82,16 +82,13 @@ data <- list(
 save_output(data, "simMVGP_comparison_data_none.json")
 
 params <- list(
-  Alpha.case1=Alpha.case1,
-  Alpha.ctrl1=Alpha.ctrl1,
-  Alpha.case2=Alpha.case2,
-  Alpha.ctrl2=Alpha.ctrl2,
-  beta.case1=beta.case1,
-  beta.ctrl1=beta.ctrl1,
-  beta.case2=beta.case2,
-  beta.ctrl2=beta.ctrl2,
+  Alpha.cases=list(Alpha.case1, Alpha.case2),
+  Alpha.ctrls=list(Alpha.ctrl1, Alpha.ctrl2),
+  beta.cases=list(beta.case1, beta.case2),
+  beta.ctrls=list(beta.ctrl1, beta.ctrl2),
   Theta=Theta,
-  Tmat=Tmat
+  Tmat=Tmat,
+  W=W
 )
 save_output(params, "simMVGP_comparison_params_none.json")
 
@@ -129,10 +126,10 @@ locs2 <- simLocW(W2, r, beta=0, seed=14)
 sum(locs1$status)
 sum(locs2$status)
 par(mfrow=c(1,2))
-plot(r)
-points(locs1$coords)
-plot(r)
-points(locs2$coords)
+plot(r, main='A)')
+points(locs1$coords, pch=16)
+plot(r, main='B)')
+points(locs2$coords, pch=16)
 locs=list(locs1, locs2)
 
 #### Simulate counts given locations
@@ -167,16 +164,13 @@ data <- list(
 save_output(data, "simMVGP_comparison_data_medium.json")
 
 params <- list(
-  Alpha.case1=Alpha.case1,
-  Alpha.ctrl1=Alpha.ctrl1,
-  Alpha.case2=Alpha.case2,
-  Alpha.ctrl2=Alpha.ctrl2,
-  beta.case1=beta.case1,
-  beta.ctrl1=beta.ctrl1,
-  beta.case2=beta.case2,
-  beta.ctrl2=beta.ctrl2,
+  Alpha.cases=list(Alpha.case1, Alpha.case2),
+  Alpha.ctrls=list(Alpha.ctrl1, Alpha.ctrl2),
+  beta.cases=list(beta.case1, beta.case2),
+  beta.ctrls=list(beta.ctrl1, beta.ctrl2),
   Theta=Theta,
-  Tmat=Tmat
+  Tmat=Tmat,
+  W=W
 )
 save_output(params, "simMVGP_comparison_params_medium.json")
 
@@ -214,10 +208,10 @@ locs2 <- simLocW(W2, r, beta=0, seed=14)
 sum(locs1$status)
 sum(locs2$status)
 par(mfrow=c(1,2))
-plot(r)
-points(locs1$coords)
-plot(r)
-points(locs2$coords)
+plot(r, main='A)')
+points(locs1$coords, pch=16)
+plot(r, main='B)')
+points(locs2$coords, pch=16)
 locs=list(locs1, locs2)
 
 #### Simulate counts given locations
@@ -252,15 +246,12 @@ data <- list(
 save_output(data, "simMVGP_comparison_data_high.json")
 
 params <- list(
-  Alpha.case1=Alpha.case1,
-  Alpha.ctrl1=Alpha.ctrl1,
-  Alpha.case2=Alpha.case2,
-  Alpha.ctrl2=Alpha.ctrl2,
-  beta.case1=beta.case1,
-  beta.ctrl1=beta.ctrl1,
-  beta.case2=beta.case2,
-  beta.ctrl2=beta.ctrl2,
+  Alpha.cases=list(Alpha.case1, Alpha.case2),
+  Alpha.ctrls=list(Alpha.ctrl1, Alpha.ctrl2),
+  beta.cases=list(beta.case1, beta.case2),
+  beta.ctrls=list(beta.ctrl1, beta.ctrl2),
   Theta=Theta,
-  Tmat=Tmat
+  Tmat=Tmat,
+  W=W
 )
 save_output(params, "simMVGP_comparison_params_high.json")

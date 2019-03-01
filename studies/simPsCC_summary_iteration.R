@@ -203,6 +203,61 @@ for (s in c("none", "medium", "high")){
 }
 
 
+# summarize biases
+s <- "high"
+biases <- table_params_summary(outputs, s)
+biases_all <- c(biases$low, biases$medium, biases$high)
+summary(abs(biases_all))
+max_diffs <- c()
+for (i in 1:nrow(biases)){
+  r_i <- biases[i,]
+  max_diffs <- c(max_diffs,
+                 max(abs(r_i$low - r_i$medium), abs(r_i$low - r_i$high), abs(r_i$high - r_i$medium)))
+}
+summary(max_diffs)
+diffs <- c()
+for (i in 1:nrow(biases)){
+  r_i <- biases[i,]
+  diffs <- c(diffs,
+                 c(abs(r_i$low - r_i$medium), abs(r_i$low - r_i$high), abs(r_i$high - r_i$medium)))
+}
+summary(diffs)
+
+
+# model 1 biases
+b1 <- biases[biases$Model == 'PrefSample',]
+max(c(b1$low, b1$medium, b1$high))
+
+
+# summary of biases across levels of sampling
+biases_across <- c()
+for (s in c("none", "medium", "high")){
+  biases_s <- table_params_summary(outputs, s)
+  biases_across <- cbind(biases_across, biases_s$medium)
+}
+biases_across <- data.frame(biases_across)
+spreads <- c()
+for (i in 1:nrow(biases_across)){
+  r_i <- biases_across[i,]
+  spreads <- c(spreads, max(abs(r_i$X1 - r_i$X2), abs(r_i$X1 - r_i$X2), abs(r_i$X3 - r_i$X2)))
+}
+biases_across$Spread <- spreads
+names(biases_across)[1:3] <- c("None", "Medium", "High")
+biases_across <- cbind(biases_s[,names(biases_s) %in% c('Model', 'Parameter')], biases_across)
+biases_across$Model <- as.character(biases_across$Model)
+biases_across$Parameter <- as.character(biases_across$Parameter)
+biases_across <- replace_vals(biases_across, 'Model', 'PrefSample', '(\\ref{eq:ps})')
+biases_across <- replace_vals(biases_across, 'Model', 'SpatPoisson', '(\\ref{eq:spat_poisson})')
+biases_across <- replace_vals(biases_across, 'Model', 'Poisson', '(\\ref{eq:poisson})')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 0 (case)', '$\\beta_{0, +}$')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 1 (case)', '$\\beta_{1, +}$')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 2 (case)', '$\\beta_{2, +}$')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 0 (control)', '$\\beta_{0, -}$')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 1 (control)', '$\\beta_{1, -}$')
+biases_across <- replace_vals(biases_across, 'Parameter', 'Beta 2 (control)', '$\\beta_{2, -}$')
+write_latex_table(biases_across, "latex_iteration_bias_across.txt", path=dst)
+
+
 # model 1 specific parameter biases
 for (s in c("none", "medium", "high")){
   rows <- list()
@@ -226,4 +281,6 @@ for (s in c("none", "medium", "high")){
   rows_df <- rows_df[,!colnames(rows_df) %in% c('model', 'true')]
   write_latex_table(rows_df, paste("latex_iteration_bias_model1_", s, ".txt", sep=""), path=dst)
 }
+
+
 

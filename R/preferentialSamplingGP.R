@@ -292,6 +292,7 @@ prefSampleGp <- function(data, n.sample, burnin, L_w, L_c, L_a, proposal.sd.thet
 #' uses normal priors for alpha case and alpha control
 #'
 #' @param data 
+#' @param d 
 #' @param n.sample 
 #' @param burnin 
 #' @param L_w 
@@ -336,7 +337,7 @@ prefSampleGp <- function(data, n.sample, burnin, L_w, L_c, L_a, proposal.sd.thet
 #' @export
 #'
 #' @examples
-prefSampleGpCC <- function(data, n.sample, burnin, 
+prefSampleGpCC <- function(data, d, n.sample, burnin, 
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=0.3,
                            m_aca=2000, m_aco=2000, m_ca=700, m_co=700, m_w=700, 
@@ -463,7 +464,7 @@ prefSampleGpCC <- function(data, n.sample, burnin,
     
     ## sample from phi
     R.i <- sigma.i/phi.i
-    phi.i <- 1/rgamma(1, N/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
+    phi.i <- 1/rgamma(1, N.w/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
     
     ## sample from beta.case
     w.i.sub <- w.i[locs$ids]

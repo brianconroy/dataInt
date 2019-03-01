@@ -144,26 +144,37 @@ calc_log_odds_output <- function(output, true_params){
 }
 
 
-calc_log_odds_multi <- function(output, true_params, species, output_type){
+calc_log_odds_species <- function(output, data, species){
   
-  location_indicators <- as.logical(true_params$data$locs$status[[species]])
+  location_indicators <- as.logical(data$locs$status[[species]])
   x_standard <- load_x_standard(location_indicators)
   
   w.hat <- colMeans(output$samples.w)
-  if (output_type == '_multi'){
-    beta_ca_h <- colMeans(output$samples.beta.ca[species,,])
-    beta_co_h <- colMeans(output$samples.beta.co[species,,])
-    alpha_ca_h <- mean(output$samples.alpha.ca[species,,])
-    alpha_co_h <- mean(output$samples.alpha.co[species,,])
-  } else {
-    beta_ca_h <- colMeans(output$samples.beta.ca)
-    beta_co_h <- colMeans(output$samples.beta.co)
-    alpha_ca_h <- mean(output$samples.alpha.ca)
-    alpha_co_h <- mean(output$samples.alpha.co)
-  }
+  beta_ca_h <- colMeans(output$samples.beta.ca)
+  beta_co_h <- colMeans(output$samples.beta.co)
+  alpha_ca_h <- mean(output$samples.alpha.ca)
+  alpha_co_h <- mean(output$samples.alpha.co)
   
   lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
   return(lodds.ps)
+  
+}
+
+
+calc_lodds_mvgp <- function(output, data, species){
+  
+  location_indicators <- as.logical(data$locs$status[[species]])
+  x_standard <- load_x_standard(location_indicators)
+  
+  w.hat <- colMeans(output$samples.w)
+  w.hat <- w.hat[seq(species, length(w.hat), 2)]
+  beta_ca_h <- colMeans(output$samples.beta.ca[species,,])
+  beta_co_h <- colMeans(output$samples.beta.co[species,,])
+  alpha_ca_h <- mean(output$samples.alpha.ca[species,,])
+  alpha_co_h <- mean(output$samples.alpha.co[species,,])
+  
+  lodds <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds)
   
 }
 
@@ -214,6 +225,22 @@ calc_log_odds_true_multi_general <- function(true_params, species){
   Alpha.case <- true_params$alpha.cases[species,]
   Alpha.ctrl <- true_params$alpha.ctrls[species,]
   W <- true_params$W
+  lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.true)
+  
+}
+
+
+calc_lodds_true_multi <- function(params, data, species){
+  
+  location_indicators <- as.logical(data$locs$status[[species]])
+  x_standard <- load_x_standard(location_indicators)
+  beta.case <- params$beta.cases[species,]
+  beta.ctrl <- params$beta.ctrls[species,]
+  Alpha.case <- params$Alpha.cases[species,]
+  Alpha.ctrl <- params$Alpha.ctrls[species,]
+  W <- params$W
+  W <- W[seq(species, length(W), 2)]
   lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W
   return(lodds.true)
   
@@ -383,6 +410,49 @@ table_params_wide <- function(outputs, sampling){
       rows[[counter+2]] <- make_row_wide(outputs, sampling, prevalence, param, 'spatial_poisson_ctrl', 'SpatPoisson')
     }
     rows[[counter+3]] <- make_row_wide(outputs, sampling, prevalence, param, 'poisson', 'Poisson')
+    counter <- counter + 4
+  }
+  return(ldply(rows, 'data.frame'))
+  
+}
+
+
+make_row_summary <- function(outputs, sampling, prevalence, param, output_tag, model_name){
+  row <- list(
+    Sampling=sampling,
+    Model=model_name,
+    Parameter=param
+  )
+  for (prevalence in c("low", "medium", "high")){
+    if (output_tag != "poisson"){
+      output <- get_output(outputs, sampling, prevalence, output_tag)
+    } else {
+      output <- load_params(paste('estimates_poisson_prefSampleGpCC_', sampling, '_', prevalence, '.json', sep=''))
+      output$description <- "Poisson Regression"
+    }
+    est <- get_estimate(output, param)
+    true_params <- load_params(paste('true_params_', sampling, '_', prevalence, '.json', sep=''))
+    true <- get_true_val(true_params, param)
+    row[prevalence] <- round(est-true, 3)
+  }
+  return(row)
+}
+
+
+table_params_summary <- function(outputs, sampling){
+  
+  shared <- c("Beta 0 (case)", "Beta 1 (case)", "Beta 2 (case)", 
+              "Beta 0 (control)", "Beta 1 (control)", "Beta 2 (control)")
+  rows <- list()
+  counter <- 1
+  for (param in shared){
+    rows[[counter]] <- make_row_summary(outputs, sampling, prevalence, param, 'prefSampleGpCC', 'PrefSample')
+    if (grepl("case", param)){
+      rows[[counter+1]] <- make_row_summary(outputs, sampling, prevalence, param, 'spatial_poisson_case', 'SpatPoisson')
+    } else {
+      rows[[counter+2]] <- make_row_summary(outputs, sampling, prevalence, param, 'spatial_poisson_ctrl', 'SpatPoisson')
+    }
+    rows[[counter+3]] <- make_row_summary(outputs, sampling, prevalence, param, 'poisson', 'Poisson')
     counter <- counter + 4
   }
   return(ldply(rows, 'data.frame'))

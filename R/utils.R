@@ -1,5 +1,15 @@
 
 
+replace_vals <- function(df, column, val, replacement){
+  for (i in 1:nrow(df)){
+    if (df[i,column] == val){
+      df[i,column] <- replacement
+    }
+  }
+  return(df)
+}
+
+
 calc_risk <- function(lodds){
   
   return(exp(lodds)/(1 + exp(lodds)))

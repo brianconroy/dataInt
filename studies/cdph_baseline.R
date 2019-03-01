@@ -184,6 +184,56 @@ view_tr(output$samples.phi)
 output$description <- "cdph baseline"
 save_output(output, "output_cdph_baseline.json")
 
+
+###########################
+# Fit spatial poisson model
+###########################
+
+
+X.ca <- case.data$x.standardised
+Y.ca <- case.data$y
+d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
+
+set.seed(314)
+beta_ca_i_ <- rnorm(3)
+w_i_ <- rnorm(nrow(d.sub))
+phi_i_ <- 10
+theta_i_ <- 5
+
+n.sample_ <- 10000
+burnin_ <- 500
+L_w_ <- 8
+L_b_ <- 8
+
+prior_phi_ <- c(3, 40)
+prior_theta_ <- c(2.5, 2.5)
+
+output.sp_ca <- poissonGp(X.ca, Y.ca, d.sub,
+                          n.sample=n.sample_, burnin=burnin_, proposal.sd.theta=0.3,
+                          L_w=L_w_, L_b=L_b_,
+                          beta_initial=beta_ca_i_, w_initial=w_i_, 
+                          phi_initial=phi_i_, theta_initial=theta_i_,
+                          prior_phi=prior_phi_, prior_theta=prior_theta_)
+
+print(output.sp_ca$accept)
+
+plot(apply(output.sp_ca$samples.w, 1, mean), type='l', col='2')
+view_tr_w(output.sp_ca$samples.w)
+
+view_tr(output.sp_ca$samples.beta[,1])
+view_tr(output.sp_ca$samples.beta[,2])
+view_tr(output.sp_ca$samples.theta)
+view_tr(output.sp_ca$samples.phi)
+print(colMeans(output.sp_ca$samples.beta))
+print(colMeans(output.sp_ca$samples.theta))
+print(colMeans(output.sp_ca$samples.phi))
+
+w.hat_spca <- colMeans(output.sp_ca$samples.w)
+beta_ca_sp <- colMeans(output.sp_ca$samples.beta)
+kriged_w_ca <- krigeW(output.sp_ca, d, locs$ids)
+w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(locs$status))
+
+
 ###########
 # downscale
 ###########

@@ -13,7 +13,7 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline/"
+dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline_shared/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=5)
 N <- n_values(caPr.disc[[1]])
@@ -41,6 +41,17 @@ loc.disc[][cells_obs] <- 5
 plot(loc.disc)
 plot(rasterToPolygons(loc.disc), add=T, border='black', lwd=1) 
 points(coords_all, col='2')
+
+# high resolution
+us <- getData("GADM", country="USA", level=2)
+ca <- us[us$NAME_1 == 'California',]
+plot(ca)
+points(coords_all, col='2')
+
+plot(caPr)
+
+# years, species, counts
+table(rodents$Year)
 
 ##################
 # data description
@@ -115,6 +126,8 @@ count_sums$Total <- c(sum(case.data$y), sum(ctrl.data$y))
 names(count_sums) <- c("Disease Status", "Min", "1st Quartile",
                        "Median", "Mean", "3rd Quartile", "Max", "Total")
 write_latex_table(count_sums, "cdph_baseline_count_summary.txt", path=dst)
+
+print(sum(case.data$y)/ sum(case.data$y + ctrl.data$y))
 
 
 ##############
@@ -200,6 +213,10 @@ r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
 #pal <- colorRampPalette(c("blue","red"))
 plot(r_risk_high)#, col=pal(15))
+us <- getData("GADM", country="USA", level=2)
+ca <- us[us$NAME_1 == 'California',]
+plot(r_risk_high)
+plot(ca, add=T)
 
 #################
 # Compare to 
