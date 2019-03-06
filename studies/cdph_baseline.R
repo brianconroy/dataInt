@@ -233,6 +233,58 @@ beta_ca_sp <- colMeans(output.sp_ca$samples.beta)
 kriged_w_ca <- krigeW(output.sp_ca, d, locs$ids)
 w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(locs$status))
 
+output.sp_ca$description <- "cdph_spatial_poisson_case"
+save_output(output.sp_ca, "output_cdph_baseline_spatial_poisson_case.json")
+save_output(kriged_w_ca, "output_cdph_baseline_krige_ca.json")
+
+## Controls
+X.co <- ctrl.data$x.standardised
+Y.co <- ctrl.data$y
+d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
+
+n.sample__ <- 8000
+burnin__ <- 500
+L_w__ <- 8
+L_b__ <- 8
+
+set.seed(314)
+beta_co_i__ <- rnorm(3)
+w_i__ <- rnorm(nrow(d.sub))
+phi_i__ <- 10
+theta_i__ <- 5
+
+prior_phi__ <- c(3, 40)
+prior_theta__ <- c(2.5, 2.5)
+
+output.sp_co <- poissonGp(X.co, Y.co, d.sub,
+                          n.sample=n.sample__, burnin=burnin__, 
+                          L_w=L_w__, L_b=L_b__, proposal.sd.theta=0.3,
+                          beta_initial=beta_co_i__, w_initial=w_i__, 
+                          phi_initial=phi_i__, theta_initial=theta_i__,
+                          prior_phi=prior_phi__, prior_theta=prior_theta__)
+
+print(output.sp_co$accept)
+
+plot(apply(output.sp_co$samples.w, 1, mean), type='l', col='2')
+view_tr_w(output.sp_co$samples.w)
+
+view_tr(output.sp_co$samples.beta[,1])
+view_tr(output.sp_co$samples.beta[,2])
+view_tr(output.sp_co$samples.theta)
+view_tr(output.sp_co$samples.phi)
+print(colMeans(output.sp_co$samples.beta))
+print(colMeans(output.sp_co$samples.theta))
+print(colMeans(output.sp_co$samples.phi))
+
+w.hat_spco <- colMeans(output.sp_co$samples.w)
+beta_co_sp <- colMeans(output.sp_co$samples.beta)
+kriged_w_co <- krigeW(output.sp_co, d, locs$ids)
+w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, as.logical(locs$status))
+
+output.sp_co$description <- "cdph_spatial_poisson_ctrl"
+save_output(output.sp_co, "output_cdph_baseline_spatial_poisson_ctrl.json")
+save_output(kriged_w_co, "output_cdph_baseline_krige_co.json")
+
 
 ###########
 # downscale

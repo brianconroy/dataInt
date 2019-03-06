@@ -13,7 +13,7 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species"
+dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=5)
 loc.disc <- caPr.disc[[1]]
@@ -106,12 +106,30 @@ for (species in groupings){
 }
 
 
-
-
-
-
-
-
+# summarize counts by species/group
+rows <- list()
+counter <- 1
+for (species in groupings){
+  print(species)
+  if (paste(species, collapse="") == 'all_but_ds'){
+    all_species <- unique(rodents$Short_Name)
+    species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
+    rodents_species <- rodents[rodents$Short_Name %in% species_group,]
+  } else {
+    rodents_species <- rodents[rodents$Short_Name %in% species,]
+  }
+  ca <- table(rodents_species$Test_Result_ID)['Pos']
+  co <- table(rodents_species$Test_Result_ID)['Neg']
+  rows[[counter]] <- list(
+    Species=paste(species, collapse="|"),
+    Cases=ca,
+    Controls=co,
+    Total=ca+co,
+    Prevalence=round(ca/(ca+co), 3)
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(rows, 'data.frame'), 'latex_species_counts.txt', dst)
 
 
 ##################

@@ -219,8 +219,62 @@ plot(r_risk_high)
 plot(ca, add=T)
 
 #################
+# Compare to spatial
+# poisson model
+#################
+output.sp_ca <- load_output("output_cdph_baseline_spatial_poisson_case.json")
+output.sp_co <- load_output("output_cdph_baseline_spatial_poisson_ctrl.json")
+output_krige_ca <- load_output("output_cdph_baseline_krige_ca.json")
+output_krige_co <- load_output("output_cdph_baseline_krige_co.json")
+
+w.hat_spca <- colMeans(output.sp_ca$samples.w)
+beta_ca_sp <- colMeans(output.sp_ca$samples.beta)
+w_ca_est <- combine_w(w.hat_spca, output_krige_ca$mu.new, as.logical(locs$status))
+
+w.hat_spco <- colMeans(output.sp_co$samples.w)
+beta_co_sp <- colMeans(output.sp_co$samples.beta)
+w_co_est <- combine_w(w.hat_spco, output_krige_co$mu.new, as.logical(locs$status))
+
+X_low <- load_x_ca(factor=5)
+lodds_low_sp <- X_low %*% beta_ca_sp + w_ca_est - X_low %*% beta_co_sp - w_co_est
+risk_low_sp <- calc_risk(lodds_low_sp)
+
+plot(x=lodds_low, y=lodds_low_sp); abline(0, 1, col=2)
+plot(x=risk_low, y=risk_low_sp); abline(0, 1, col=2)
+
+# downscale
+downscale <- function(w.est){
+  
+  rw <- caPr.disc[[1]]
+  rw[][!is.na(rw[])] <- w.est
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  return(list(p=p, w.hat_ds=w.hat_ds))
+  
+}
+
+w_ca_ds <- downscale(w_ca_est)$w.hat_ds
+w_co_ds <- downscale(w_co_est)$w.hat_ds
+
+X_high <- load_x_ca()
+lodds_high_sp <- X_high %*% beta_ca_sp + w_ca_ds - X_high %*% beta_co_sp - w_co_ds
+risk_high_sp <- calc_risk(lodds_high_sp)
+
+plot(x=lodds_high, y=lodds_high_sp); abline(0, 1, col=2)
+plot(x=risk_high, y=risk_high_sp); abline(0, 1, col=2)
+
+r_risk_high_sp <- caPr[[2]]
+# risk_high_sp[risk_high_sp > 0.21] = 0.21
+r_risk_high_sp[][!is.na(r_risk_high_p[])] <- risk_high_sp
+
+#################
 # Compare to 
-# reference model
+# poisson model
 #################
 
 mod.ca <- glm(case.data$y ~ case.data$x.standardised - 1, family='poisson')
@@ -244,12 +298,14 @@ plot(r_lodds_high_p)
 r_risk_high_p <- caPr[[2]]
 r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
 
-par(mfrow=c(1,2))
+par(mfrow=c(2,2))
 pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high_p, main='A)', 
-     breaks=c(0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(7))
-plot(r_risk_high, main='B)',
-     breaks=c(0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(7))
+plot(r_risk_high, main='A)',
+     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
+plot(r_risk_high_p, main='B)', 
+     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
+plot(r_risk_high_sp, main='C)', 
+     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 
 breaks=c(0, 5, 10, 15, 21, 25)
 
