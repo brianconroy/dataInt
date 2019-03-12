@@ -13,7 +13,7 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline_shared/"
+dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline_share/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=5)
 N <- n_values(caPr.disc[[1]])
@@ -43,80 +43,84 @@ plot(rasterToPolygons(loc.disc), add=T, border='black', lwd=1)
 points(coords_all, col='2')
 
 # high resolution
-us <- getData("GADM", country="USA", level=2)
-ca <- us[us$NAME_1 == 'California',]
-plot(ca)
-points(coords_all, col='2')
-
-plot(caPr)
-
-# years, species, counts
-table(rodents$Year)
+# us <- getData("GADM", country="USA", level=2)
+# ca <- us[us$NAME_1 == 'California',]
+# plot(ca)
+# points(coords_all, col='2')
+# 
+# plot(caPr)
+# 
+# # years, species, counts
+# table(rodents$Year)
 
 ##################
 # data description
 ##################
 
-# positive counts at each cell
-rodents_pos <- rodents[rodents$Res == 'POS',]
-coords_pos <- cbind(matrix(rodents_pos$Lon_Add_Fix), rodents_pos$Lat_Add_Fix)
-cells_pos <- cellFromXY(loc.disc, coords_pos)
-counts_pos <- data.frame(table(cells_pos))
-names(counts_pos) <- c('cell', 'count_pos')
-
-# negative counts at each cell
-rodents_neg <- rodents[rodents$Res == 'NEG',]
-coords_neg <- cbind(matrix(rodents_neg$Lon_Add_Fix), rodents_neg$Lat_Add_Fix)
-cells_neg <- cellFromXY(loc.disc, coords_neg)
-counts_neg <- data.frame(table(cells_neg))
-names(counts_neg) <- c('cell', 'count_neg')
-
-# combine counts
-counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
-counts_all$cell <- as.numeric(as.character(counts_all$cell))
-counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
-counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
-counts_all <- counts_all[with(counts_all, order(cell)),]
-
-# location data
+# # positive counts at each cell
+# rodents_pos <- rodents[rodents$Res == 'POS',]
+# coords_pos <- cbind(matrix(rodents_pos$Lon_Add_Fix), rodents_pos$Lat_Add_Fix)
+# cells_pos <- cellFromXY(loc.disc, coords_pos)
+# counts_pos <- data.frame(table(cells_pos))
+# names(counts_pos) <- c('cell', 'count_pos')
+# 
+# # negative counts at each cell
+# rodents_neg <- rodents[rodents$Res == 'NEG',]
+# coords_neg <- cbind(matrix(rodents_neg$Lon_Add_Fix), rodents_neg$Lat_Add_Fix)
+# cells_neg <- cellFromXY(loc.disc, coords_neg)
+# counts_neg <- data.frame(table(cells_neg))
+# names(counts_neg) <- c('cell', 'count_neg')
+# 
+# # combine counts
+# counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
+# counts_all$cell <- as.numeric(as.character(counts_all$cell))
+# counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
+# counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
+# counts_all <- counts_all[with(counts_all, order(cell)),]
+# 
+# # location data
+# all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+# locs <- list(
+#   cells=cells_obs,
+#   status=1 * c(all_ids %in% cells_obs),  
+#   coords=xyFromCell(loc.disc, cells_obs)
+# )
+# locs$ids <- c(1:length(all_ids))[as.logical(locs$status)]
+# plot(loc.disc)
+# points(locs$coords)
+# 
+# # case data
+# cov.disc <- caPr.disc
+# x1 <- cov.disc[[1]][][locs$cells]
+# x2 <- cov.disc[[2]][][locs$cells]
+# x1.standardised <- (x1 - mean(x1))/sd(x1)
+# x2.standardised <- (x2 - mean(x2))/sd(x2)
+# x <- cbind(1, x1, x2)
+# x.standardised <- cbind(1, x1.standardised, x2.standardised)
+# 
+# case.data <- list(
+#   y=counts_all$count_pos,
+#   x.standardised=x.standardised,
+#   x=x,
+#   p=3
+# )
+# print(sum(case.data$y))
+# 
+# # control data
+# ctrl.data <- list(
+#   y=counts_all$count_neg,
+#   x.standardised=x.standardised,
+#   x=x,
+#   p=3
+# )
 all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
-locs <- list(
-  cells=cells_obs,
-  status=1 * c(all_ids %in% cells_obs),  
-  coords=xyFromCell(loc.disc, cells_obs)
-)
-locs$ids <- c(1:length(all_ids))[as.logical(locs$status)]
-plot(loc.disc)
-points(locs$coords)
-
-# case data
-cov.disc <- caPr.disc
-x1 <- cov.disc[[1]][][locs$cells]
-x2 <- cov.disc[[2]][][locs$cells]
-x1.standardised <- (x1 - mean(x1))/sd(x1)
-x2.standardised <- (x2 - mean(x2))/sd(x2)
-x <- cbind(1, x1, x2)
-x.standardised <- cbind(1, x1.standardised, x2.standardised)
-
-case.data <- list(
-  y=counts_all$count_pos,
-  x.standardised=x.standardised,
-  x=x,
-  p=3
-)
-print(sum(case.data$y))
-
-# control data
-ctrl.data <- list(
-  y=counts_all$count_neg,
-  x.standardised=x.standardised,
-  x=x,
-  p=3
-)
-
+data <- assemble_data(rodents, loc.disc, caPr.disc)
 coords <- xyFromCell(caPr.disc, cell=all_ids)
 d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
-data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
+# data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
+case.data <- data$case.data
+ctrl.data <- data$ctrl.data
+locs <- data$loc
 
 # table of summary metrics
 count_sums <- rbind(summary(case.data$y), summary(ctrl.data$y))
@@ -158,25 +162,20 @@ plot_traces_general(output)
 params <- summarize_ps_params(output)
 ite_latex_table(params, 'cdph_baseline_params.txt', dst)
 
+###########
+# risk maps
+###########
+
 # random field (downscaled)
 w.hat <- colMeans(output$samples.w)
+ds <- downscale(w.hat, caPr.disc, caPr)
+w.hat_ds <- ds$w.hat_ds
+
+plot(ds$p)
+
+par(mfrow=c(1,2))
 rw <- caPr.disc[[1]]
 rw[][!is.na(rw[])] <- w.hat
-
-xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
-v <- getValues(rw)
-
-tps <- Tps(xy, v)
-p <- raster(caPr[[2]])
-p <- interpolate(p, tps)
-p <- mask(p, caPr[[1]])
-w.hat_ds <- p[][!is.na(p[])]
-
-par(mfrow=c(1,2))
-plot(rw)
-plot(p)
-
-par(mfrow=c(1,2))
 plot(rw)
 plot(rw)
 points(locs$coords, col=1, pch=16)
@@ -243,23 +242,8 @@ plot(x=lodds_low, y=lodds_low_sp); abline(0, 1, col=2)
 plot(x=risk_low, y=risk_low_sp); abline(0, 1, col=2)
 
 # downscale
-downscale <- function(w.est){
-  
-  rw <- caPr.disc[[1]]
-  rw[][!is.na(rw[])] <- w.est
-  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
-  v <- getValues(rw)
-  tps <- Tps(xy, v)
-  p <- raster(caPr[[2]])
-  p <- interpolate(p, tps)
-  p <- mask(p, caPr[[1]])
-  w.hat_ds <- p[][!is.na(p[])]
-  return(list(p=p, w.hat_ds=w.hat_ds))
-  
-}
-
-w_ca_ds <- downscale(w_ca_est)$w.hat_ds
-w_co_ds <- downscale(w_co_est)$w.hat_ds
+w_ca_ds <- downscale(w_ca_est, caPr.disc, caPr)$w.hat_ds
+w_co_ds <- downscale(w_co_est, caPr.disc, caPr)$w.hat_ds
 
 X_high <- load_x_ca()
 lodds_high_sp <- X_high %*% beta_ca_sp + w_ca_ds - X_high %*% beta_co_sp - w_co_ds
@@ -269,8 +253,7 @@ plot(x=lodds_high, y=lodds_high_sp); abline(0, 1, col=2)
 plot(x=risk_high, y=risk_high_sp); abline(0, 1, col=2)
 
 r_risk_high_sp <- caPr[[2]]
-# risk_high_sp[risk_high_sp > 0.21] = 0.21
-r_risk_high_sp[][!is.na(r_risk_high_p[])] <- risk_high_sp
+r_risk_high_sp[][!is.na(r_risk_high_sp[])] <- risk_high_sp
 
 #################
 # Compare to 
@@ -298,32 +281,68 @@ plot(r_lodds_high_p)
 r_risk_high_p <- caPr[[2]]
 r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
 
-par(mfrow=c(2,2))
+
+#########################
+# Compare the 3 risk maps
+#########################
+
+
+par(mfrow=c(1,2))
 pal <- colorRampPalette(c("blue","red"))
 plot(r_risk_high, main='A)',
      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 plot(r_risk_high_p, main='B)', 
      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
+
+
 plot(r_risk_high_sp, main='C)', 
      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 
-breaks=c(0, 5, 10, 15, 21, 25)
-
+brks <- seq(0, 0.51, by=0.03)
 par(mfrow=c(1,1))
-plot(y=r_risk_high_p[], 
-     x=r_risk_high[], 
-     xlab='Risk (Preferential Sampling)', 
-     ylab='Risk (Poisson)'
-     ); abline(0, 1, col=2)
+plot(r_risk_high, main='A)',
+     breaks=brks, col=pal(length(brks)-1))
+plot(r_risk_high_sp, main='B)', 
+     breaks=brks, col=pal(length(brks)-1))
+
+##################
+# Compare per cell 
+# risk estimates
+##################
+
+par(mfrow=c(1,2))
+plot(x=risk_high, 
+     y=risk_high_p, main='A)', 
+     xlab='Risk (Preferential Sampling)',
+     ylab='Risk (Poisson)'); abline(0, 1, col=2)
+plot(x=risk_high, 
+     y=risk_high_sp, main='B)',
+     xlab='Risk (Preferential Sampling)',
+     ylab='Risk (Spatial Poisson)'); abline(0, 1, col=2)
 
 # summary table of risk differences
 r_diff <- abs(r_risk_high_p[][!is.na(r_risk_high_p[])] - r_risk_high[][!is.na(r_risk_high[])])
 r_diff <- 100*r_diff/r_risk_high_p[][!is.na(r_risk_high_p[])]
 r_diff_summary <- round(matrix(summary(r_diff), ncol=6), 4)
 r_diff_summary <- data.frame(r_diff_summary)
+
+r_diff2 <- abs(r_risk_high_sp[][!is.na(r_risk_high_sp[])] - r_risk_high[][!is.na(r_risk_high[])])
+r_diff2 <- 100*r_diff2/r_risk_high_sp[][!is.na(r_risk_high_sp[])]
+r_diff_summary2 <- round(matrix(summary(r_diff2), ncol=6), 4)
+r_diff_summary2 <- data.frame(r_diff_summary2)
+
+r_diff_summary <- rbind(r_diff_summary, r_diff_summary2)
+
 names(r_diff_summary) <- c("Minimum", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max")
-print(round(r_diff_summary), 3)
+print(round(r_diff_summary, 3))
 
 # comparison table of parameter estimates
-param_comp <- compare_params(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat)
+param_comp <- compare_params(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat, beta_ca_sp, beta_co_sp)
+param_comp$Parameter <- as.character(param_comp$Parameter)
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 0 (case)', '$\\beta_{0,+}$')
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 1 (case)', '$\\beta_{1,+}$')
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 2 (case)', '$\\beta_{2,+}$')
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 0 (control)', '$\\beta_{0,-}$')
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 1 (control)', '$\\beta_{1,-}$')
+param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 2 (control)', '$\\beta_{2,-}$')
 write_latex_table(param_comp, 'cdph_baseline_param_comparison.txt', dst)

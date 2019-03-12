@@ -38,10 +38,13 @@ groupings <- list(
   c('all_but_ds')
 )
 
+us <- getData("GADM", country="USA", level=2)
+ca <- us[us$NAME_1 == 'California',]
+
 for (species in groupings){
   
   print(species)
-  if (species == 'all_but_ds'){
+  if (paste(species, collapse="") == 'all_but_ds'){
     all_species <- unique(rodents$Short_Name)
     species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
     rodents_species <- rodents[rodents$Short_Name %in% species_group,]
@@ -99,8 +102,9 @@ for (species in groupings){
   plot(r_risk_high)
   fname <- paste("risk_map_", analysis_name, ".png", sep="")
   png(paste(dst, fname, sep=""),
-      width=900, height=700, res=100)
+      width=900, height=700, res=50)
   plot(r_risk_high)
+  plot(ca, add=T)
   dev.off()
   
 }

@@ -1,5 +1,21 @@
 
 
+downscale <- function(w.est, caPr.disc, caPr){
+  
+  rw <- caPr.disc[[1]]
+  rw[][!is.na(rw[])] <- w.est
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  return(list(p=p, w.hat_ds=w.hat_ds))
+  
+}
+
+
 assemble_data <- function(rodents, loc.disc, caPr.disc){
   
   coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
@@ -153,8 +169,9 @@ summarize_ps_params <- function(output){
 #' @export
 #'
 #' @examples
-compare_params <- function(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat){
+compare_params <- function(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat, beta_ca_sp, beta_co_sp){
   
+  param_comp <- list()
   param_comp[[1]] <- list(
     Parameter='Beta 0 (case)',
     Model='Poisson',
@@ -162,56 +179,86 @@ compare_params <- function(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.ha
   )
   param_comp[[2]] <- list(
     Parameter='Beta 0 (case)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_ca_sp[1], 3)
+  )
+  param_comp[[3]] <- list(
+    Parameter='Beta 0 (case)',
     Model='Preferential Sampling',
     Estimate=round(beta.ca.hat[1], 3)
   )
-  param_comp[[3]] <- list(
+  param_comp[[4]] <- list(
     Parameter='Beta 1 (case)',
     Model='Poisson',
     Estimate=round(beta.ca.hat_p[2], 3)
   )
-  param_comp[[4]] <- list(
+  param_comp[[5]] <- list(
+    Parameter='Beta 1 (case)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_ca_sp[2], 3)
+  )
+  param_comp[[6]] <- list(
     Parameter='Beta 1 (case)',
     Model='Preferential Sampling',
     Estimate=round(beta.ca.hat[2], 3)
   )
-  param_comp[[5]] <- list(
+  param_comp[[7]] <- list(
     Parameter='Beta 2 (case)',
     Model='Poisson',
     Estimate=round(beta.ca.hat_p[3], 3)
   )
-  param_comp[[6]] <- list(
+  param_comp[[8]] <- list(
+    Parameter='Beta 2 (case)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_ca_sp[3], 3)
+  )
+  param_comp[[9]] <- list(
     Parameter='Beta 2 (case)',
     Model='Preferential Sampling',
     Estimate=round(beta.ca.hat[3], 3)
   )
   
-  param_comp[[7]] <- list(
+  param_comp[[10]] <- list(
     Parameter='Beta 0 (control)',
     Model='Poisson',
     Estimate=round(beta.co.hat_p[1], 3)
   )
-  param_comp[[8]] <- list(
+  param_comp[[11]] <- list(
+    Parameter='Beta 0 (control)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_co_sp[1], 3)
+  )
+  param_comp[[12]] <- list(
     Parameter='Beta 0 (control)',
     Model='Preferential Sampling',
     Estimate=round(beta.co.hat[1], 3)
   )
-  param_comp[[9]] <- list(
+  param_comp[[13]] <- list(
     Parameter='Beta 1 (control)',
     Model='Poisson',
     Estimate=round(beta.co.hat_p[2], 3)
   )
-  param_comp[[10]] <- list(
+  param_comp[[14]] <- list(
+    Parameter='Beta 1 (control)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_co_sp[2], 3)
+  )
+  param_comp[[15]] <- list(
     Parameter='Beta 1 (control)',
     Model='Preferential Sampling',
     Estimate=round(beta.co.hat[2], 3)
   )
-  param_comp[[11]] <- list(
+  param_comp[[16]] <- list(
     Parameter='Beta 2 (control)',
     Model='Poisson',
     Estimate=round(beta.co.hat_p[3], 3)
   )
-  param_comp[[12]] <- list(
+  param_comp[[17]] <- list(
+    Parameter='Beta 2 (control)',
+    Model='Spatial Poisson',
+    Estimate=round(beta_co_sp[3], 3)
+  )
+  param_comp[[18]] <- list(
     Parameter='Beta 2 (control)',
     Model='Preferential Sampling',
     Estimate=round(beta.co.hat[3], 3)

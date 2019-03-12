@@ -22,10 +22,11 @@ outputs <- load_sim_outputs(tag='simMVGP')
 dst <- "/Users/brianconroy/Documents/research/project2/simulations_comparison/"
 species <- c(1, 2)
 levels <- c("none", "medium", "high")
+# levels <- c("medium2")
 
-#######################
+###################
 # risk scatterplots
-#######################
+###################
 
 # 4 models, 3 correlation levels
 
@@ -55,16 +56,60 @@ for (l in levels){
     rmses[[counter]] <- list(Correlation=l, Species=s, Model='MVGP', rmse=rmse)
     counter <- counter + 1
     
-    # Multispecies Model
+    # Separaete species Models
     o <- get_output_general(outputs, tag=paste(l, '_species', s, sep=""))
     lodds_separate <- calc_log_odds_species(o, data, s)
     rmse <- round(sqrt(mean((lodds_separate-lodds_true)^2)), 3)
     plot(x=lodds_true, y=lodds_separate, xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col=2)
     rmses[[counter]] <- list(Correlation=l, Species=s, Model='Separate', rmse=rmse)
     counter <- counter + 1
+    
+    # ToDo: Pooled model
   }
 }
 write_latex_table(ldply(rmses, 'data.frame'), "latex_simMVGP_rmses.txt", path=dst)
+
+
+####################
+# Posterior variance 
+# comparison
+####################
+
+make_row <- function(est, true, var, name, species, model){
+  
+  return(list(
+    Model=model,
+    Parameter=name,
+    Species=species,
+    Estimate=est,
+    Bias=round(true-est, 3),
+    Posterior_Variance=var
+  ))
+  
+}
+
+
+estimates <- list()
+counter <- 1
+for (l in c('high')){
+  
+  params <- load_output(paste('simMVGP_comparison_params_', l, '.json', sep=''))
+  data <- load_output(paste('simMVGP_comparison_data_', l, '.json', sep=''))
+  
+  for (s in species){
+    
+    # MVGP
+    o <- get_output_general(outputs, tag=paste(l, 'mvgp', sep="_"))
+    estimates <- c(estimates, summarize_multi_params(o, params, s))
+    
+    # Separaete species Models
+    o_sep <- get_output_general(outputs, tag=paste(l, '_species', s, sep=""))
+    estimates <- c(estimates, summarize_params(o_sep, params, s))
+    
+  }
+}
+estimates_df <- ldply(estimates, data.frame)
+estimates_df[with(estimates_df, order(Species, Parameter, Model)),]
 
 
 

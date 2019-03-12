@@ -19,39 +19,23 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sim <- "simMVGP_comparison"
-level <- "high"
+level <- "none"
 sim_name <- paste(sim, level, sep="_")
 
 
 #### Load simulation parameters
-params <- load_output(paste('simMVGP_comparison_params_', level, '.json', sep=''))
-Alpha.case1 <- params$Alpha.case1
-Alpha.case2 <- params$Alpha.case2
-Alpha.ctrl1 <- params$Alpha.ctrl1
-Alpha.ctrl2 <- params$Alpha.ctrl2
-beta.case1 <- params$beta.case1
-beta.case2 <- params$beta.case2
-beta.ctrl1 <- params$beta.ctrl1
-beta.ctrl2 <- params$beta.ctrl2
+params <- load_output(paste('simMVGP_comparison_params_', "new1", '.json', sep=''))
+Alpha.case1 <- params$Alpha.cases[[1]]
+Alpha.case2 <- params$Alpha.cases[[2]]
+Alpha.ctrl1 <- params$Alpha.ctrls[[1]]
+Alpha.ctrl2 <- params$Alpha.ctrls[[2]]
+beta.case1 <- params$beta.cases[[1]]
+beta.case2 <- params$beta.cases[[2]]
+beta.ctrl1 <- params$beta.ctrls[[1]]
+beta.ctrl2 <- params$beta.ctrls[[2]]
 Theta <- params$Theta
 Tmat <- params$Tmat
 W <- params$W
-
-
-# #### Write simulation parameters to LaTeX
-# sim_config <- list(
-#   list(parameter="Alpha (case) 1", value=as.character(Alpha.case1)),
-#   list(parameter="Alpha (case) 2", value=as.character(Alpha.case2)),
-#   list(parameter="Alpha (control) 1",value=as.character(Alpha.ctrl1)),
-#   list(parameter="Alpha (control) 2",value=as.character(Alpha.ctrl2)),
-#   list(parameter="Beta (case) 1", value=paste(beta.case1, collapse=", ")),
-#   list(parameter="Beta (case) 2", value=paste(beta.case2, collapse=", ")),
-#   list(parameter="Beta (control) 1", value=paste(beta.ctrl1, collapse=", ")),
-#   list(parameter="Beta (control) 2", value=paste(beta.ctrl2, collapse=", ")),
-#   list(parameter="Range", value=as.character(Theta)),
-#   list(parameter="Phi", value=as.character(Phi))
-# )
-# write_latex_table(ldply(sim_config, "data.frame"), fname=paste("sim_params_", level, ".txt", sep=""), path="/Users/brianconroy/Documents/research/project2/simulation_1_comparison")
 
 
 #### Prism Principal Components
@@ -253,6 +237,131 @@ output$description <- tag
 save_output(output, paste("output_", tag, ".json", sep=""))
 
 
+#############
+# Pooled Data
+#############
+
+## Pool data
+status <- as.numeric(locs1$status | locs2$status)
+cells <- sort(unique(c(locs1$cells, locs2$cells)))
+ids <- sort(unique(c(locs1$ids, locs2$ids)))
+locs_pooled <- list(status=status, cells=cells, ids=ids)
+
+df1 <- data.frame(cbind(locs1$ids, case.data1$y))
+df2 <- data.frame(cbind(locs2$ids, case.data2$y))
+df <- merge(df1, df2, by='X1', all=T)
+df[is.na(df[,2]),2] <- 0
+df[is.na(df[,3]),3] <- 0
+y.ca <- df$X2.x + df$X2.y
+
+df1 <- data.frame(cbind(locs1$ids, ctrl.data1$y))
+df2 <- data.frame(cbind(locs2$ids, ctrl.data2$y))
+df <- merge(df1, df2, by='X1', all=T)
+df[is.na(df[,2]),2] <- 0
+df[is.na(df[,3]),3] <- 0
+y.co <- df$X2.x + df$X2.y
+
+df1 <- data.frame(cbind(locs1$ids, case.data1$x.standardised))
+df2 <- data.frame(cbind(locs2$ids, case.data2$x.standardised))
+df <- merge(df1, df2, by='X1', all=T)
+for (i in 2:7){
+  df[is.na(df[,i]),i] <- -Inf
+}
+x.standardised <- array(NA, c(nrow(df), 3))
+for (i in 1:nrow(x.standardised)){
+  x.standardised[i,1] <- max(df[i,2], df[i,5])
+  x.standardised[i,2] <- max(df[i,3], df[i,6])
+  x.standardised[i,3] <- max(df[i,4], df[i,7])
+}
+
+case_pooled <- list(x.standardised=x.standardised, y=y.ca)
+ctrl_pooled <- list(x.standardised=x.standardised, y=y.co)
+
+data_pooled <- list(
+  case.data=case_pooled,
+  ctrl.data=ctrl_pooled,
+  locs=locs_pooled
+)
+
+# initial values
+prior_phi <- c(18, 204)
+prior_theta <- c(3, 2)
+w_output_pooled <- logisticGp(y=locs_pooled$status, D, n.sample=1000, burnin=200, L=10,
+                              prior_phi=prior_phi, prior_theta=prior_theta)
+plot(x=colMeans(w_output_pooled$samples.w), y=W[seq(1, length(W), by=2)]); abline(0, 1, col=2)
+view_tr(w_output_pooled$samples.theta, Theta)
+save_output(w_output_pooled, paste("w_inival_output_comparison_pooled_", level, ".json", sep=""))
+
+w_i <- colMeans(w_output_pooled$samples.w)
+theta_i <- mean(w_output_pooled$samples.theta)
+phi_i <- mean(w_output_pooled$samples.phi)
+
+ini_case <- glm(case_pooled$y ~ case_pooled$x.standardised + w_i[locs_pooled$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(ctrl_pooled$y ~ ctrl_pooled$x.standardised + w_i[locs_pooled$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
+
+prior_alpha_ca_mean <- mean(Alpha.case1, Alpha.case2)
+prior_alpha_co_mean <- mean(Alpha.ctrl1, Alpha.ctrl2)
+prior_alpha_ca_var <- 4
+prior_alpha_co_var <- 4
+
+n.sample <- 2000
+burnin <- 500
+L_w <- 8
+L_ca <- 8
+L_co <- 8
+L_a_ca <- 8
+L_a_co <- 8
+proposal.sd.theta <- 0.15
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+output_pooled <- prefSampleGpCC(data_pooled, n.sample, burnin,
+                                L_w, L_ca, L_co, L_a_ca, L_a_co,
+                                proposal.sd.theta=proposal.sd.theta,
+                                m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                                target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                                self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                                delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                                beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                                theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                                prior_phi=prior_phi, prior_theta=prior_theta,
+                                prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+
+
+view_tr(output_pooled$samples.theta, Theta)
+print(mean(output_pooled$samples.theta)); print(Theta)
+
+par(mfrow=c(2, 3))
+padded_plot(output_pooled$samples.beta.ca[,1], beta.case2[1])
+padded_plot(output_pooled$samples.beta.ca[,2], beta.case2[2])
+padded_plot(output_pooled$samples.beta.ca[,3], beta.case2[3])
+print(colMeans(output_pooled$samples.beta.ca))
+
+padded_plot(output_pooled$samples.beta.co[,1], beta.ctrl2[1])
+padded_plot(output_pooled$samples.beta.co[,2], beta.ctrl2[2])
+padded_plot(output_pooled$samples.beta.co[,3], beta.ctrl2[3])
+print(colMeans(output_pooled$samples.beta.co))
+
+par(mfrow=c(1,2))
+padded_plot(output_pooled$samples.alpha.ca, Alpha.case1, title='A)')
+print(mean(output_pooled$samples.alpha.ca))
+
+padded_plot(output_pooled$samples.alpha.co, Alpha.ctrl1, title='B)')
+print(mean(output_pooled$samples.alpha.co))
+
+tag <- "_pooled"
+output_pooled$description <- paste(sim_name, tag, sep="")
+save_output(output_pooled, paste("output_", sim_name, ".json", sep=""))
+
 #################
 # Separate Models
 #################
@@ -296,7 +405,7 @@ prior_alpha_co_mean <- Alpha.ctrl1
 prior_alpha_ca_var <- 4
 prior_alpha_co_var <- 4
 
-n.sample <- 2500
+n.sample <- 3000
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -372,6 +481,8 @@ tag <- paste(sim_name, 'species1', sep="_")
 output_s1$description <- tag
 save_output(output_s1, paste("output_", tag, ".json", sep=""))
 
+summarize_multi_params(output, params, species=1)
+summarize_multi_params(output, params, species=2)
 
 #################
 ## Second Species
@@ -404,7 +515,7 @@ prior_alpha_co_mean <- Alpha.ctrl2
 prior_alpha_ca_var <- 4
 prior_alpha_co_var <- 4
 
-n.sample <- 2000
+n.sample <- 2500
 burnin <- 500
 L_w <- 8
 L_ca <- 8

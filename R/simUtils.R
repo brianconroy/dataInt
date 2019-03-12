@@ -1,6 +1,80 @@
 library(jsonlite)
 
 
+summarize_multi_params <- function(output, true_params, species){
+  
+  bc0 <- round(mean(output$samples.beta.ca[species,,1]), 3)
+  bc0_v <- round(var(output$samples.beta.ca[species,,1]), 3)
+  bc1 <- round(mean(output$samples.beta.ca[species,,2]), 3)
+  bc1_v <- round(var(output$samples.beta.ca[species,,2]), 3)
+  bc2 <- round(mean(output$samples.beta.ca[species,,3]), 3)
+  bc2_v <- round(var(output$samples.beta.ca[species,,3]), 3)
+  
+  bco0 <- round(mean(output$samples.beta.co[species,,1]), 3)
+  bco0_v <- round(var(output$samples.beta.co[species,,1]), 3)
+  bco1 <- round(mean(output$samples.beta.co[species,,2]), 3)
+  bco1_v <- round(var(output$samples.beta.co[species,,2]), 3)
+  bco2 <- round(mean(output$samples.beta.co[species,,3]), 3)
+  bco2_v <- round(var(output$samples.beta.co[species,,3]), 3)
+  alpha.ca <- round(mean(output$samples.alpha.ca[species,,]), 3)
+  alpha.ca_v <- round(var(output$samples.alpha.ca[species,,]), 3)
+  alpha.co <- round(mean(output$samples.alpha.co[species,,]), 3)
+  alpha.co_v <- round(var(output$samples.alpha.co[species,,]), 3)
+  
+  rows <- list()
+  rows[[1]] <- make_row(bc0, true_params$beta.cases[[1]], bc0_v, 'Beta 0 (case)', species, 'MVGP')
+  rows[[2]] <- make_row(bc1, true_params$beta.cases[[2]], bc1_v, 'Beta 1 (case)', species, 'MVGP')
+  rows[[3]] <- make_row(bc2, true_params$beta.cases[[3]], bc2_v, 'Beta 2 (case)', species, 'MVGP')
+  
+  rows[[4]] <- make_row(bco0, true_params$beta.ctrls[[1]], bco0_v, 'Beta 1 (control)', species, 'MVGP')
+  rows[[5]] <- make_row(bco1, true_params$beta.ctrls[[2]], bco1_v, 'Beta 2 (control)', species, 'MVGP')
+  rows[[6]] <- make_row(bco2, true_params$beta.ctrls[[3]], bco2_v, 'Beta 3 (control)', species, 'MVGP')
+  
+  rows[[7]] <- make_row(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, 'MVGP')
+  rows[[8]] <- make_row(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (ctrl)', species, 'MVGP')
+  
+  return(rows)
+  
+}
+
+
+summarize_params <- function(output, true_params, species){
+  
+  bc0 <- round(mean(output$samples.beta.ca[,1]), 3)
+  bc0_v <- round(var(output$samples.beta.ca[,1]), 3)
+  bc1 <- round(mean(output$samples.beta.ca[,2]), 3)
+  bc1_v <- round(var(output$samples.beta.ca[,2]), 3)
+  bc2 <- round(mean(output$samples.beta.ca[,3]), 3)
+  bc2_v <- round(var(output$samples.beta.ca[,3]), 3)
+  
+  bco0 <- round(mean(output$samples.beta.co[,1]), 3)
+  bco0_v <- round(var(output$samples.beta.co[,1]), 3)
+  bco1 <- round(mean(output$samples.beta.co[,2]), 3)
+  bco1_v <- round(var(output$samples.beta.co[,2]), 3)
+  bco2 <- round(mean(output$samples.beta.co[,3]), 3)
+  bco2_v <- round(var(output$samples.beta.co[,3]), 3)
+  alpha.ca <- round(mean(output$samples.alpha.ca), 3)
+  alpha.ca_v <- round(var(output$samples.alpha.ca), 3)
+  alpha.co <- round(mean(output$samples.alpha.co), 3)
+  alpha.co_v <- round(var(output$samples.alpha.co), 3)
+  
+  rows <- list()
+  rows[[1]] <- make_row(bc0, true_params$beta.cases[[1]], bc0_v, 'Beta 0 (case)', species, 'Separate')
+  rows[[2]] <- make_row(bc1, true_params$beta.cases[[2]], bc1_v, 'Beta 1 (case)', species, 'Separate')
+  rows[[3]] <- make_row(bc2, true_params$beta.cases[[3]], bc2_v, 'Beta 2 (case)', species, 'Separate')
+  
+  rows[[4]] <- make_row(bco0, true_params$beta.ctrls[[1]], bco0_v, 'Beta 1 (control)', species, 'Separate')
+  rows[[5]] <- make_row(bco1, true_params$beta.ctrls[[2]], bco1_v, 'Beta 2 (control)', species, 'Separate')
+  rows[[6]] <- make_row(bco2, true_params$beta.ctrls[[3]], bco2_v, 'Beta 3 (control)', species, 'Separate')
+  
+  rows[[7]] <- make_row(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, 'Separate')
+  rows[[8]] <- make_row(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (ctrl)', species, 'Separate')
+  
+  return(rows)
+  
+}
+
+
 get_gamma_prior <- function(prior_mean, prior_var){
   
   shape <- prior_mean^2/prior_var
