@@ -1,6 +1,20 @@
 library(jsonlite)
 
 
+make_row_multi <- function(est, true, var, name, species, model){
+  
+  return(list(
+    Model=model,
+    Parameter=name,
+    Species=species,
+    Estimate=est,
+    Bias=round(true-est, 3),
+    Posterior_Variance=var
+  ))
+  
+}
+
+
 summarize_multi_params <- function(output, true_params, species){
   
   bc0 <- round(mean(output$samples.beta.ca[species,,1]), 3)
@@ -22,23 +36,23 @@ summarize_multi_params <- function(output, true_params, species){
   alpha.co_v <- round(var(output$samples.alpha.co[species,,]), 3)
   
   rows <- list()
-  rows[[1]] <- make_row(bc0, true_params$beta.cases[[1]], bc0_v, 'Beta 0 (case)', species, 'MVGP')
-  rows[[2]] <- make_row(bc1, true_params$beta.cases[[2]], bc1_v, 'Beta 1 (case)', species, 'MVGP')
-  rows[[3]] <- make_row(bc2, true_params$beta.cases[[3]], bc2_v, 'Beta 2 (case)', species, 'MVGP')
+  rows[[1]] <- make_row_multi(bc0, true_params$beta.cases[species, 1], bc0_v, 'Beta 0 (case)', species, 'MVGP')
+  rows[[2]] <- make_row_multi(bc1, true_params$beta.cases[species, 2], bc1_v, 'Beta 1 (case)', species, 'MVGP')
+  rows[[3]] <- make_row_multi(bc2, true_params$beta.cases[species, 3], bc2_v, 'Beta 2 (case)', species, 'MVGP')
   
-  rows[[4]] <- make_row(bco0, true_params$beta.ctrls[[1]], bco0_v, 'Beta 1 (control)', species, 'MVGP')
-  rows[[5]] <- make_row(bco1, true_params$beta.ctrls[[2]], bco1_v, 'Beta 2 (control)', species, 'MVGP')
-  rows[[6]] <- make_row(bco2, true_params$beta.ctrls[[3]], bco2_v, 'Beta 3 (control)', species, 'MVGP')
+  rows[[4]] <- make_row_multi(bco0, true_params$beta.ctrls[species, 1], bco0_v, 'Beta 0 (control)', species, 'MVGP')
+  rows[[5]] <- make_row_multi(bco1, true_params$beta.ctrls[species, 2], bco1_v, 'Beta 1 (control)', species, 'MVGP')
+  rows[[6]] <- make_row_multi(bco2, true_params$beta.ctrls[species, 3], bco2_v, 'Beta 2 (control)', species, 'MVGP')
   
-  rows[[7]] <- make_row(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, 'MVGP')
-  rows[[8]] <- make_row(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (ctrl)', species, 'MVGP')
+  rows[[7]] <- make_row_multi(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, 'MVGP')
+  rows[[8]] <- make_row_multi(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (control)', species, 'MVGP')
   
   return(rows)
   
 }
 
 
-summarize_params <- function(output, true_params, species){
+summarize_params <- function(output, true_params, species, model){
   
   bc0 <- round(mean(output$samples.beta.ca[,1]), 3)
   bc0_v <- round(var(output$samples.beta.ca[,1]), 3)
@@ -59,16 +73,16 @@ summarize_params <- function(output, true_params, species){
   alpha.co_v <- round(var(output$samples.alpha.co), 3)
   
   rows <- list()
-  rows[[1]] <- make_row(bc0, true_params$beta.cases[[1]], bc0_v, 'Beta 0 (case)', species, 'Separate')
-  rows[[2]] <- make_row(bc1, true_params$beta.cases[[2]], bc1_v, 'Beta 1 (case)', species, 'Separate')
-  rows[[3]] <- make_row(bc2, true_params$beta.cases[[3]], bc2_v, 'Beta 2 (case)', species, 'Separate')
+  rows[[1]] <- make_row_multi(bc0, true_params$beta.cases[species, 1], bc0_v, 'Beta 0 (case)', species, model)
+  rows[[2]] <- make_row_multi(bc1, true_params$beta.cases[species, 2], bc1_v, 'Beta 1 (case)', species, model)
+  rows[[3]] <- make_row_multi(bc2, true_params$beta.cases[species, 3], bc2_v, 'Beta 2 (case)', species, model)
   
-  rows[[4]] <- make_row(bco0, true_params$beta.ctrls[[1]], bco0_v, 'Beta 1 (control)', species, 'Separate')
-  rows[[5]] <- make_row(bco1, true_params$beta.ctrls[[2]], bco1_v, 'Beta 2 (control)', species, 'Separate')
-  rows[[6]] <- make_row(bco2, true_params$beta.ctrls[[3]], bco2_v, 'Beta 3 (control)', species, 'Separate')
+  rows[[4]] <- make_row_multi(bco0, true_params$beta.ctrls[species, 1], bco0_v, 'Beta 0 (control)', species, model)
+  rows[[5]] <- make_row_multi(bco1, true_params$beta.ctrls[species, 2], bco1_v, 'Beta 1 (control)', species, model)
+  rows[[6]] <- make_row_multi(bco2, true_params$beta.ctrls[species, 3], bco2_v, 'Beta 2 (control)', species, model)
   
-  rows[[7]] <- make_row(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, 'Separate')
-  rows[[8]] <- make_row(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (ctrl)', species, 'Separate')
+  rows[[7]] <- make_row_multi(alpha.ca, true_params$Alpha.cases[[1]], alpha.ca_v, 'Alpha (case)', species, model)
+  rows[[8]] <- make_row_multi(alpha.co, true_params$Alpha.ctrls[[1]], alpha.co_v, 'Alpha (control)', species, model)
   
   return(rows)
   

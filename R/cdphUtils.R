@@ -90,6 +90,80 @@ assemble_data <- function(rodents, loc.disc, caPr.disc){
 }
 
 
+assemble_data_coyotes <- function(coyotes, caPr.disc){
+  
+  coords_all <- cbind(matrix(coyotes$Long_QC), coyotes$Lat_QC)
+  loc.disc <- caPr.disc[[1]]
+  cells_all <- cellFromXY(loc.disc, coords_all)
+  cells_all <- cells_all[!is.na(cells_all[])]
+  cells_obs <- sort(unique(cells_all))
+  
+  # positive counts at each cell
+  coyotes_pos <- coyotes[coyotes$Res == 'POS',]
+  coords_pos <- cbind(matrix(coyotes_pos$Long_QC), coyotes_pos$Lat_QC)
+  cells_pos <- cellFromXY(loc.disc, coords_pos)
+  counts_pos <- data.frame(table(cells_pos))
+  names(counts_pos) <- c('cell', 'count_pos')
+  
+  # negative counts at each cell
+  coyotes_neg <- coyotes[coyotes$Res == 'NEG',]
+  coords_neg <- cbind(matrix(coyotes_neg$Long_QC), coyotes_neg$Lat_QC)
+  cells_neg <- cellFromXY(loc.disc, coords_neg)
+  counts_neg <- data.frame(table(cells_neg))
+  names(counts_neg) <- c('cell', 'count_neg')
+  
+  # combine counts
+  counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
+  counts_all$cell <- as.numeric(as.character(counts_all$cell))
+  if (sum(is.na(counts_all$count_pos))){
+    counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
+  } 
+  if (sum(is.na(counts_all$count_neg))){
+    counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
+  }
+  counts_all <- counts_all[with(counts_all, order(cell)),]
+  
+  # location data
+  all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+  locs <- list(
+    cells=cells_obs,
+    status=1 * c(all_ids %in% cells_obs),  
+    coords=xyFromCell(loc.disc, cells_obs)
+  )
+  locs$ids <- c(1:length(all_ids))[as.logical(locs$status)]
+  
+  # case data
+  cov.disc <- caPr.disc
+  x1 <- cov.disc[[1]][][locs$cells]
+  x2 <- cov.disc[[2]][][locs$cells]
+  x1.standardised <- (x1 - mean(x1))/sd(x1)
+  x2.standardised <- (x2 - mean(x2))/sd(x2)
+  x <- cbind(1, x1, x2)
+  x.standardised <- cbind(1, x1.standardised, x2.standardised)
+  
+  case.data <- list(
+    y=counts_all$count_pos,
+    x.standardised=x.standardised,
+    x=x,
+    p=3
+  )
+  print(sum(case.data$y))
+  
+  # control data
+  ctrl.data <- list(
+    y=counts_all$count_neg,
+    x.standardised=x.standardised,
+    x=x,
+    p=3
+  )
+  
+  data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
+  
+  return(data)
+  
+}
+
+
 summarize_ps_params <- function(output){
   
   params <- list()

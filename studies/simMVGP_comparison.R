@@ -19,7 +19,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sim <- "simMVGP_comparison"
-level <- "none"
+level <- "high"
 sim_name <- paste(sim, level, sep="_")
 
 
@@ -29,10 +29,10 @@ Alpha.case1 <- params$Alpha.cases[[1]]
 Alpha.case2 <- params$Alpha.cases[[2]]
 Alpha.ctrl1 <- params$Alpha.ctrls[[1]]
 Alpha.ctrl2 <- params$Alpha.ctrls[[2]]
-beta.case1 <- params$beta.cases[[1]]
-beta.case2 <- params$beta.cases[[2]]
-beta.ctrl1 <- params$beta.ctrls[[1]]
-beta.ctrl2 <- params$beta.ctrls[[2]]
+beta.case1 <- params$beta.cases[1,]
+beta.case2 <- params$beta.cases[2,]
+beta.ctrl1 <- params$beta.ctrls[1,]
+beta.ctrl2 <- params$beta.ctrls[2,]
 Theta <- params$Theta
 Tmat <- params$Tmat
 W <- params$W
@@ -309,7 +309,7 @@ prior_alpha_co_mean <- mean(Alpha.ctrl1, Alpha.ctrl2)
 prior_alpha_ca_var <- 4
 prior_alpha_co_var <- 4
 
-n.sample <- 2000
+n.sample <- 2500
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -324,7 +324,7 @@ m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
-output_pooled <- prefSampleGpCC(data_pooled, n.sample, burnin,
+output_pooled <- prefSampleGpCC(data_pooled, D, n.sample, burnin,
                                 L_w, L_ca, L_co, L_a_ca, L_a_co,
                                 proposal.sd.theta=proposal.sd.theta,
                                 m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
@@ -358,9 +358,9 @@ print(mean(output_pooled$samples.alpha.ca))
 padded_plot(output_pooled$samples.alpha.co, Alpha.ctrl1, title='B)')
 print(mean(output_pooled$samples.alpha.co))
 
-tag <- "_pooled"
-output_pooled$description <- paste(sim_name, tag, sep="")
-save_output(output_pooled, paste("output_", sim_name, ".json", sep=""))
+tag <- paste(sim_name, 'pooled', sep="_")
+output_pooled$description <- tag
+save_output(output_pooled, paste("output_", tag, ".json", sep=""))
 
 #################
 # Separate Models

@@ -22,22 +22,106 @@ outputs <- load_sim_outputs(tag='simMVGP')
 dst <- "/Users/brianconroy/Documents/research/project2/simulations_comparison/"
 species <- c(1, 2)
 levels <- c("none", "medium", "high")
-# levels <- c("medium2")
 
-###################
-# risk scatterplots
-###################
+param_rows <- list()
+counter <- 1
+for (l in levels){
+  params <- load_output(paste('simMVGP_comparison_params_', l, '.json', sep=''))
+  param_rows[[counter]] <- list(Correlation=l, 
+                          Parameter='$\\alpha_+$', 
+                          Value_Species1=as.character(params$Alpha.cases[1]), 
+                          Value_Species2=as.character(params$Alpha.cases[2]))
+  param_rows[[counter+1]] <- list(Correlation=l, 
+                          Parameter='$\\alpha_-$', 
+                          Value_Species1=as.character(params$Alpha.ctrls[1]), 
+                          Value_Species2=as.character(params$Alpha.ctrls[2]))
+  param_rows[[counter+2]] <- list(Correlation=l, 
+                          Parameter='$\\beta_+$', 
+                          Value_Species1=paste('(', paste(params$beta.cases[1,], collapse=', '), ')', sep=''), 
+                          Value_Species2=paste('(', paste(params$beta.cases[2,], collapse=', '), ')', sep=''))
+  param_rows[[counter+3]] <- list(Correlation=l, 
+                          Parameter='$\\beta_-$', 
+                          Value_Species1=paste('(', paste(params$beta.ctrls[1,], collapse=', '), ')', sep=''), 
+                          Value_Species2=paste('(', paste(params$beta.ctrls[2,], collapse=', '), ')', sep=''))
+  counter <- counter + 4
+  
+}
+write_latex_table(ldply(param_rows, 'data.frame'), 'latex_sim_params.txt', dst)
 
-# 4 models, 3 correlation levels
 
-# row 1: no correlation
-#   mvgp1, species1, mvgp2, species2
-# ...
+# summarize case/control counts
+# level | species | case | control | prevalence
+rows_count <- list()
+for (l in levels){
+  
+  data <- load_output(paste('simMVGP_comparison_data_', l, '.json', sep=''))
+  locs1 <- list(
+    status=data$locs$status[[1]],
+    cells=data$locs$cells[[1]],
+    coords=data$locs$coords[[1]],
+    ids=data$locs$ids[[1]]
+  )
+  locs2 <- list(
+    status=data$locs$status[[2]],
+    cells=data$locs$cells[[2]],
+    coords=data$locs$coords[[2]],
+    ids=data$locs$ids[[2]]
+  )
+  case.data1 <- list(
+    y=data$case.data$y[[1]],
+    x.standardised=data$case.data$x.standardised[[1]],
+    x=data$case.data$x[[1]],
+    p=data$case.data$p[[1]]
+  )
+  case.data2 <- list(
+    y=data$case.data$y[[2]],
+    x.standardised=data$case.data$x.standardised[[2]],
+    x=data$case.data$x[[2]],
+    p=data$case.data$p[[2]]
+  )
+  ctrl.data1 <- list(
+    y=data$ctrl.data$y[[1]],
+    x.standardised=data$ctrl.data$x.standardised[[1]],
+    x=data$ctrl.data$x[[1]],
+    p=data$ctrl.data$p[[1]]
+  )
+  ctrl.data2 <- list(
+    y=data$ctrl.data$y[[2]],
+    x.standardised=data$ctrl.data$x.standardised[[2]],
+    x=data$ctrl.data$x[[2]],
+    p=data$ctrl.data$p[[2]]
+  )
+  data <- list(
+    locs=list(locs1, locs2),
+    case.data=list(case.data1, case.data2),
+    ctrl.data=list(ctrl.data1, ctrl.data2)
+  )
+  
+  rows_count[[counter]] <- list(
+    Correlation=l,
+    Species=1,
+    Cases=sum(case.data1$y),
+    Controls=sum(ctrl.data1$y),
+    Prevalence=round(sum(case.data1$y)/sum(case.data1$y + ctrl.data1$y), 3)
+  )
+  rows_count[[counter+1]] <- list(
+    Correlation=l,
+    Species=2,
+    Cases=sum(case.data2$y),
+    Controls=sum(ctrl.data2$y),
+    Prevalence=round(sum(case.data2$y)/sum(case.data2$y + ctrl.data2$y), 3)
+  )
+  counter <- counter + 2
+}
+write_latex_table(ldply(rows_count, 'data.frame'),'latex_sim_counts.txt', dst)
 
-# rmse table
-  # correlation | species | model | lodds rmse
 
-par(mfrow=c(3,4))
+#######################
+# log odds scatterplots
+#######################
+
+
+par(mfrow=c(2,3))
 xl <- c(-15, 7)
 yl <- c(-15, 7)
 rmses <- list()
@@ -46,7 +130,6 @@ for (l in levels){
   params <- load_output(paste('simMVGP_comparison_params_', l, '.json', sep=''))
   data <- load_output(paste('simMVGP_comparison_data_', l, '.json', sep=''))
   for (s in species){
-
     # MVGP
     o <- get_output_general(outputs, tag=paste(l, 'mvgp', sep="_"))
     lodds <- calc_lodds_mvgp(o, data, s)
@@ -65,6 +148,12 @@ for (l in levels){
     counter <- counter + 1
     
     # ToDo: Pooled model
+    o <- get_output_general(outputs, tag=paste(l, '_pooled', sep=""))
+    lodds_pooled <- calc_log_odds_species(o, data, s)
+    rmse <- round(sqrt(mean((lodds_pooled-lodds_true)^2)), 3)
+    plot(x=lodds_true, y=lodds_pooled, xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col=2)
+    rmses[[counter]] <- list(Correlation=l, Species=s, Model='Pooled', rmse=rmse)
+    counter <- counter + 1
   }
 }
 write_latex_table(ldply(rmses, 'data.frame'), "latex_simMVGP_rmses.txt", path=dst)
@@ -75,41 +164,50 @@ write_latex_table(ldply(rmses, 'data.frame'), "latex_simMVGP_rmses.txt", path=ds
 # comparison
 ####################
 
-make_row <- function(est, true, var, name, species, model){
-  
-  return(list(
-    Model=model,
-    Parameter=name,
-    Species=species,
-    Estimate=est,
-    Bias=round(true-est, 3),
-    Posterior_Variance=var
-  ))
-  
-}
 
 
-estimates <- list()
-counter <- 1
-for (l in c('high')){
+for (l in c('none', 'medium', 'high')){
   
   params <- load_output(paste('simMVGP_comparison_params_', l, '.json', sep=''))
   data <- load_output(paste('simMVGP_comparison_data_', l, '.json', sep=''))
   
+  
   for (s in species){
+    
+    estimates <- list()
     
     # MVGP
     o <- get_output_general(outputs, tag=paste(l, 'mvgp', sep="_"))
     estimates <- c(estimates, summarize_multi_params(o, params, s))
     
-    # Separaete species Models
+    # Separaete species models
     o_sep <- get_output_general(outputs, tag=paste(l, '_species', s, sep=""))
-    estimates <- c(estimates, summarize_params(o_sep, params, s))
+    estimates <- c(estimates, summarize_params(o_sep, params, s, model='Separate'))
+    
+    # Pooled model
+    o_pooled <- get_output_general(outputs, tag=paste(l, '_pooled', sep=""))
+    estimates <- c(estimates, summarize_params(o_pooled, params, s, model='Pooled'))
+    
+    estimates_df <- ldply(estimates, data.frame)
+    estimates_df <- estimates_df[with(estimates_df, order(Species, Parameter, Model)),]
+    estimates_df$Parameter <- as.character(estimates_df$Parameter)
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 0 (case)', '$\\beta_{0, +}$')
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 1 (case)', '$\\beta_{1, +}$')
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 2 (case)', '$\\beta_{2, +}$')
+    
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 0 (control)', '$\\beta_{0, -}$')
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 1 (control)', '$\\beta_{1, -}$')
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Beta 2 (control)', '$\\beta_{2, -}$')
+    
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Alpha (case)', '$\\alpha_+$')
+    estimates_df <- replace_vals(estimates_df, column='Parameter', val='Alpha (control)', '$\\alpha_-$')
+    
+    write_latex_table(estimates_df, paste("latex_simMVGP_estimates_", l, '_', s, ".txt", sep=""), path=dst)
     
   }
+  
 }
-estimates_df <- ldply(estimates, data.frame)
-estimates_df[with(estimates_df, order(Species, Parameter, Model)),]
+
 
 
 
