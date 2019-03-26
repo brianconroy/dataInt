@@ -672,6 +672,51 @@ simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE,
 }
 
 
+simConditionalMVGP <- function(r, loc.stats, beta, alpha, w, g, global.center=FALSE, seed=NULL, offset=1){
+  
+  
+  # extract covariate values at survey locations
+  k <- length(loc.stats$cells)
+  x <- matrix(rep(1, k), ncol=1)
+  x.standardised <- x
+  for (i in 1:length(names(r))){
+    x.i <- raster::extract(r[[i]], loc.stats$coords)
+    if (global.center){
+      vals <- values(r[[i]])[!is.na(values(r[[i]]))]
+      mu <- mean(vals)
+      sdev <- sd(vals) 
+    } else {
+      mu <- mean(x.i)
+      sdev <- sd(x.i)
+    }
+    x.i.standard <- (x.i - mu)/sdev
+    x <- cbind(x, x.i)
+    x.standardised <- cbind(x.standardised, x.i.standard)
+  }
+  
+  
+  # extract cell selection probability
+  w.sub <- w[as.logical(loc.stats$status)]
+  g.sub <- g[as.logical(loc.stats$status)]
+  
+  # simulate counts
+  rates <- exp(log(offset) + x.standardised %*% beta + alpha * w.sub + g.sub)
+  if (!is.null(seed)){ set.seed(seed) }
+  counts <- sapply(rates, function(x){rpois(n=1, x)})
+  
+  
+  # create the response
+  output <- list()
+  output$y <- counts
+  output$x.standardised <- x.standardised
+  output$x <- x
+  output$p <- ncol(x)
+  return(output)
+  
+  
+}
+
+
 #############
 ## locCondSim
 #############

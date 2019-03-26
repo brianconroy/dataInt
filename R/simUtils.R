@@ -232,10 +232,10 @@ calc_log_odds_output <- function(output, true_params){
 }
 
 
-calc_log_odds_species <- function(output, data, species){
+calc_log_odds_species <- function(output, data, species, agg_factor){
   
   location_indicators <- as.logical(data$locs$status[[species]])
-  x_standard <- load_x_standard(location_indicators)
+  x_standard <- load_x_standard(location_indicators, agg_factor)
   
   w.hat <- colMeans(output$samples.w)
   beta_ca_h <- colMeans(output$samples.beta.ca)
@@ -249,10 +249,10 @@ calc_log_odds_species <- function(output, data, species){
 }
 
 
-calc_lodds_mvgp <- function(output, data, species){
+calc_lodds_mvgp <- function(output, data, species, agg_factor){
   
   location_indicators <- as.logical(data$locs$status[[species]])
-  x_standard <- load_x_standard(location_indicators)
+  x_standard <- load_x_standard(location_indicators, agg_factor)
   
   w.hat <- colMeans(output$samples.w)
   w.hat <- w.hat[seq(species, length(w.hat), 2)]
@@ -1254,10 +1254,10 @@ save_true_params_general <- function(tag){
 
 
 
-load_x_standard <- function(location_indicators){
+load_x_standard <- function(location_indicators, agg_factor=8){
   
   caPr <- load_prism_pcs()
-  caPr.disc <- aggregate(caPr, fact=8)
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
   
   x_1 <- caPr.disc[[1]][]
   x_1 <- x_1[][!is.na(x_1[])]

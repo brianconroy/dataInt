@@ -42,7 +42,7 @@ burnin_after <- function(output, n.burn){
 #' @export
 #'
 #' @examples
-continueMCMC <- function(data, output, n.sample){
+continueMCMC <- function(data, D, output, n.sample){
   
   # get initial values
   n.sample.old <- nrow(output$samples.beta.ca)
@@ -73,7 +73,7 @@ continueMCMC <- function(data, output, n.sample){
   prior_theta <- output$prior_theta
   prior_alpha_ca_var <- output$prior_alpha_ca_var
   prior_alpha_co_var <- output$prior_alpha_co_var
-  more_output <- prefSampleGpCC(data, n.sample, burnin=0, 
+  more_output <- prefSampleGpCC(data, D, n.sample, burnin=0, 
                                   L_w=L_w, L_ca=L_ca, L_co=L_co, L_a_ca=L_a_ca, L_a_co=L_a_co,
                                   proposal.sd.theta=proposal.sd.theta,
                                   self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,

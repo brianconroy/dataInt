@@ -179,6 +179,63 @@ Uw_mvgp <- function(locs, case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, bet
 }
 
 
+Ug_mvgp <- function(locs, case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, g, w1, w2, sigma.inv){
+  
+  logd <- 0
+  
+  n_species <- length(case.data)
+  for (s in 1:n_species){
+    
+    # cases, species d
+    g_1d <- g[seq(2*s - 1, ncol(sigma.inv), by=4)]
+    
+    # controls, species d
+    g_2d <- g[seq(2*s, ncol(sigma.inv), by=4)]
+    
+    if (s==1){
+      w_d <- w1
+    } else{
+      w_d <- w2
+    }
+    
+    # likelihood: locations
+    y.d <- locs[[s]]$status
+    for (i in 1:length(y.d)){
+      logd <- logd + dbinom(y.d[i], size=1, prob=expit(w_d[i]), log=T)
+    }
+    
+    # likelihood: case counts
+    x.d <- case.data[[s]]$x.standardised
+    y.d <- case.data[[s]]$y
+    w.sub.d <- w_d[as.logical(locs[[s]]$status)]
+    g.sub.1d <- g_1d[as.logical(locs[[s]]$status)]
+    
+    count_pred <- x.d %*% beta.ca[[s]] + alpha.ca[[s]] * w.sub.d + g.sub.1d
+    rates <- exp(count_pred)
+    for (i in 1:length(y.d)){
+      logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
+    }
+    
+    # likelihood: control counts
+    y.d <- ctrl.data[[s]]$y
+    g.sub.2d <- g_2d[as.logical(locs[[s]]$status)]
+    count_pred <- x.d %*% beta.co[[s]] + alpha.co[[s]] * w.sub.d + g.sub.2d
+    rates <- exp(count_pred)
+    for (i in 1:length(y.d)){
+      logd <- logd + dpois(y.d[i], lambda=rates[i], log=T)
+    }
+    
+  }
+  
+  # prior
+  # logd <- logd + dmvnorm(as.numeric(g), rep(0, length(g)), sigma, log=T)
+  logd <- logd - 0.5* t(g) %*% sigma.inv %*% g
+  
+  return(-logd)
+  
+}
+
+
 dU_w_mvgp <- function(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, w, sigma.inv, locs){
   
   grad <- array(0, c(length(w), 1))
@@ -215,12 +272,112 @@ dU_w_mvgp <- function(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co
 }
 
 
+dU_g_mvgp <- function(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, g, w1, w2, sigma.inv, locs){
+  
+  grad <- array(0, c(length(g), 1))
+  
+  n_species <- length(case.data)
+  for (s in 1:n_species){
+    
+    # cases, species d
+    g_1d <- g[seq(2*s - 1, ncol(sigma.inv), by=4)]
+    
+    # controls, species d
+    g_2d <- g[seq(2*s, ncol(sigma.inv), by=4)]
+    
+    if (s==1){
+      w_d <- w1
+    } else{
+      w_d <- w2
+    }
+    
+    d_seq1 <- seq(2*s - 1, ncol(sigma.inv), by=4)
+    d_seq2 <- seq(2*s, ncol(sigma.inv), by=4)
+    
+    # case contribution
+    x.c <- case.data[[s]]$x.standardised
+    y.ca <- case.data[[s]]$y
+    lin.count <- x.c %*% beta.ca[[s]]
+    d_id <- locs[[s]]$ids
+    grad[d_seq1[d_id]] <- grad[d_seq1[d_id]] + (y.ca - exp(lin.count + alpha.ca[[s]] * w_d[d_id] + g_1d[d_id]))
+    
+    # control contribution
+    y.co <- ctrl.data[[s]]$y
+    lin.count <- x.c %*% beta.co[[s]]
+    grad[d_seq2[d_id]] <- grad[d_seq2[d_id]] + (y.co - exp(lin.count + alpha.co[[s]] * w_d[d_id] + g_2d[d_id]))
+    
+  }
+  
+  # prior contribution
+  grad <- grad + t(-t(g) %*% sigma.inv)
+  
+  return(-grad)
+  
+}
+
+
 wHmcUpdateMVGP <- function(case.data, ctrl.data, alpha.ca, beta.ca,
                            alpha.co, beta.co, w, sigma, sigma.inv, 
                            locs, delta, L){
   
   # sample random momentum
   p0 <- matrix(rnorm(length(w)))
+  
+  # simulate Hamiltonian dynamics
+  wcurr <- matrix(w)
+  pStar <- p0 - 0.5 * delta * dU_w_mvgp(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, wcurr, sigma.inv, locs)
+  
+  # first full step for position
+  wStar <- wcurr + delta*pStar
+  
+  # full steps
+  for (jL in 1:c(L-1)){
+    # momentum
+    pStar <- pStar - delta * dU_w_mvgp(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, wStar, sigma.inv, locs)
+    
+    # position
+    wStar <- wStar + delta*pStar
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta * dU_w_mvgp(case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, wStar, sigma.inv, locs)
+  
+  # evaluate energies
+  U0 <- Uw_mvgp(locs, case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, wcurr, sigma)
+  UStar <- Uw_mvgp(locs, case.data, alpha.ca, beta.ca, ctrl.data, alpha.co, beta.co, wStar, sigma)
+  
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  alpha <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  if (is.na(alpha)){
+    alpha <- 0
+  }
+  
+  if (runif(1, 0, 1) < alpha){
+    wnext <- wStar
+    accept <- 1
+  } else {
+    wnext <- wcurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$w <- wnext
+  out$accept <- accept
+  out$a <- alpha
+  return(out)
+  
+}
+
+
+gHmcUpdateMVGP <- function(case.data, ctrl.data, alpha.ca, beta.ca,
+                           alpha.co, beta.co, w1, w2, g, sigma.inv, 
+                           locs, delta, L){
+  
+  # sample random momentum
+  p0 <- matrix(rnorm(length(g)))
   
   # simulate Hamiltonian dynamics
   wcurr <- matrix(w)

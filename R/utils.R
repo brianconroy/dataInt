@@ -1,5 +1,101 @@
 
 
+calc_posterior_lodds <- function(output, x){
+  
+  n.samp <- nrow(output$samples.beta.ca)
+  n.cell <- ncol(output$samples.w)
+  lodds_samp <- array(NA, c(n.samp, n.cell))
+  
+  for (i in 1:n.samp){
+    
+    beta_ca <- output$samples.beta.ca[i,]
+    beta_co <- output$samples.beta.co[i,]
+    alpha_ca <- output$samples.alpha.ca[i]
+    alpha_co <- output$samples.alpha.co[i]
+    w <- output$samples.w[i,]
+    
+    lodds.i <- x %*% beta_ca + alpha_ca * w - x %*% beta_co - alpha_co * w
+    lodds_samp[i,] <- t(lodds.i)
+    
+  }
+  
+  return(lodds_samp)
+  
+}
+
+
+calc_posterior_lodds_multi <- function(output, x, species){
+  
+  n.samp <- dim(output$samples.beta.ca)[2]
+  n.cell <- ncol(output$samples.w)/2
+  lodds_samp <- array(NA, c(n.samp, n.cell))
+  
+  for (i in 1:n.samp){
+    
+    beta_ca <- output$samples.beta.ca[species,i,]
+    beta_co <- output$samples.beta.co[species,i,]
+    alpha_ca <- output$samples.alpha.ca[species,i,]
+    alpha_co <- output$samples.alpha.co[species,i,]
+    w <- output$samples.w[i,][seq(species, n.cell, by=2)]
+    
+    lodds.i <- x %*% beta_ca + alpha_ca * w - x %*% beta_co - alpha_co * w
+    lodds_samp[i,] <- t(lodds.i)
+    
+  }
+  
+  return(lodds_samp)
+  
+}
+
+
+calc_posterior_risk <- function(output, x){
+  
+  n.samp <- nrow(output$samples.beta.ca)
+  n.cell <- ncol(output$samples.w)
+  risk_samp <- array(NA, c(n.samp, n.cell))
+  
+  for (i in 1:n.samp){
+    
+    beta_ca <- output$samples.beta.ca[i,]
+    beta_co <- output$samples.beta.co[i,]
+    alpha_ca <- output$samples.alpha.ca[i]
+    alpha_co <- output$samples.alpha.co[i]
+    w <- output$samples.w[i,]
+    
+    lodds.i <- x %*% beta_ca + alpha_ca * w - x %*% beta_co - alpha_co * w
+    risk_samp[i,] <- t(calc_risk(lodds.i))
+    
+  }
+  
+  return(risk_samp)
+  
+}
+
+
+calc_posterior_risk_multi <- function(output, x, species){
+  
+  n.samp <- dim(output$samples.beta.ca)[2]
+  n.cell <- ncol(output$samples.w)/2
+  risk_samp <- array(NA, c(n.samp, n.cell))
+  
+  for (i in 1:n.samp){
+    
+    beta_ca <- output$samples.beta.ca[species,i,]
+    beta_co <- output$samples.beta.co[species,i,]
+    alpha_ca <- output$samples.alpha.ca[species,i,]
+    alpha_co <- output$samples.alpha.co[species,i,]
+    w <- output$samples.w[i,][seq(species, n.cell, by=2)]
+    
+    lodds.i <- x %*% beta_ca + alpha_ca * w - x %*% beta_co - alpha_co * w
+    risk_samp[i,] <- t(calc_risk(lodds.i))
+    
+  }
+  
+  return(risk_samp)
+  
+}
+
+
 replace_vals <- function(df, column, val, replacement){
   for (i in 1:nrow(df)){
     if (df[i,column] == val){

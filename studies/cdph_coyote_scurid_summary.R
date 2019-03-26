@@ -13,17 +13,64 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline_share/"
+dst <- "/Users/brianconroy/Documents/research/project2/cdph_coyote_scurid/"
 caPr <- load_prism_pcs()
-caPr.disc <- aggregate(caPr, fact=5)
+caPr.disc <- aggregate(caPr, fact=6)
 N <- n_values(caPr.disc[[1]])
 print(N)
 print(mean(area(caPr.disc[[1]])[]))
 plot(caPr.disc)
+loc.disc <- caPr.disc[[1]]
 
-src <- "/Users/brianconroy/Documents/research/cdph/data/"
-rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
-output <- load_output("output_cdph_baseline.json")
+analysis_name <- "cdph_coyote_scurid"
+outputs <- load_sim_outputs(tag=analysis_name)
+data <- load_output(paste(analysis_name, '_data.json', sep=''))
+
+##################
+# compare log odds
+##################
+
+o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
+lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
+lodds_coyote_mvgp <- calc_lodds_mvgp(o_mvgp, data, 2, agg_factor=6)
+
+o_coyote_sep <- get_output_general(outputs, tag=paste(analysis_name, 'coyote', sep="_"))
+lodds_coyote_sep <- calc_log_odds_species(o_coyote_sep, data, species=2, agg_factor=6)
+
+o_rodent_sep <- get_output_general(outputs, tag=paste(analysis_name, 'rodent', sep="_"))
+lodds_rodent_sep <- calc_log_odds_species(o_rodent_sep, data, species=1, agg_factor=6)
+
+par(mfrow=c(1,2))
+plot(x=lodds_coyote_mvgp, y=lodds_coyote_sep); abline(0,1,col=2)
+plot(x=lodds_rodent_mvgp, y=lodds_rodent_sep); abline(0,1,col=2)
+
+#########################
+# Posterior risk variance
+#########################
+
+X_rodent <- load_x_standard(as.logical(data$locs$status[[1]]), agg_factor=6)
+X_coyote <- load_x_standard(as.logical(data$locs$status[[2]]), agg_factor=6)
+risk_rodent_sep <- calc_posterior_risk(o_rodent_sep, X_rodent)
+risk_coyote_sep <- calc_posterior_risk(o_coyote_sep, X_coyote)
+risk_rodent_mvgp <- calc_posterior_risk_multi(o_mvgp, X_rodent, species=1)
+risk_coyote_mvgp <- calc_posterior_risk_multi(o_mvgp, X_coyote, species=2)
+
+postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
+postvar_coyote_sep <- apply(risk_coyote_sep, 2, var)
+postvar_rodent_mvgp <- apply(risk_rodent_mvgp, 2, var)
+postvar_coyote_mvgp <- apply(risk_coyote_mvgp, 2, var)
+
+par(mfrow=c(2,2))
+hist(postvar_rodent_sep, xlab='Posterior Variance')
+hist(postvar_coyote_sep, xlab='Posterior Variance')
+hist(postvar_rodent_mvgp, xlab='Posterior Variance')
+hist(postvar_coyote_mvgp, xlab='Posterior Variance')
+
+summary(postvar_rodent_sep)
+summary(postvar_rodent_mvgp)
+
+summary(postvar_coyote_sep)
+summary(postvar_coyote_mvgp)
 
 ##################
 # data description
@@ -41,6 +88,7 @@ loc.disc[][cells_obs] <- 5
 plot(loc.disc)
 plot(rasterToPolygons(loc.disc), add=T, border='black', lwd=1) 
 points(coords_all, col='2')
+
 
 # high resolution
 # us <- getData("GADM", country="USA", level=2)
@@ -215,11 +263,6 @@ plot(r_risk_high)#, col=pal(15))
 us <- getData("GADM", country="USA", level=2)
 ca <- us[us$NAME_1 == 'California',]
 plot(r_risk_high)
-plot(ca, add=T)
-
-pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high,
-     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 plot(ca, add=T)
 
 #################
