@@ -342,7 +342,7 @@ names(r_diff_summary) <- c("Minimum", "1st Quartile", "Median", "Mean", "3rd Qua
 print(round(r_diff_summary, 3))
 
 # comparison table of parameter estimates
-param_comp <- compare_params(beta.ca.hat_p, beta.co.hat_p, beta.ca.hat, beta.co.hat, beta_ca_sp, beta_co_sp)
+param_comp <- compare_params(output, output.sp_ca, output.sp_co, mod.ca, mod.co)
 param_comp$Parameter <- as.character(param_comp$Parameter)
 param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 0 (case)', '$\\beta_{0,+}$')
 param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 1 (case)', '$\\beta_{1,+}$')
