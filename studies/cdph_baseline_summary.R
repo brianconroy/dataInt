@@ -13,7 +13,7 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project1/cdph_baseline_share/"
+dst <- "/Users/brianconroy/Documents/research/project1/analysis/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=5)
 N <- n_values(caPr.disc[[1]])
@@ -351,3 +351,67 @@ param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 0 (control)', '$\\beta
 param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 1 (control)', '$\\beta_{1,-}$')
 param_comp <- replace_vals(param_comp, 'Parameter', 'Beta 2 (control)', '$\\beta_{2,-}$')
 write_latex_table(param_comp, 'cdph_baseline_param_comparison.txt', dst)
+
+
+#################################
+## Inspect regions of high risk
+## from the spatial poisson model
+#################################
+
+
+hist(w_ca_est)
+hist(w_co_est)
+
+r1 <- caPr.disc[[1]]
+r2 <- caPr.disc[[1]]
+r1[][!is.na(r1[])] <- w_ca_est
+r2[][!is.na(r2[])] <- w_co_est
+par(mfrow=c(1,2))
+plot(r1, main='A)')
+plot(r2, main='B)')
+
+raw_rates <- case.data$y/(case.data$y + ctrl.data$y)
+r3 <- caPr.disc[[1]]
+r3[][!is.na(r1[])] <- raw_rates
+plot(r3)
+
+# compare against rates
+w_ca_obs <- w_ca_est[locs$ids]
+w_co_obs <- w_co_est[locs$ids]
+risk_obs <- risk_low_sp[locs$ids]
+y_ca_obs <- case.data$y
+risk_rate_wca <- cbind(risk_obs, raw_rates, y_ca_obs, w_ca_obs, w_co_obs)
+risk_rate_wca <- data.frame(risk_rate_wca)
+plot(x=risk_rate_wca$raw_rates,y=risk_rate_wca$risk_obs); abline(0, 1, col=2)
+
+risk_rate_wca <- risk_rate_wca[with(risk_rate_wca, order(-risk_obs)),]
+risk_rate_wca <- round(risk_rate_wca, 3)
+head(risk_rate_wca)
+write_latex_table(risk_rate_wca[1:5,], 'spatial_poisson_top_cells.txt', dst)
+
+# get corresponding preferential sampling model details
+target_ids <- as.numeric(rownames(risk_rate_wca[1:5,]))
+raw_rates_target <- raw_rates[target_ids]
+y_ca_target <- y_ca_obs[target_ids]
+w.hat_target <- w.hat[target_ids]
+a_w_ca <- alpha.ca.hat * w.hat_target
+a_w_co <- alpha.co.hat * w.hat_target
+a_w_difference <- a_w_ca - a_w_co
+risk_ps_obs <- risk_low[target_ids]
+risk_ps_details <- cbind(risk_ps_obs, raw_rates_target, y_ca_target, a_w_ca, a_w_co, a_w_difference)
+risk_ps_details <- data.frame(risk_ps_details)
+round(risk_ps_details, 3)
+write_latex_table(round(risk_ps_details, 3), 'ps_top_cells_compared.txt', dst)
+
+
+########################################
+## Quantify the strength of preferential 
+## sampling apparent in the data
+########################################
+
+
+diffs_ps <- (alpha.ca.hat - alpha.co.hat) * w.hat
+diffs_covs <- X_low %*% beta.ca.hat - X_low %*% beta.co.hat
+abs_percs <- round(100 * abs(diffs_ps)/(abs(diffs_covs) + abs(diffs_ps)))
+hist(abs_percs)
+summary(abs_percs)
