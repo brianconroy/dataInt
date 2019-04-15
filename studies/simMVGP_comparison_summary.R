@@ -225,15 +225,19 @@ for (l in levels){
   
   postvar_summaries[[counter]] <- summarize_post_var(postvar_rodent_sep, 'rodent', 'separate', l)
   postvar_summaries[[counter+1]] <- summarize_post_var(postvar_rodent_mvgp, 'rodent', 'mvgp', l)
-  postvar_summaries[[counter+2]] <- summarize_post_var(postvar_coyote_sep, 'coyote', 'separate', l)
-  postvar_summaries[[counter+3]] <- summarize_post_var(postvar_coyote_mvgp, 'coyote', 'mvgp', l)
+  postvar_summaries[[counter+3]] <- summarize_post_var(postvar_rodent_pooled, 'rodent', 'pooled', l)
   
+  postvar_summaries[[counter+4]] <- summarize_post_var(postvar_coyote_sep, 'coyote', 'separate', l)
+  postvar_summaries[[counter+5]] <- summarize_post_var(postvar_coyote_mvgp, 'coyote', 'mvgp', l)
+  postvar_summaries[[counter+6]] <- summarize_post_var(postvar_coyote_pooled, 'coyote', 'pooled', l)
+  
+
   lpostvar_summaries[[counter]] <- summarize_post_var(lpostvar_rodent_sep, 'rodent', 'separate', l)
   lpostvar_summaries[[counter+1]] <- summarize_post_var(lpostvar_rodent_mvgp, 'rodent', 'mvgp', l)
   lpostvar_summaries[[counter+2]] <- summarize_post_var(lpostvar_coyote_sep, 'coyote', 'separate', l)
   lpostvar_summaries[[counter+3]] <- summarize_post_var(lpostvar_coyote_mvgp, 'coyote', 'mvgp', l)
   
-  counter <- counter + 4
+  counter <- counter + 7
   
   par(mfrow=c(2,3))
   plot_post_var(postvar_rodent_mvgp, caPr.disc[[1]], main='A)')
@@ -245,7 +249,12 @@ for (l in levels){
 
 }
 ldply(postvar_summaries, 'data.frame')
-ldply(lpostvar_summaries, 'data.frame')
+df <- ldply(postvar_summaries, 'data.frame')
+df$Mean <- round(df$Mean, 4)
+df$Median <- round(df$Median, 5)
+write_latex_table(df, "latex_simMVGP_rpostvars.txt", path=dst)
+
+# ldply(lpostvar_summaries, 'data.frame')
 
 
 #### Calculate parameter estimates/bias/posterior variance

@@ -57,67 +57,10 @@ points(coords_all, col='2')
 # data description
 ##################
 
-# # positive counts at each cell
-# rodents_pos <- rodents[rodents$Res == 'POS',]
-# coords_pos <- cbind(matrix(rodents_pos$Lon_Add_Fix), rodents_pos$Lat_Add_Fix)
-# cells_pos <- cellFromXY(loc.disc, coords_pos)
-# counts_pos <- data.frame(table(cells_pos))
-# names(counts_pos) <- c('cell', 'count_pos')
-# 
-# # negative counts at each cell
-# rodents_neg <- rodents[rodents$Res == 'NEG',]
-# coords_neg <- cbind(matrix(rodents_neg$Lon_Add_Fix), rodents_neg$Lat_Add_Fix)
-# cells_neg <- cellFromXY(loc.disc, coords_neg)
-# counts_neg <- data.frame(table(cells_neg))
-# names(counts_neg) <- c('cell', 'count_neg')
-# 
-# # combine counts
-# counts_all <- merge(counts_pos, counts_neg, by='cell', all=T)
-# counts_all$cell <- as.numeric(as.character(counts_all$cell))
-# counts_all[is.na(counts_all$count_pos),]$count_pos <- 0
-# counts_all[is.na(counts_all$count_neg),]$count_neg <- 0
-# counts_all <- counts_all[with(counts_all, order(cell)),]
-# 
-# # location data
-# all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
-# locs <- list(
-#   cells=cells_obs,
-#   status=1 * c(all_ids %in% cells_obs),  
-#   coords=xyFromCell(loc.disc, cells_obs)
-# )
-# locs$ids <- c(1:length(all_ids))[as.logical(locs$status)]
-# plot(loc.disc)
-# points(locs$coords)
-# 
-# # case data
-# cov.disc <- caPr.disc
-# x1 <- cov.disc[[1]][][locs$cells]
-# x2 <- cov.disc[[2]][][locs$cells]
-# x1.standardised <- (x1 - mean(x1))/sd(x1)
-# x2.standardised <- (x2 - mean(x2))/sd(x2)
-# x <- cbind(1, x1, x2)
-# x.standardised <- cbind(1, x1.standardised, x2.standardised)
-# 
-# case.data <- list(
-#   y=counts_all$count_pos,
-#   x.standardised=x.standardised,
-#   x=x,
-#   p=3
-# )
-# print(sum(case.data$y))
-# 
-# # control data
-# ctrl.data <- list(
-#   y=counts_all$count_neg,
-#   x.standardised=x.standardised,
-#   x=x,
-#   p=3
-# )
 all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
 data <- assemble_data(rodents, loc.disc, caPr.disc)
 coords <- xyFromCell(caPr.disc, cell=all_ids)
 d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
-# data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 case.data <- data$case.data
 ctrl.data <- data$ctrl.data
 locs <- data$loc
@@ -210,16 +153,26 @@ plot(r_lodds_high)
 r_risk_high <- caPr[[2]]
 r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
-#pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high)#, col=pal(15))
+
+#### Figure: low to high resolution risk map
+par(mfrow=c(1,2))
+plot(r_risk_low, main='A)')
+plot(r_risk_high, main='B)')
+
+
+#### Figure: risk map without county lines
+# pal <- colorRampPalette(c("blue","red"))
+# plot(r_risk_high, col=pal(15))
+plot(r_risk_high)
+
+
+#### Figure: risk map with county lines
+# pal <- colorRampPalette(c("blue","red"))
+# plot(r_risk_high,
+#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 us <- getData("GADM", country="USA", level=2)
 ca <- us[us$NAME_1 == 'California',]
 plot(r_risk_high)
-plot(ca, add=T)
-
-pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high,
-     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 plot(ca, add=T)
 
 #################
@@ -292,12 +245,32 @@ r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
 #########################
 
 
+rescaled <- equalize_scales(r_risk_high, r_risk_high_p)
+r_risk_high_ <- rescaled[[1]]
+r_risk_high_p_ <- rescaled[[2]]
+
+
+#### Figure: ps vs poisson risk maps
 par(mfrow=c(1,2))
-pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high, main='A)',
-     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
-plot(r_risk_high_p, main='B)', 
-     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
+plot(r_risk_high_)
+plot(r_risk_high_p_)
+
+
+rescaled2 <- equalize_scales(r_risk_high, r_risk_high_sp)
+r_risk_high_2 <- rescaled2[[1]]
+r_risk_high_sp_ <- rescaled2[[2]]
+
+par(mfrow=c(1,2))
+plot(r_risk_high_2)
+plot(r_risk_high_sp_)
+
+
+# par(mfrow=c(1,2))
+# pal <- colorRampPalette(c("blue","red"))
+# plot(r_risk_high, main='A)',
+#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
+# plot(r_risk_high_p, main='B)', 
+#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
 
 
 plot(r_risk_high_sp, main='C)', 
@@ -415,3 +388,15 @@ diffs_covs <- X_low %*% beta.ca.hat - X_low %*% beta.co.hat
 abs_percs <- round(100 * abs(diffs_ps)/(abs(diffs_covs) + abs(diffs_ps)))
 hist(abs_percs)
 summary(abs_percs)
+
+
+##########################
+## Posterior variance map
+##########################
+
+X_rodent <- load_x_standard(as.logical(data$loc$status), agg_factor=5)
+risk_rodent_sep <- calc_posterior_risk(output, X_rodent)
+postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
+r <- caPr.disc[[1]]
+r[][!is.na(r[])] <- postvar_rodent_sep
+plot(r)

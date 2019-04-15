@@ -1,6 +1,6 @@
 ###############################
 # Summarizes simulation results
-# of the baseline (scurid)
+# of the joint (sciurid + coyote)
 # cdph analysis
 ###############################
 
@@ -41,8 +41,8 @@ o_rodent_sep <- get_output_general(outputs, tag=paste(analysis_name, 'rodent', s
 lodds_rodent_sep <- calc_log_odds_species(o_rodent_sep, data, species=1, agg_factor=6)
 
 par(mfrow=c(1,2))
-plot(x=lodds_coyote_mvgp, y=lodds_coyote_sep); abline(0,1,col=2)
-plot(x=lodds_rodent_mvgp, y=lodds_rodent_sep); abline(0,1,col=2)
+plot(x=lodds_coyote_mvgp, y=lodds_coyote_sep, xlab='log odds (MVGP)', ylab='log odds (separate)', main='A)'); abline(0,1,col=2)
+plot(x=lodds_rodent_mvgp, y=lodds_rodent_sep, xlab='log odds (MVGP)', ylab='log odds (separate)', main='B)'); abline(0,1,col=2)
 
 #########################
 # Posterior risk variance
@@ -71,6 +71,62 @@ summary(postvar_rodent_mvgp)
 
 summary(postvar_coyote_sep)
 summary(postvar_coyote_mvgp)
+
+r1 <- caPr.disc[[1]]
+r1[][!is.na(r1[])] <- postvar_rodent_sep
+
+r2 <- caPr.disc[[1]]
+r2[][!is.na(r2[])] <- postvar_rodent_mvgp
+
+plot(x=postvar_rodent_sep, y=postvar_rodent_mvgp); abline(0,1, col='2')
+plot(x=postvar_coyote_sep, y=postvar_coyote_mvgp); abline(0,1, col='2')
+
+##################
+# calculate risks
+##################
+
+risk_rodent_mvgp <- calc_risk(lodds_rodent_mvgp)
+risk_coyote_mvgp <- calc_risk(lodds_coyote_mvgp)
+
+#### downscale
+w.hat <- colMeans(o_mvgp$samples.w)
+w.hat1 <- w.hat[seq(1, length(w.hat), by=2)]
+w.hat2 <- w.hat[seq(2, length(w.hat), by=2)]
+ds1 <- downscale(w.hat1, caPr.disc, caPr)
+ds2 <- downscale(w.hat2, caPr.disc, caPr)
+w.hat_ds1 <- ds1$w.hat_ds
+w.hat_ds2 <- ds2$w.hat_ds
+
+alpha.ca.hat1 <- mean(o_mvgp$samples.alpha.ca[1,,])
+alpha.ca.hat2 <- mean(o_mvgp$samples.alpha.ca[2,,])
+alpha.co.hat1 <- mean(o_mvgp$samples.alpha.co[1,,])
+alpha.co.hat2 <- mean(o_mvgp$samples.alpha.co[2,,])
+beta.ca.hat1 <- colMeans(o_mvgp$samples.beta.ca[1,,])
+beta.ca.hat2 <- colMeans(o_mvgp$samples.beta.ca[2,,])
+beta.co.hat1 <- colMeans(o_mvgp$samples.beta.co[1,,])
+beta.co.hat2 <- colMeans(o_mvgp$samples.beta.co[2,,])
+
+
+calc_risk_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
+  
+  X_high <- load_x_ca()
+  lodds_high <- X_high %*% beta.ca + alpha.ca * w.hat_ds - X_high %*% beta.co - alpha.co * w.hat_ds
+  risk_high <- calc_risk(lodds_high)
+  return(risk_high)
+  
+}
+
+risk_rodent_ds <- calc_risk_ds(alpha.ca.hat1, alpha.co.hat1, beta.ca.hat1, beta.co.hat1, w.hat_ds1)
+risk_coyote_ds <- calc_risk_ds(alpha.ca.hat2, alpha.co.hat2, beta.ca.hat2, beta.co.hat2, w.hat_ds2)
+
+r_r_ds <- caPr[[1]]
+r_r_ds[][!is.na(r_r_ds[])] <- risk_rodent_ds
+r_c_ds <- caPr[[1]]
+r_c_ds[][!is.na(r_c_ds[])] <- risk_coyote_ds
+
+par(mfrow=c(1,2))
+plot(r_r_ds, main='A)')
+plot(r_c_ds, main='B)')
 
 ##################
 # data description
@@ -182,37 +238,22 @@ write_latex_table(count_sums, "cdph_baseline_count_summary.txt", path=dst)
 print(sum(case.data$y)/ sum(case.data$y + ctrl.data$y))
 
 
-##############
-# patch output
-##############
-prior_alpha_ca_mean <- 0
-prior_alpha_co_mean <- 0
-prior_alpha_ca_var <- 6
-prior_alpha_co_var <- 6
-output <- burnin_after(output, n.burn=200)
-output <- continueMCMC(data, output, n.sample=3000)
-save_output(output, "output_cdph_baseline.json")
-
-
-###################
-# model convergence
-###################
-
-
-# traceplots
-fname <- paste("cdph_baseline_traces", ".png", sep="")
-png(paste(dst, fname, sep=""),
-     width=900, height=700, res=100)
-par(mfrow=c(2,3))
-plot_traces_general(output)
-
-# parameter estimates
-params <- summarize_ps_params(output)
-ite_latex_table(params, 'cdph_baseline_params.txt', dst)
-
 ###########
 # risk maps
 ###########
+
+o_mvgp 
+# 
+
+calc_risk_ <- function(output){
+  
+  X_low <- load_x_ca(factor=5)
+  lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+  risk_low <- calc_risk(lodds_low)
+  
+}
+
+
 
 # random field (downscaled)
 w.hat <- colMeans(output$samples.w)

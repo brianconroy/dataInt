@@ -31,6 +31,16 @@ cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
 coords <- xyFromCell(caPr.disc, cell=cells.all)
 D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
+plot(caPr[[1]])
+points(data_rodents$loc$coords, col='red', pch=16)
+points(data_coyotes$loc$coords, col='blue')
+
+xy_rodents <- cbind(rodents$Lon_Add_Fix, rodents$Lat_Add_Fix)
+xy_coyotes <- cbind(coyotes$Long_QC, coyotes$Lat_QC)
+plot(caPr[[1]])
+points(xy_rodents, col=rgb(1, 0, 0, 0.25), pch=16)
+points(xy_coyotes, col=rgb(0, 0, 1, 0.25))
+
 # qa
 par(mfrow=c(1,2))
 plot(loc.disc)

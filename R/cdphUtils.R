@@ -1,5 +1,122 @@
 
 
+calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
+  
+  print(species)
+  if (paste(species, collapse="") == 'all_but_ds'){
+    all_species <- unique(rodents$Short_Name)
+    species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
+    rodents_species <- rodents[rodents$Short_Name %in% species_group,]
+  } else {
+    rodents_species <- rodents[rodents$Short_Name %in% species,]
+  }
+  analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+  output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
+  data <- assemble_data(rodents_species, loc.disc, caPr.disc)
+  
+  coords <- xyFromCell(caPr.disc, cell=all_ids)
+  d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+  
+  # random field (downscaled)
+  w.hat <- colMeans(output$samples.w)
+  rw <- caPr.disc[[1]]
+  rw[][!is.na(rw[])] <- w.hat
+  
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  
+  alpha.ca.hat <- mean(output$samples.alpha.ca)
+  alpha.co.hat <- mean(output$samples.alpha.co)
+  beta.ca.hat <- colMeans(output$samples.beta.ca)
+  beta.co.hat <- colMeans(output$samples.beta.co)
+  
+  # risk map (low resolution)
+  X_low <- load_x_ca(factor=5)
+  lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+  risk_low <- calc_risk(lodds_low)
+  
+  r_lodds_low <- caPr.disc[[1]]
+  r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+  
+  r_risk_low <- caPr.disc[[1]]
+  r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+  
+  # risk map (downscaled)
+  X_high <- load_x_ca()
+  lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+  risk_high <- calc_risk(lodds_high)
+  
+  r_lodds_high <- caPr[[2]]
+  r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+  
+  r_risk_high <- caPr[[2]]
+  r_risk_high[][!is.na(r_risk_high[])] <- risk_high
+  
+  return(r_risk_high)
+  
+}
+
+
+equalize_scales <- function(r1, r2){
+  
+  v1 <- r1[][!is.na(r1[])]
+  v2 <- r2[][!is.na(r2[])]
+  r_max <- max(v1, v2)
+  r_min <- min(v1, v2)
+  if (sum(v1 == r_max) == 0){
+    v1[length(v1)] <- r_max
+  } else{
+    v2[length(v1)] <- r_max
+  }
+  if (sum(v1 == r_min) == 0){
+    v1[1] <- r_min
+  } else{
+    v2[1] <- r_min
+  }
+  r1[][!is.na(r1[])] <- v1
+  r2[][!is.na(r2[])] <- v2
+  return(list(r1, r2))
+  
+}
+
+
+equalize_scales2 <- function(r_list){
+  
+  vs <- list()
+  r_max <- 0
+  r_min <- 1
+  r_list_new <- list()
+  for (i in 1:length(r_list)){
+    r <- r_list[[i]]
+    r_vals <- r[][!is.na(r[])]
+    vs[[i]] <- r_vals
+    r_max <- max(r_max, r_vals)
+    r_min <- min(r_min, r_vals)
+  }
+  for (i in 1:length(r_list)){
+    r <- r_list[[i]]
+    r_vals <- r[][!is.na(r[])]
+    if (sum(r_vals == r_max) == 0){
+      r_vals[length(r_vals)] <- r_max
+    }
+    if (sum(r_vals == r_min) == 0){
+      r_vals[1] <- r_min
+    }
+    r_new <- r
+    r_new[][!is.na(r_new[])] <- r_vals 
+    r_list_new[[i]] <- r_new
+  }
+  return(r_list_new)
+  
+}
+
+
 downscale <- function(w.est, caPr.disc, caPr){
   
   rw <- caPr.disc[[1]]

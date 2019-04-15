@@ -41,76 +41,67 @@ groupings <- list(
 us <- getData("GADM", country="USA", level=2)
 ca <- us[us$NAME_1 == 'California',]
 
+#### risk maps for single species views
+
 for (species in groupings){
   
-  print(species)
-  if (paste(species, collapse="") == 'all_but_ds'){
-    all_species <- unique(rodents$Short_Name)
-    species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
-    rodents_species <- rodents[rodents$Short_Name %in% species_group,]
-  } else {
-    rodents_species <- rodents[rodents$Short_Name %in% species,]
-  }
-  analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
-  output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
-  data <- assemble_data(rodents_species, loc.disc, caPr.disc)
-  
-  coords <- xyFromCell(caPr.disc, cell=all_ids)
-  d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
-  
-  # random field (downscaled)
-  w.hat <- colMeans(output$samples.w)
-  rw <- caPr.disc[[1]]
-  rw[][!is.na(rw[])] <- w.hat
-  
-  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
-  v <- getValues(rw)
-  
-  tps <- Tps(xy, v)
-  p <- raster(caPr[[2]])
-  p <- interpolate(p, tps)
-  p <- mask(p, caPr[[1]])
-  w.hat_ds <- p[][!is.na(p[])]
-  
-  alpha.ca.hat <- mean(output$samples.alpha.ca)
-  alpha.co.hat <- mean(output$samples.alpha.co)
-  beta.ca.hat <- colMeans(output$samples.beta.ca)
-  beta.co.hat <- colMeans(output$samples.beta.co)
-  
-  # risk map (low resolution)
-  X_low <- load_x_ca(factor=5)
-  lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
-  risk_low <- calc_risk(lodds_low)
-  
-  r_lodds_low <- caPr.disc[[1]]
-  r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
-
-  r_risk_low <- caPr.disc[[1]]
-  r_risk_low[][!is.na(r_risk_low[])] <- risk_low
-
-  # risk map (downscaled)
-  X_high <- load_x_ca()
-  lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
-  risk_high <- calc_risk(lodds_high)
-  
-  r_lodds_high <- caPr[[2]]
-  r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
-
-  r_risk_high <- caPr[[2]]
-  r_risk_high[][!is.na(r_risk_high[])] <- risk_high
-  
+  r_risk_high <- calc_risk_cdph(species, rodents, caPr.disc, all_ids)
   plot(r_risk_high)
-  fname <- paste("risk_map_", analysis_name, ".png", sep="")
-  png(paste(dst, fname, sep=""),
-      width=900, height=700, res=50)
-  plot(r_risk_high)
-  plot(ca, add=T)
-  dev.off()
+  # fname <- paste("risk_map_", analysis_name, ".png", sep="")
+  # png(paste(dst, fname, sep=""),
+  #     width=900, height=700, res=50)
+  # plot(r_risk_high)
+  # plot(ca, add=T)
+  # dev.off()
   
 }
 
 
-# summarize counts by species/group
+#### risk maps for species comparisons, on the same scale
+plot(calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids))
+plot(calc_risk_cdph('GM G Sq', rodents, caPr.disc, all_ids))
+
+
+#### Chipmunks
+r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids)
+r_risk_lp <- calc_risk_cdph('Chipmunk, LP', rodents, caPr.disc, all_ids)
+r_risk_s <- calc_risk_cdph('Chipmunk, S', rodents, caPr.disc, all_ids)
+r_risk_m <- calc_risk_cdph('Chipmunk, M', rodents, caPr.disc, all_ids)
+
+plot(r_risk_yp)
+plot(r_risk_s)
+plot(r_risk_m)
+plot(r_risk_lp)
+
+r_list <- list(r_risk_yp, r_risk_lp, r_risk_s, r_risk_m)
+r_list_new <- equalize_scales2(r_list)
+plot(r_list_new[[1]])
+plot(r_list_new[[2]])
+plot(r_list_new[[3]])
+plot(r_list_new[[4]])
+
+
+#### CA GS and T Amoenus together and separately
+r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids)
+r_risk_cgs <- calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids)
+r_risk_yp_cgs <- calc_risk_cdph(c('Chipmunk, YP', 'CA G Sq'), rodents, caPr.disc, all_ids)
+r_list2 <- list(r_risk_yp, r_risk_cgs, r_risk_yp_cgs)
+r_list_new2 <- equalize_scales2(r_list2)
+plot(r_list_new2[[1]])
+plot(r_list_new2[[2]])
+plot(r_list_new2[[3]])
+
+
+#### Douglas squirrels together and separately
+r_risk_ds <- calc_risk_cdph('Pine Squirrel', rodents, caPr.disc, all_ids)
+r_risk_allbutds <- calc_risk_cdph('all_but_ds', rodents, caPr.disc, all_ids)
+r_list3 <- list(r_risk_ds, r_risk_allbutds)
+r_list_new3 <- equalize_scales2(r_list3)
+plot(r_list_new3[[1]])
+plot(r_list_new3[[2]])
+
+
+#### summarize counts by species/group
 rows <- list()
 counter <- 1
 for (species in groupings){
@@ -122,8 +113,8 @@ for (species in groupings){
   } else {
     rodents_species <- rodents[rodents$Short_Name %in% species,]
   }
-  ca <- table(rodents_species$Test_Result_ID)['Pos']
-  co <- table(rodents_species$Test_Result_ID)['Neg']
+  ca <- table(rodents_species$Res)['POS']
+  co <- table(rodents_species$Res)['NEG']
   rows[[counter]] <- list(
     Species=paste(species, collapse="|"),
     Cases=ca,
