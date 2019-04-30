@@ -155,9 +155,10 @@ r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
 
 #### Figure: low to high resolution risk map
+rescaled <- equalize_scales(r_risk_low, r_risk_high)
 par(mfrow=c(1,2))
-plot(r_risk_low, main='A)')
-plot(r_risk_high, main='B)')
+plot(rescaled[[1]], main='A)')
+plot(rescaled[[2]], main='B)')
 
 
 #### Figure: risk map without county lines

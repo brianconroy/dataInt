@@ -21,6 +21,60 @@ species <- c(1, 2)
 levels <- c("none", "medium", "high")
 
 
+#### summarize MVGP spatial parameter estimates
+
+# correlation | parameter | estimate | bias | posterior variance
+# T(1,1), T(1,2), T(2,2), Theta
+estimates <- list()
+counter <- 1
+for (l in levels){
+  
+  params <- load_output(paste('simMVGP_comparison_params_', l, '.json', sep=''))
+  o <- get_output_general(outputs, tag=paste(l, 'mvgp', sep="_"))
+  Tmat <- params$Tmat
+  T.est <- round(colMeans(o$samples.t), 3)
+  Theta.est <- round(mean(o$samples.theta), 3)
+  estimates[[counter+1]] <- list(
+    Correlation=l,
+    Parameter="T (1,1)",
+    Estimate=T.est[1],
+    Bias=round(T.est[1] - Tmat[1,1], 3),
+    Posterior_variance=round(var(o$samples.t[,1]), 3)
+  )
+  estimates[[counter+2]] <- list(
+    Correlation=l,
+    Parameter="T (1,2)",
+    Estimate=T.est[2],
+    Bias=round(T.est[2] - Tmat[1,2], 3),
+    Posterior_variance=round(var(o$samples.t[,2]), 3)
+  )
+  estimates[[counter+3]] <- list(
+    Correlation=l,
+    Parameter="T (2,1)",
+    Estimate=T.est[3],
+    Bias=round(T.est[3] - Tmat[2,1], 3),
+    Posterior_variance=round(var(o$samples.t[,3]), 3)
+  )
+  estimates[[counter+4]] <- list(
+    Correlation=l,
+    Parameter="T (2,2)",
+    Estimate=T.est[4],
+    Bias=round(T.est[4] - Tmat[2,2], 3),
+    Posterior_variance=round(var(o$samples.t[,4]), 3)
+  )
+  estimates[[counter+5]] <- list(
+    Correlation=l,
+    Parameter="Theta",
+    Estimate=Theta.est,
+    Bias=round(Theta.est - params$Theta, 3),
+    Posterior_variance=round(var(o$samples.theta[,1]), 3)
+  )
+  counter <- counter + 6
+  
+}
+write_latex_table(ldply(estimates, 'data.frame'), 'latex_mvgp_spatparams.txt', dst)
+
+
 #### summarize parameters used to generate data
 param_rows <- list()
 counter <- 1

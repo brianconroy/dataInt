@@ -13,7 +13,7 @@ library(gridExtra)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project2/cdph_coyote_scurid/"
+dst <- "/Users/brianconroy/Documents/research/project2/cdph_coyotes_rodents/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=6)
 N <- n_values(caPr.disc[[1]])
@@ -74,6 +74,7 @@ summary(postvar_coyote_mvgp)
 
 r1 <- caPr.disc[[1]]
 r1[][!is.na(r1[])] <- postvar_rodent_sep
+plot(r1)
 
 r2 <- caPr.disc[[1]]
 r2[][!is.na(r2[])] <- postvar_rodent_mvgp
@@ -124,9 +125,81 @@ r_r_ds[][!is.na(r_r_ds[])] <- risk_rodent_ds
 r_c_ds <- caPr[[1]]
 r_c_ds[][!is.na(r_c_ds[])] <- risk_coyote_ds
 
+# sciurid MVGP risk map
+plot(r_r_ds)
+
+# coyote MVGP risk map
+plot(r_c_ds)
+
+
+#### compare to separate model downscaled risk maps
+risk_rodent_sep <- calc_risk(lodds_rodent_sep)
+risk_coyote_sep <- calc_risk(lodds_coyote_sep)
+w.hat_r_sep <- colMeans(o_rodent_sep$samples.w)
+w.hat_c_sep <- colMeans(o_coyote_sep$samples.w)
+
+ds_r_sep <- downscale(w.hat_r_sep, caPr.disc, caPr)
+ds_c_sep <- downscale(w.hat_c_sep, caPr.disc, caPr)
+w.hat_r_sep_ds <- ds_r_sep$w.hat_ds
+w.hat_c_sep_ds <- ds_c_sep$w.hat_ds
+
+alpha.ca.hat_r <- mean(o_rodent_sep$samples.alpha.ca)
+alpha.co.hat_r <- mean(o_rodent_sep$samples.alpha.co)
+beta.ca.hat_r <- colMeans(o_rodent_sep$samples.beta.ca)
+beta.co.hat_r <- colMeans(o_rodent_sep$samples.beta.co)
+
+alpha.ca.hat_c <- mean(o_coyote_sep$samples.alpha.ca)
+alpha.co.hat_c <- mean(o_coyote_sep$samples.alpha.co)
+beta.ca.hat_c <- colMeans(o_coyote_sep$samples.beta.ca)
+beta.co.hat_c <- colMeans(o_coyote_sep$samples.beta.co)
+
+risk_rodent_ds_sep <- calc_risk_ds(alpha.ca.hat_r, alpha.co.hat_r, beta.ca.hat_r, beta.co.hat_r, w.hat_r_sep_ds)
+risk_coyote_ds_sep <- calc_risk_ds(alpha.ca.hat_c, alpha.co.hat_c, beta.ca.hat_c, beta.co.hat_c, w.hat_c_sep_ds)
+
+r_r_ds_sep <- caPr[[1]]
+r_r_ds_sep[][!is.na(r_r_ds_sep[])] <- risk_rodent_ds_sep
+r_c_ds_sep <- caPr[[1]]
+r_c_ds_sep[][!is.na(r_c_ds_sep[])] <- risk_coyote_ds_sep
+
+
+#### Coyote risk map comparison: mvgp vs ps
+c_eq <- equalize_scales(r_c_ds, r_c_ds_sep)
 par(mfrow=c(1,2))
-plot(r_r_ds, main='A)')
-plot(r_c_ds, main='B)')
+plot(c_eq[[1]], main='A)')
+plot(c_eq[[2]], main='B)')
+
+
+#### Rodent risk map comparison: mvgp vs ps
+r_eq <- equalize_scales(r_r_ds, r_r_ds_sep)
+par(mfrow=c(1,2))
+plot(r_eq[[1]], main='A)')
+plot(r_eq[[2]], main='B)')
+
+
+#### T Matrix Estimate
+#### parameter | estimate | posterior variance
+par(mfrow=c(2,2))
+plot(o_mvgp$samples.t[,1], type='l')
+plot(o_mvgp$samples.t[,2], type='l')
+plot(o_mvgp$samples.t[,4], type='l')
+
+t_params <- list()
+t_params[[1]] <- list(
+  Parameter="T (1,1)",
+  Estimate=round(mean(o_mvgp$samples.t[,1]), 3),
+  Variance=round(var(o_mvgp$samples.t[,1]), 3)
+)
+t_params[[2]] <- list(
+  Parameter="T (1,2)",
+  Estimate=round(mean(o_mvgp$samples.t[,2]), 3),
+  Variance=round(var(o_mvgp$samples.t[,2]), 3)
+)
+t_params[[3]] <- list(
+  Parameter="T (2,2)",
+  Estimate=round(mean(o_mvgp$samples.t[,4]), 3),
+  Variance=round(var(o_mvgp$samples.t[,4]), 3)
+)
+write_latex_table(ldply(t_params, 'data.frame'), "cdph_mvgp_t_params.txt", path=dst)
 
 ##################
 # data description
