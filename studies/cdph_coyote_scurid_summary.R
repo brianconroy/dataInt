@@ -14,7 +14,7 @@ library(MCMCpack)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-dst <- "/Users/brianconroy/Documents/research/project2/cdph_coyotes_rodents/"
+dst <- "/Users/brianconroy/Documents/research/project2/analysis/"
 caPr <- load_prism_pcs()
 caPr.disc <- aggregate(caPr, fact=6)
 N <- n_values(caPr.disc[[1]])
@@ -50,7 +50,7 @@ prior_alpha_co_var <- c(4, 4)
 
 o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
 
-o_mvgp <- continueMCMC_mvgp(data_input, D, o_mvgp, n.sample=500)
+o_mvgp <- continueMCMC_mvgp(data_input, D, o_mvgp, n.sample=2000)
 
 o_mvgp <- burnin_mvgp(o_mvgp, n.burn=400)
 
@@ -64,69 +64,16 @@ plot(o_mvgp$samples.alpha.co[1,,], type='l')
 plot(o_mvgp$samples.alpha.ca[2,,], type='l')
 plot(o_mvgp$samples.alpha.co[2,,], type='l')
 
-
-##################
-# compare log odds
-##################
+save_output(o_mvgp, paste(o_mvgp$description, ".json", sep=""))
 
 
-o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
+###################
+# Figure: risk maps
+###################
+
+
 lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
 lodds_coyote_mvgp <- calc_lodds_mvgp(o_mvgp, data, 2, agg_factor=6)
-
-o_coyote_sep <- get_output_general(outputs, tag=paste(analysis_name, 'coyote', sep="_"))
-lodds_coyote_sep <- calc_log_odds_species(o_coyote_sep, data, species=2, agg_factor=6)
-
-o_rodent_sep <- get_output_general(outputs, tag=paste(analysis_name, 'rodent', sep="_"))
-lodds_rodent_sep <- calc_log_odds_species(o_rodent_sep, data, species=1, agg_factor=6)
-
-par(mfrow=c(1,2))
-plot(x=lodds_coyote_mvgp, y=lodds_coyote_sep, xlab='log odds (MVGP)', ylab='log odds (separate)', main='A)'); abline(0,1,col=2)
-plot(x=lodds_rodent_mvgp, y=lodds_rodent_sep, xlab='log odds (MVGP)', ylab='log odds (separate)', main='B)'); abline(0,1,col=2)
-
-#########################
-# Posterior risk variance
-#########################
-
-X_rodent <- load_x_standard(as.logical(data$locs$status[[1]]), agg_factor=6)
-X_coyote <- load_x_standard(as.logical(data$locs$status[[2]]), agg_factor=6)
-risk_rodent_sep <- calc_posterior_risk(o_rodent_sep, X_rodent)
-risk_coyote_sep <- calc_posterior_risk(o_coyote_sep, X_coyote)
-risk_rodent_mvgp <- calc_posterior_risk_multi(o_mvgp, X_rodent, species=1)
-risk_coyote_mvgp <- calc_posterior_risk_multi(o_mvgp, X_coyote, species=2)
-
-postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
-postvar_coyote_sep <- apply(risk_coyote_sep, 2, var)
-postvar_rodent_mvgp <- apply(risk_rodent_mvgp, 2, var)
-postvar_coyote_mvgp <- apply(risk_coyote_mvgp, 2, var)
-
-par(mfrow=c(2,2))
-hist(postvar_rodent_sep, xlab='Posterior Variance')
-hist(postvar_coyote_sep, xlab='Posterior Variance')
-hist(postvar_rodent_mvgp, xlab='Posterior Variance')
-hist(postvar_coyote_mvgp, xlab='Posterior Variance')
-
-summary(postvar_rodent_sep)
-summary(postvar_rodent_mvgp)
-
-summary(postvar_coyote_sep)
-summary(postvar_coyote_mvgp)
-
-r1 <- caPr.disc[[1]]
-r1[][!is.na(r1[])] <- postvar_rodent_sep
-plot(r1)
-
-r2 <- caPr.disc[[1]]
-r2[][!is.na(r2[])] <- postvar_rodent_mvgp
-plot(r2)
-
-plot(x=postvar_rodent_sep, y=postvar_rodent_mvgp); abline(0,1, col='2')
-plot(x=postvar_coyote_sep, y=postvar_coyote_mvgp); abline(0,1, col='2')
-
-##################
-# calculate risks
-##################
-
 risk_rodent_mvgp <- calc_risk(lodds_rodent_mvgp)
 risk_coyote_mvgp <- calc_risk(lodds_coyote_mvgp)
 
@@ -166,11 +113,167 @@ r_r_ds[][!is.na(r_r_ds[])] <- risk_rodent_ds
 r_c_ds <- caPr[[1]]
 r_c_ds[][!is.na(r_c_ds[])] <- risk_coyote_ds
 
+# coyote MVGP risk map
+plot(r_c_ds)
+
 # sciurid MVGP risk map
 plot(r_r_ds)
 
-# coyote MVGP risk map
-plot(r_c_ds)
+
+##########################
+# Table: T matrix estimate
+##########################
+
+
+t_params <- list()
+t_params[[1]] <- list(
+  Parameter="T (1,1)",
+  Estimate=round(mean(o_mvgp$samples.t[,1]), 3),
+  Variance=round(var(o_mvgp$samples.t[,1]), 3)
+)
+t_params[[2]] <- list(
+  Parameter="T (1,2)",
+  Estimate=round(mean(o_mvgp$samples.t[,2]), 3),
+  Variance=round(var(o_mvgp$samples.t[,2]), 3)
+)
+t_params[[3]] <- list(
+  Parameter="T (2,2)",
+  Estimate=round(mean(o_mvgp$samples.t[,4]), 3),
+  Variance=round(var(o_mvgp$samples.t[,4]), 3)
+)
+write_latex_table(ldply(t_params, 'data.frame'), "cdph_mvgp_t_params.txt", path=dst)
+
+
+##########################
+# Figure: compare log odds
+##########################
+
+
+lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
+lodds_coyote_mvgp <- calc_lodds_mvgp(o_mvgp, data, 2, agg_factor=6)
+
+o_coyote_sep <- get_output_general(outputs, tag=paste(analysis_name, 'coyote', sep="_"))
+lodds_coyote_sep <- calc_log_odds_species(o_coyote_sep, data, species=2, agg_factor=6)
+
+o_rodent_sep <- get_output_general(outputs, tag=paste(analysis_name, 'rodent', sep="_"))
+lodds_rodent_sep <- calc_log_odds_species(o_rodent_sep, data, species=1, agg_factor=6)
+
+par(mfrow=c(1,2))
+plot(y=lodds_coyote_mvgp, x=lodds_coyote_sep, ylab='Log Odds (MVGP)', xlab='Log Odds (separate)', main='A)'); abline(0,1,col=2)
+plot(y=lodds_rodent_mvgp, x=lodds_rodent_sep, ylab='Log Odds (MVGP)', xlab='Log Odds (separate)', main='B)'); abline(0,1,col=2)
+
+summary(lodds_coyote_mvgp-lodds_coyote_sep)
+summary(lodds_rodent_mvgp-lodds_rodent_sep)
+
+
+######################
+# Figure: Compare Risk
+######################
+
+
+lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
+lodds_coyote_mvgp <- calc_lodds_mvgp(o_mvgp, data, 2, agg_factor=6)
+risk_rodent_mvgp <- calc_risk(lodds_rodent_mvgp)
+risk_coyote_mvgp <- calc_risk(lodds_coyote_mvgp)
+
+lodds_coyote_sep <- calc_log_odds_species(o_coyote_sep, data, species=2, agg_factor=6)
+lodds_rodent_sep <- calc_log_odds_species(o_rodent_sep, data, species=1, agg_factor=6)
+risk_coyote_sep <- calc_risk(lodds_coyote_sep)
+risk_rodent_sep <- calc_risk(lodds_rodent_sep)
+
+par(mfrow=c(1,2))
+plot(y=risk_coyote_mvgp, x=risk_coyote_sep, ylab='Risk (MVGP)', xlab='Risk (Separate)', main='A)'); abline(0,1,col=2)
+plot(y=risk_rodent_mvgp, x=risk_rodent_sep, ylab='Risk (MVGP)', xlab='Risk (Separate)', main='B)'); abline(0,1,col=2)
+
+summary(risk_coyote_mvgp-risk_coyote_sep)
+summary(risk_rodent_mvgp-risk_rodent_sep)
+
+
+#####################################
+# Figure: Posterior log odds variance
+#####################################
+
+
+X_rodent <- load_x_standard(as.logical(data$locs$status[[1]]), agg_factor=6)
+X_coyote <- load_x_standard(as.logical(data$locs$status[[2]]), agg_factor=6)
+lodds_rodent_sep <- calc_posterior_lodds(o_rodent_sep, X_rodent)
+lodds_coyote_sep <- calc_posterior_lodds(o_coyote_sep, X_coyote)
+lodds_rodent_mvgp <- calc_posterior_lodds_multi(o_mvgp, X_rodent, species=1)
+lodds_coyote_mvgp <- calc_posterior_lodds_multi(o_mvgp, X_coyote, species=2)
+
+postvar_lodds_rodent_sep <- apply(lodds_rodent_sep, 2, var)
+postvar_lodds_coyote_sep <- apply(lodds_coyote_sep, 2, var)
+postvar_lodds_rodent_mvgp <- apply(lodds_rodent_mvgp, 2, var)
+postvar_lodds_coyote_mvgp <- apply(lodds_coyote_mvgp, 2, var)
+
+par(mfrow=c(1,2))
+plot(x=postvar_lodds_coyote_sep, y=postvar_lodds_coyote_mvgp,
+     xlab='Posterior Log Odds Variance (Separate)',
+     ylab='Posterior Log Odds Variance (MVGP)',
+     main='A)'
+); abline(0, 1, col=2)
+plot(x=postvar_lodds_rodent_sep, y=postvar_lodds_rodent_mvgp, 
+     xlab='Posterior Log Odds Variance (Separate)',
+     ylab='Posterior Log Odds Variance (MVGP)',
+     main='B)'
+); abline(0, 1, col=2)
+
+# number of cells where mvgp beats separate
+sum(postvar_lodds_rodent_sep > postvar_lodds_rodent_mvgp)/length(postvar_lodds_rodent_mvgp)
+sum(postvar_lodds_coyote_sep > postvar_lodds_coyote_mvgp)/length(postvar_lodds_coyote_mvgp)
+
+# mean, median, min, max
+summary(postvar_lodds_rodent_sep)
+summary(postvar_lodds_rodent_mvgp)
+
+summary(postvar_lodds_coyote_sep)
+summary(postvar_lodds_coyote_mvgp)
+
+
+#########################
+# Posterior risk variance
+#########################
+
+X_rodent <- load_x_standard(as.logical(data$locs$status[[1]]), agg_factor=6)
+X_coyote <- load_x_standard(as.logical(data$locs$status[[2]]), agg_factor=6)
+risk_rodent_sep <- calc_posterior_risk(o_rodent_sep, X_rodent)
+risk_coyote_sep <- calc_posterior_risk(o_coyote_sep, X_coyote)
+risk_rodent_mvgp <- calc_posterior_risk_multi(o_mvgp, X_rodent, species=1)
+risk_coyote_mvgp <- calc_posterior_risk_multi(o_mvgp, X_coyote, species=2)
+
+postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
+postvar_coyote_sep <- apply(risk_coyote_sep, 2, var)
+postvar_rodent_mvgp <- apply(risk_rodent_mvgp, 2, var)
+postvar_coyote_mvgp <- apply(risk_coyote_mvgp, 2, var)
+
+par(mfrow=c(1,2))
+plot(x=postvar_coyote_sep, y=postvar_coyote_mvgp,
+     xlab='Posterior Risk Variance (Separate)',
+     ylab='Posterior Risk Variance (MVGP)',
+     main='A)'
+); abline(0, 1, col=2)
+plot(x=postvar_rodent_sep, y=postvar_rodent_mvgp, 
+     xlab='Posterior Risk Variance (Separate)',
+     ylab='Posterior Risk Variance (MVGP)',
+     main='B)'
+); abline(0, 1, col=2)
+
+summary(postvar_rodent_sep)
+summary(postvar_rodent_mvgp)
+
+summary(postvar_coyote_sep)
+summary(postvar_coyote_mvgp)
+
+r1 <- caPr.disc[[1]]
+r1[][!is.na(r1[])] <- postvar_rodent_sep
+plot(r1)
+
+r2 <- caPr.disc[[1]]
+r2[][!is.na(r2[])] <- postvar_rodent_mvgp
+plot(r2)
+
+plot(x=postvar_rodent_sep, y=postvar_rodent_mvgp); abline(0,1, col='2')
+plot(x=postvar_coyote_sep, y=postvar_coyote_mvgp); abline(0,1, col='2')
 
 
 #### compare to separate model downscaled risk maps
