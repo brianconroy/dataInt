@@ -833,6 +833,12 @@ continueMCMC_mvgp <- function(data, d, output, n.sample){
   L_co <- output$L_co
   L_a_ca <- output$L_a_ca 
   L_a_co <- output$L_a_co
+  m_aca <- output$m_aca
+  m_aco <- output$m_aco
+  m_ca <- output$m_ca
+  m_co=output$m_co
+  m_w=output$m_w
+  
   proposal.sd.theta <- output$proposal.sd.theta
   
   # get priors
@@ -841,7 +847,7 @@ continueMCMC_mvgp <- function(data, d, output, n.sample){
   more_output <- prefSampleMVGP(data, d, n.sample, burnin=0, 
                                    L_w, L_ca, L_co, L_a_ca, L_a_co,
                                    proposal.sd.theta=proposal.sd.theta,
-                                   m_aca=m_aca, m_aco=m_aca, m_ca=m_aca, m_co=m_aca, m_w=m_aca, 
+                                   m_aca=m_aca, m_aco=m_aca, m_ca=m_ca, m_co=m_co, m_w=m_w, 
                                    target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, 
                                    self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE,
                                    delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, 
@@ -873,11 +879,6 @@ continueMCMC_mvgp <- function(data, d, output, n.sample){
   new_output$samples.t <- rbind(new_output$samples.t, more_output$samples.t)
   new_output$samples.theta <- matrix(c(new_output$samples.theta, more_output$samples.theta))
   new_output$samples.w <- rbind(new_output$samples.w, more_output$samples.w)
-  # new_output$deltas_aca <- new_output$deltas_aca
-  # new_output$deltas_aco <- new_output$deltas_aco
-  # new_output$deltas_co <- new_output$deltas_co
-  # new_output$deltas_ca <- new_output$deltas_ca
-  # new_output$deltas_w <- new_output$deltas_w
   
   new_output$accept$w <- (new_output$n.sample * new_output$accept$w + n.sample * more_output$accept$w)/(new_output$n.sample + n.sample)
   new_output$accept$theta <- (new_output$n.sample * new_output$accept$theta + n.sample * more_output$accept$theta)/(new_output$n.sample + n.sample)

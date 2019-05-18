@@ -12,7 +12,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 sim <- "simMVGP_sensitivity"
-level <- "3"
+level <- "02"
 sim_name <- paste(sim, level, sep="_")
 
 
@@ -39,6 +39,14 @@ plot(caPr.disc)
 cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
 coords <- xyFromCell(caPr.disc, cell=cells.all)
 D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+
+
+# save rasters
+writeRaster(
+  caPr, 
+  filename=paste("/Users/brianconroy/Desktop/rasters/", names(caPr), sep=""), 
+  bylayer=TRUE,
+  format="GTiff")
 
 
 #### Load Data
@@ -115,7 +123,7 @@ print(Omega/(r - length(data$locs) - 1))
 #### Fit initial values
 y <- list(locs1$status, locs2$status)
 prior_t=list(scale=matrix(c(5, 0, 0, 5), nrow=2), df=4)
-w_output <- logisticMVGP(y, D, n.sample=1000, burnin=200, L=10, 
+w_output <- logisticMVGP(y, D, n.sample=750, burnin=200, L=10, 
                          prior_t=prior_t, prior_theta=prior_theta)
 w.hat <- colMeans(w_output$samples.w)
 plot(x=W, y=w.hat); abline(0, 1, col=2)

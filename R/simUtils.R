@@ -1033,6 +1033,48 @@ load_output <- function(fname){
 }
 
 
+load_mvgp_data <- function(fname){
+  
+  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  raw_output <- fromJSON(path)
+  locs <- list()
+  case.data <- list()
+  ctrl.data <- list()
+  for (i in 1:length(raw_output$locs$ids)){
+    locs_i <- list(
+      ids=raw_output$locs$ids[[i]],
+      cells=raw_output$locs$cells[[i]],
+      status=raw_output$locs$status[[i]],
+      coords=raw_output$locs$coords[[i]]
+    )
+    locs[[i]] <- locs_i
+    case.data_i <- list(
+      y=raw_output$case.data$y[[i]],
+      x.standardised=raw_output$case.data$x.standardised[[i]],
+      x=raw_output$case.data$x[[i]],
+      p=raw_output$case.data$p[[i]]
+    )
+    case.data[[i]] <- case.data_i
+    ctrl.data_i <- list(
+      y=raw_output$ctrl.data$y[[i]],
+      x.standardised=raw_output$ctrl.data$x.standardised[[i]],
+      x=raw_output$ctrl.data$x[[i]],
+      p=raw_output$ctrl.data$p[[i]]
+    )
+    ctrl.data[[i]] <- ctrl.data_i
+  }
+  
+  return(
+    list(
+      case.data=case.data,
+      ctrl.data=ctrl.data,
+      locs=locs
+    )
+  )
+  
+}
+
+
 #' save_params
 #' 
 #' saves parameters of the preferential sampling case control model

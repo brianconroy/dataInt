@@ -10,6 +10,7 @@ library(mvtnorm)
 library(ggplot2)
 library(R.utils)
 library(gridExtra)
+library(MCMCpack)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
@@ -26,9 +27,48 @@ analysis_name <- "cdph_coyote_scurid"
 outputs <- load_sim_outputs(tag=analysis_name)
 data <- load_output(paste(analysis_name, '_data.json', sep=''))
 
+par(mfrow=c(1,2))
+plot(caPr[[1]], main='A)')
+plot(caPr[[2]], main='B)')
+
+
+###############
+# patch output
+###############
+
+
+cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
+coords <- xyFromCell(caPr.disc, cell=cells.all)
+D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+data_input <- load_mvgp_data(paste(analysis_name, '_data.json', sep=''))
+
+prior_theta <- c(3, 2)
+prior_alpha_ca_mean <- c(0, 0)
+prior_alpha_co_mean <- c(0, 0)
+prior_alpha_ca_var <- c(4, 4)
+prior_alpha_co_var <- c(4, 4)
+
+o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
+
+o_mvgp <- continueMCMC_mvgp(data_input, D, o_mvgp, n.sample=500)
+
+o_mvgp <- burnin_mvgp(o_mvgp, n.burn=400)
+
+plot(o_mvgp$samples.theta, type='l')
+plot(o_mvgp$samples.t[,1], type='l')
+plot(o_mvgp$samples.t[,2], type='l')
+plot(o_mvgp$samples.t[,4], type='l')
+
+plot(o_mvgp$samples.alpha.ca[1,,], type='l')
+plot(o_mvgp$samples.alpha.co[1,,], type='l')
+plot(o_mvgp$samples.alpha.ca[2,,], type='l')
+plot(o_mvgp$samples.alpha.co[2,,], type='l')
+
+
 ##################
 # compare log odds
 ##################
+
 
 o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
 lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
@@ -78,6 +118,7 @@ plot(r1)
 
 r2 <- caPr.disc[[1]]
 r2[][!is.na(r2[])] <- postvar_rodent_mvgp
+plot(r2)
 
 plot(x=postvar_rodent_sep, y=postvar_rodent_mvgp); abline(0,1, col='2')
 plot(x=postvar_coyote_sep, y=postvar_coyote_mvgp); abline(0,1, col='2')

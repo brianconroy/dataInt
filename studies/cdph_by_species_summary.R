@@ -57,6 +57,22 @@ for (species in groupings){
 }
 
 
+#### save rasters
+for (s in 1:5){
+  species <- groupings[[s]]
+  r_risk_high <- calc_risk_cdph(species, rodents, caPr.disc, all_ids)
+  writeRaster(
+    r_risk_high, 
+    filename=paste("/Users/brianconroy/Desktop/rasters/", gsub(" ", "_", species), sep=""), 
+    format="GTiff")
+}
+
+
+
+
+
+
+
 #### risk maps for species comparisons, on the same scale
 plot(calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids))
 plot(calc_risk_cdph('GM G Sq', rodents, caPr.disc, all_ids))
@@ -91,6 +107,13 @@ plot(r_list_new2[[1]])
 plot(r_list_new2[[2]])
 plot(r_list_new2[[3]])
 
+writeRaster(
+  r_list_new2[[3]], 
+  filename="/Users/brianconroy/Desktop/rasters/CGS_and_Chipmunk_YP", 
+  format="GTiff")
+
+
+
 
 #### Douglas squirrels together and separately
 r_risk_ds <- calc_risk_cdph('Pine Squirrel', rodents, caPr.disc, all_ids)
@@ -99,6 +122,11 @@ r_list3 <- list(r_risk_ds, r_risk_allbutds)
 r_list_new3 <- equalize_scales2(r_list3)
 plot(r_list_new3[[1]])
 plot(r_list_new3[[2]])
+
+writeRaster(
+  r_list_new3[[2]], 
+  filename="/Users/brianconroy/Desktop/rasters/All_but_Douglas_Squirrel", 
+  format="GTiff")
 
 
 #### summarize counts by species/group
