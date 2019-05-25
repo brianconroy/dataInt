@@ -176,6 +176,32 @@ ca <- us[us$NAME_1 == 'California',]
 plot(r_risk_high)
 plot(ca, add=T)
 
+
+#### Figure: risk map with cases overlayed
+r_cases <- rodents[rodents$Res == 'POS',]
+r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
+r_ctrls <- rodents[rodents$Res == 'NEG',]
+r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
+plot(r_risk_high)
+points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
+points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+
+
+#### Figure: covariate contribution to log odds, random field contribution to log odds
+X_high <- load_x_ca()
+cov_rodent <- X_high %*% beta.ca.hat - X_high %*% beta.co.hat
+w_rodent <- alpha.ca.hat * w.hat_ds - alpha.co.hat * w.hat_ds
+r_cov_rodent <- caPr[[1]]
+r_cov_rodent[][!is.na(r_cov_rodent[])] <- cov_rodent
+r_w_rodent <- caPr[[1]]
+r_w_rodent[][!is.na(r_w_rodent[])] <- w_rodent
+par(mfrow=c(1,2))
+plot(r_cov_rodent, main='A)')
+pal <- colorRampPalette(c("blue","red"))
+plot(r_w_rodent, main='B)', col=pal(20))
+summary(w_rodent[])
+
+
 #################
 # Compare to spatial
 # poisson model

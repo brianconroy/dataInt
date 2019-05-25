@@ -1,5 +1,36 @@
 
 
+plot_risk_overlay <- function(results, rodents_species){
+  
+  plot(results$r_risk_high)
+  r_cases <- rodents_species[rodents_species$Res == 'POS',]
+  r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
+  r_ctrls <- rodents_species[rodents_species$Res == 'NEG',]
+  r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
+  points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
+  points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+  
+}
+
+
+plot_cov_vs_w <- function(results, caPr){
+  
+  X_high <- load_x_ca()
+  cov_rodent <- X_high %*% results$beta.ca.hat - X_high %*% results$beta.co.hat
+  w_rodent <- (results$alpha.ca.hat -  results$alpha.co.hat) * results$w.hat_ds
+  r_cov_rodent <- caPr[[1]]
+  r_cov_rodent[][!is.na(r_cov_rodent[])] <- cov_rodent
+  r_w_rodent <- caPr[[1]]
+  r_w_rodent[][!is.na(r_w_rodent[])] <- w_rodent
+  par(mfrow=c(1,2))
+  plot(r_cov_rodent, main='A)')
+  pal <- colorRampPalette(c("blue","red"))
+  plot(r_w_rodent, main='B)', col=pal(20))
+  par(mfrow=c(1,1))
+  
+}
+
+
 calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
   
   print(species)
@@ -58,7 +89,15 @@ calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
   r_risk_high <- caPr[[2]]
   r_risk_high[][!is.na(r_risk_high[])] <- risk_high
   
-  return(r_risk_high)
+  response <- list(
+    r_risk_high=r_risk_high,
+    alpha.ca.hat=alpha.ca.hat,
+    alpha.co.hat=alpha.co.hat,
+    beta.ca.hat=beta.ca.hat,
+    beta.co.hat=beta.co.hat,
+    w.hat_ds=w.hat_ds
+  )
+  return(response)
   
 }
 
@@ -116,6 +155,39 @@ equalize_scales2 <- function(r_list){
   
 }
 
+
+equalize_scales3 <- function(r_list){
+  
+  vs <- list()
+  r_max <- 0
+  r_min <- 1
+  r_list_new <- list()
+  for (i in 1:length(r_list)){
+    result_i <- r_list[[i]]
+    r <- result_i$r_risk_high
+    r_vals <- r[][!is.na(r[])]
+    vs[[i]] <- r_vals
+    r_max <- max(r_max, r_vals)
+    r_min <- min(r_min, r_vals)
+  }
+  for (i in 1:length(r_list)){
+    result_i <- r_list[[i]]
+    r <- result_i$r_risk_high
+    r_vals <- r[][!is.na(r[])]
+    if (sum(r_vals == r_max) == 0){
+      r_vals[length(r_vals)] <- r_max
+    }
+    if (sum(r_vals == r_min) == 0){
+      r_vals[1] <- r_min
+    }
+    r_new <- r
+    r_new[][!is.na(r_new[])] <- r_vals 
+    result_i$r_risk_high <- r_new
+    r_list_new[[i]] <- result_i
+  }
+  return(r_list_new)
+  
+}
 
 downscale <- function(w.est, caPr.disc, caPr){
   
@@ -190,8 +262,7 @@ assemble_data <- function(rodents, loc.disc, caPr.disc){
     x=x,
     p=3
   )
-  print(sum(case.data$y))
-  
+
   # control data
   ctrl.data <- list(
     y=counts_all$count_neg,

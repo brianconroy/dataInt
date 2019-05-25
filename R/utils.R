@@ -1,5 +1,15 @@
 
 
+add_floor <- function(r){
+  
+  rvals <- r[][!is.na(r[])]
+  rvals[length(rvals)-1] <- 0
+  r[][!is.na(r[])] <- rvals
+  return(r)
+  
+}
+
+
 calc_posterior_lodds <- function(output, x){
   
   n.samp <- nrow(output$samples.beta.ca)

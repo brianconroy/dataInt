@@ -38,21 +38,24 @@ groupings <- list(
   c('all_but_ds')
 )
 
-us <- getData("GADM", country="USA", level=2)
-ca <- us[us$NAME_1 == 'California',]
-
 #### risk maps for single species views
-
 for (species in groupings){
   
-  r_risk_high <- calc_risk_cdph(species, rodents, caPr.disc, all_ids)
-  plot(r_risk_high)
-  # fname <- paste("risk_map_", analysis_name, ".png", sep="")
-  # png(paste(dst, fname, sep=""),
-  #     width=900, height=700, res=50)
-  # plot(r_risk_high)
-  # plot(ca, add=T)
-  # dev.off()
+  results <- calc_risk_cdph(species, rodents, caPr.disc, all_ids)
+  plot(results$r_risk_high, main=species)
+  
+  #### Figure: risk map with cases overlayed
+  if (paste(species, collapse="") == 'all_but_ds'){
+    all_species <- unique(rodents$Short_Name)
+    species_group <- as.character(all_species[all_species != 'Pine Squirrel'])
+    rodents_species <- rodents[rodents$Short_Name %in% species_group,]
+  } else {
+    rodents_species <- rodents[rodents$Short_Name %in% species,]
+  }
+  plot_risk_overlay(results, rodents_species)
+  
+  #### Figure: covariate contribution to log odds, random field contribution to log odds
+  plot_cov_vs_w(results, caPr)
   
 }
 
@@ -68,11 +71,6 @@ for (s in 1:5){
 }
 
 
-
-
-
-
-
 #### risk maps for species comparisons, on the same scale
 plot(calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids))
 plot(calc_risk_cdph('GM G Sq', rodents, caPr.disc, all_ids))
@@ -82,20 +80,29 @@ plot(calc_risk_cdph('GM G Sq', rodents, caPr.disc, all_ids))
 r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids)
 r_risk_lp <- calc_risk_cdph('Chipmunk, LP', rodents, caPr.disc, all_ids)
 r_risk_s <- calc_risk_cdph('Chipmunk, S', rodents, caPr.disc, all_ids)
-r_risk_m <- calc_risk_cdph('Chipmunk, M', rodents, caPr.disc, all_ids)
+# r_risk_m <- calc_risk_cdph('Chipmunk, M', rodents, caPr.disc, all_ids)
 
-plot(r_risk_yp)
-plot(r_risk_s)
-plot(r_risk_m)
-plot(r_risk_lp)
+plot(r_risk_yp$r_risk_high)
+plot(r_risk_s$r_risk_high)
+plot(r_risk_lp$r_risk_high)
 
-r_list <- list(r_risk_yp, r_risk_lp, r_risk_s, r_risk_m)
-r_list_new <- equalize_scales2(r_list)
-plot(r_list_new[[1]])
-plot(r_list_new[[2]])
-plot(r_list_new[[3]])
-plot(r_list_new[[4]])
+r_list <- list(r_risk_yp, r_risk_lp, r_risk_s)
+r_list_new <- equalize_scales3(r_list)
 
+plot(r_list_new[[1]]$r_risk_high)
+rodents_species <- rodents[rodents$Short_Name == 'Chipmunk, YP',]
+plot_risk_overlay(r_list_new[[1]], rodents_species)
+plot_cov_vs_w(r_list_new[[1]], caPr)
+
+plot(r_list_new[[2]]$r_risk_high)
+rodents_species <- rodents[rodents$Short_Name == 'Chipmunk, LP',]
+plot_risk_overlay(r_list_new[[2]], rodents_species)
+plot_cov_vs_w(r_list_new[[2]], caPr)
+
+plot(r_list_new[[3]]$r_risk_high)
+rodents_species <- rodents[rodents$Short_Name == 'Chipmunk, S',]
+plot_risk_overlay(r_list_new[[3]], rodents_species)
+plot_cov_vs_w(r_list_new[[3]], caPr)
 
 #### CA GS and T Amoenus together and separately
 r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids)

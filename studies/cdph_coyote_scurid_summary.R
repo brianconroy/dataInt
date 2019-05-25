@@ -27,6 +27,12 @@ analysis_name <- "cdph_coyote_scurid"
 outputs <- load_sim_outputs(tag=analysis_name)
 data <- load_output(paste(analysis_name, '_data.json', sep=''))
 
+
+###################
+# Figure: PRISM pcs
+###################
+
+
 par(mfrow=c(1,2))
 plot(caPr[[1]], main='A)')
 plot(caPr[[2]], main='B)')
@@ -72,6 +78,7 @@ save_output(o_mvgp, paste(o_mvgp$description, ".json", sep=""))
 ###################
 
 
+o_mvgp <- get_output_general(outputs, tag=paste(analysis_name, 'mvgp', sep="_"))
 lodds_rodent_mvgp <- calc_lodds_mvgp(o_mvgp, data, 1, agg_factor=6)
 lodds_coyote_mvgp <- calc_lodds_mvgp(o_mvgp, data, 2, agg_factor=6)
 risk_rodent_mvgp <- calc_risk(lodds_rodent_mvgp)
@@ -118,6 +125,86 @@ plot(r_c_ds)
 
 # sciurid MVGP risk map
 plot(r_r_ds)
+
+# risk maps with cases overlayed
+src <- "/Users/brianconroy/Documents/research/cdph/data/"
+rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
+coyotes <- read.csv(paste(src, "CDPH_coyote_recoded_full.csv", sep=""), header=T, sep=",")
+
+# coyotes
+c_cases <- coyotes[coyotes$Res == 'POS',]
+c_coords <- cbind(c_cases$Long_QC, c_cases$Lat_QC)
+c_ctrls <- coyotes[coyotes$Res == 'NEG',]
+c_coords_ctrl <- cbind(c_ctrls$Long_QC, c_ctrls$Lat_QC)
+plot(r_c_ds)
+points(c_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
+points(c_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+
+# rodents
+r_cases <- rodents[rodents$Res == 'POS',]
+r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
+r_ctrls <- rodents[rodents$Res == 'NEG',]
+r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
+plot(r_r_ds)
+points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
+points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+
+# covariate contribution to log odds, random field contribution to log odds
+# rodents
+X_high <- load_x_ca()
+cov_rodent <- X_high %*% beta.ca.hat1 - X_high %*% beta.co.hat1
+w_rodent <- alpha.ca.hat1 * w.hat_ds1 - alpha.co.hat1 * w.hat_ds1
+r_cov_rodent <- caPr[[1]]
+r_cov_rodent[][!is.na(r_cov_rodent[])] <- cov_rodent
+r_w_rodent <- caPr[[1]]
+r_w_rodent[][!is.na(r_w_rodent[])] <- w_rodent
+par(mfrow=c(1,2))
+plot(r_cov_rodent, main='A)')
+pal <- colorRampPalette(c("blue","red"))
+plot(r_w_rodent, main='B)', col=pal(20))
+summary(w_rodent[])
+
+# coyotes
+X_high <- load_x_ca()
+cov_coyote <- X_high %*% beta.ca.hat2 - X_high %*% beta.co.hat2
+w_coyote <- alpha.ca.hat2 * w.hat_ds2 - alpha.co.hat2 * w.hat_ds2
+r_cov_coyote <- caPr[[1]]
+r_cov_coyote[][!is.na(r_cov_coyote[])] <- cov_coyote
+r_w_coyote <- caPr[[1]]
+r_w_coyote[][!is.na(r_w_coyote[])] <- w_coyote
+par(mfrow=c(1,2))
+plot(r_cov_coyote, main='A)')
+pal <- colorRampPalette(c("blue","red"))
+plot(r_w_coyote, main='B)', col=pal(20))
+
+
+#########################
+# Table: Alpha estimates
+#########################
+
+
+a_params <- list()
+a_params[[1]] <- list(
+  Parameter="Alpha (Case, Rodents)",
+  Estimate=round(mean(o_mvgp$samples.alpha.ca[1,,1]), 3),
+  Variance=round(var(o_mvgp$samples.alpha.ca[1,,1]), 3)
+)
+a_params[[2]] <- list(
+  Parameter="Alpha (Control, Rodents)",
+  Estimate=round(mean(o_mvgp$samples.alpha.co[1,,1]), 3),
+  Variance=round(var(o_mvgp$samples.alpha.co[1,,1]), 4)
+)
+a_params[[3]] <- list(
+  Parameter="Alpha (Case, Coyotes)",
+  Estimate=round(mean(o_mvgp$samples.alpha.ca[2,,1]), 3),
+  Variance=round(var(o_mvgp$samples.alpha.ca[2,,1]), 3)
+)
+a_params[[4]] <- list(
+  Parameter="Alpha (Control, Coyotes)",
+  Estimate=round(mean(o_mvgp$samples.alpha.co[2,,1]), 3),
+  Variance=round(var(o_mvgp$samples.alpha.co[2,,1]), 4)
+)
+write_latex_table(ldply(a_params, 'data.frame'), "cdph_mvgp_alpha_params.txt", path=dst)
 
 
 ##########################
