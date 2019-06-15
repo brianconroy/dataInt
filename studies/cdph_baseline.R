@@ -4,7 +4,7 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-caPr <- load_prism_pcs()
+caPr <- load_prism_pcs2()
 caPr.disc <- aggregate(caPr, fact=5)
 N <- n_values(caPr.disc[[1]])
 plot(caPr.disc)
@@ -90,18 +90,21 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 # fit model
 ###########
 
+prior_theta <- c(1.136, 3)
+prior_phi <- c(28.5, 500)
+
 # W initial value
-# w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
-#                       prior_phi=prior_phi, prior_theta=prior_theta,
-#                       proposal.sd.theta=0.20)
-# w_output$accept
-# view_tr_w(w_output$samples.w)
-# view_tr(w_output$samples.theta)
-# view_tr(w_output$samples.phi)
-# 
-# hist(colMeans(w_output$samples.w))
-# save_output(w_output, "w_inival_output_cdph.json")
-w_output <- load_output("w_inival_output_cdph.json")
+w_output <- logisticGp(y=locs$status, d, n.sample=1000, burnin=500, L=10,
+                      prior_phi=prior_phi, prior_theta=prior_theta,
+                      proposal.sd.theta=0.20)
+w_output$accept
+view_tr_w(w_output$samples.w)
+view_tr(w_output$samples.theta)
+view_tr(w_output$samples.phi)
+
+hist(colMeans(w_output$samples.w))
+save_output(w_output, "w_inival_output_cdph.json")
+# w_output <- load_output("w_inival_output_cdph.json")
 
 w_i <- colMeans(w_output$samples.w)
 theta_i <- mean(w_output$samples.theta)
@@ -120,9 +123,6 @@ beta_co_i <- coefficients(ini_ctrl)[1:3]
 # iterate_g_variance(theta_i, 1, 15)
 # iterate_ig_variance(phi_i, 400, 500)
 
-prior_theta <- c(1.136, 3)
-prior_phi <- c(28.5, 500)
-
 g_var(1.136, 3)
 ig_var(28.5, 500)
 
@@ -131,7 +131,7 @@ prior_alpha_co_mean <- 0
 prior_alpha_ca_var <- 6
 prior_alpha_co_var <- 6
 
-n.sample <- 4000
+n.sample <- 1000 # 4000
 burnin <- 500
 L_w <- 8
 L_ca <- 8
@@ -146,27 +146,32 @@ m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
-output <- prefSampleGpCC(data, n.sample, burnin,
-                             L_w, L_ca, L_co, L_a_ca, L_a_co,
-                             proposal.sd.theta=proposal.sd.theta,
-                             m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
-                             target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
-                             self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
-                             delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
-                             beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
-                             theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
-                             prior_phi=prior_phi, prior_theta=prior_theta,
-                             prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+output <- prefSampleGpCC(data, d, n.sample, burnin,
+                         L_w, L_ca, L_co, L_a_ca, L_a_co,
+                         proposal.sd.theta=proposal.sd.theta,
+                         m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                         target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                         self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                         delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                         beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                         theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                         prior_phi=prior_phi, prior_theta=prior_theta,
+                         prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
-output <- burnin_after(output, n.burn=200)
+print(output$accept)
 
-output <- continueMCMC(data, output, n.sample=3000)
+output <- burnin_after(output, n.burn=500)
+
+output <- continueMCMC(data, d, output, n.sample=6000)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
 
 view_tr(output$samples.alpha.ca)
 view_tr(output$samples.alpha.co)
+
+mean(output$samples.alpha.ca)
+mean(output$samples.alpha.co)
 
 par(mfrow=c(2,3))
 view_tr(output$samples.beta.ca[,1])
@@ -242,8 +247,8 @@ X.co <- ctrl.data$x.standardised
 Y.co <- ctrl.data$y
 d.sub <- d[as.logical(locs$status), as.logical(locs$status)]
 
-n.sample__ <- 8000
-burnin__ <- 500
+n.sample__ <- 10000
+burnin__ <- 1000
 L_w__ <- 8
 L_b__ <- 8
 

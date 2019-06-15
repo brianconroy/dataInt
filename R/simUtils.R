@@ -1319,6 +1319,29 @@ load_x_standard <- function(location_indicators, agg_factor=8){
 }
 
 
+load_x_standard2 <- function(location_indicators, agg_factor=8){
+  
+  caPr <- load_prism_pcs2()
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  
+  x_1 <- caPr.disc[[1]][]
+  x_1 <- x_1[][!is.na(x_1[])]
+  x_2 <- caPr.disc[[2]][]
+  x_2 <- x_2[][!is.na(x_2[])]
+  mu_1 <- mean(x_1[location_indicators])
+  sd_1 <- sd(x_1[location_indicators])
+  mu_2 <- mean(x_2[location_indicators])
+  sd_2 <- sd(x_2[location_indicators])
+  
+  x_1_std <- (x_1 - mu_1)/sd_1
+  x_2_std <- (x_2 - mu_2)/sd_2
+  x_std <- array(1, c(length(x_1), 1))
+  x_std <- cbind(x_std, x_1_std, x_2_std)
+  return(x_std)
+  
+}
+
+
 load_x_ca <- function(factor=NULL){
   
   caPr <- load_prism_pcs()
@@ -1349,6 +1372,39 @@ load_x_ca <- function(factor=NULL){
   return(x_std)
   
 }
+
+
+load_x_ca2 <- function(factor=NULL){
+  
+  caPr <- load_prism_pcs2()
+  if (!is.null(factor)){
+    caPr <- aggregate(caPr, fact=factor)
+    x_1 <- caPr[[1]][]
+    x_1 <- x_1[][!is.na(x_1[])]
+    x_2 <- caPr.disc[[2]][]
+    x_2 <- x_2[][!is.na(x_2[])]
+  } else {
+    pc1 <- mask(caPr[[1]], caPr[[2]])
+    pc2 <- caPr[[2]]
+    x_1 <- pc1[]
+    x_1 <- x_1[][!is.na(x_1[])]
+    x_2 <- pc2[]
+    x_2 <- x_2[][!is.na(x_2[])]
+  }
+  
+  mu_1 <- mean(x_1)
+  sd_1 <- sd(x_1)
+  mu_2 <- mean(x_2)
+  sd_2 <- sd(x_2)
+  
+  x_1_std <- (x_1 - mu_1)/sd_1
+  x_2_std <- (x_2 - mu_2)/sd_2
+  x_std <- array(1, c(length(x_1), 1))
+  x_std <- cbind(x_std, x_1_std, x_2_std)
+  return(x_std)
+  
+}
+
 
 
 

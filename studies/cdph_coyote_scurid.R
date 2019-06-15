@@ -14,7 +14,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 analysis_name <- "cdph_coyote_scurid"
-caPr <- load_prism_pcs()
+caPr <- load_prism_pcs2()
 caPr.disc <- aggregate(caPr, fact=6)
 N <- n_values(caPr.disc[[1]])
 plot(caPr.disc)
@@ -161,7 +161,7 @@ output <- prefSampleMVGP(data, D, n.sample, burnin,
                          prior_phi, prior_theta, prior_alpha_ca_mean, prior_alpha_co_mean, prior_alpha_ca_var, prior_alpha_co_var,
                          prior_t)
 
-output <- continueMCMC_mvgp(data, D, output, n.sample=500)
+output <- continueMCMC_mvgp(data, D, output, n.sample=2500)
 
 output <- burnin_mvgp(output, n.burn=400)
 

@@ -285,6 +285,14 @@ load_prism_pcs <- function(){
 }
 
 
+load_prism_pcs2 <- function(){
+  
+  file <- "Documents/research/dataInt/data/prism_pcas_ca2.grd"
+  return(stack(file))
+  
+}
+
+
 #' summarize_param
 #'
 #' @param name parameter name

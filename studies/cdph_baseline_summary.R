@@ -14,8 +14,14 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 dst <- "/Users/brianconroy/Documents/research/project1/analysis/"
-caPr <- load_prism_pcs()
+caPr <- load_prism_pcs2()
 caPr.disc <- aggregate(caPr, fact=5)
+
+
+#### Figure: Prism PCAS
+plot(caPr)
+
+
 N <- n_values(caPr.disc[[1]])
 print(N)
 print(mean(area(caPr.disc[[1]])[]))
@@ -103,7 +109,7 @@ plot_traces_general(output)
 
 # parameter estimates
 params <- summarize_ps_params(output)
-ite_latex_table(params, 'cdph_baseline_params.txt', dst)
+write_latex_table(params, 'cdph_baseline_params.txt', dst)
 
 ###########
 # risk maps
@@ -120,7 +126,6 @@ par(mfrow=c(1,2))
 rw <- caPr.disc[[1]]
 rw[][!is.na(rw[])] <- w.hat
 plot(rw)
-plot(rw)
 points(locs$coords, col=1, pch=16)
 
 alpha.ca.hat <- mean(output$samples.alpha.ca)
@@ -129,7 +134,7 @@ beta.ca.hat <- colMeans(output$samples.beta.ca)
 beta.co.hat <- colMeans(output$samples.beta.co)
 
 # risk map (low resolution)
-X_low <- load_x_ca(factor=5)
+X_low <- load_x_ca2(factor=5)
 lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
 risk_low <- calc_risk(lodds_low)
 
@@ -142,7 +147,7 @@ r_risk_low[][!is.na(r_risk_low[])] <- risk_low
 plot(r_risk_low)
 
 # risk map (downscaled)
-X_high <- load_x_ca()
+X_high <- load_x_ca2()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
 risk_high <- calc_risk(lodds_high)
 
@@ -153,6 +158,8 @@ plot(r_lodds_high)
 r_risk_high <- caPr[[2]]
 r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
+summary(risk_high)
+
 
 #### Figure: low to high resolution risk map
 rescaled <- equalize_scales(r_risk_low, r_risk_high)
@@ -162,8 +169,6 @@ plot(rescaled[[2]], main='B)')
 
 
 #### Figure: risk map without county lines
-# pal <- colorRampPalette(c("blue","red"))
-# plot(r_risk_high, col=pal(15))
 plot(r_risk_high)
 
 
@@ -188,7 +193,7 @@ points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
 
 
 #### Figure: covariate contribution to log odds, random field contribution to log odds
-X_high <- load_x_ca()
+X_high <- load_x_ca2()
 cov_rodent <- X_high %*% beta.ca.hat - X_high %*% beta.co.hat
 w_rodent <- alpha.ca.hat * w.hat_ds - alpha.co.hat * w.hat_ds
 r_cov_rodent <- caPr[[1]]
@@ -219,7 +224,7 @@ w.hat_spco <- colMeans(output.sp_co$samples.w)
 beta_co_sp <- colMeans(output.sp_co$samples.beta)
 w_co_est <- combine_w(w.hat_spco, output_krige_co$mu.new, as.logical(locs$status))
 
-X_low <- load_x_ca(factor=5)
+X_low <- load_x_ca2(factor=5)
 lodds_low_sp <- X_low %*% beta_ca_sp + w_ca_est - X_low %*% beta_co_sp - w_co_est
 risk_low_sp <- calc_risk(lodds_low_sp)
 
@@ -230,7 +235,7 @@ plot(x=risk_low, y=risk_low_sp); abline(0, 1, col=2)
 w_ca_ds <- downscale(w_ca_est, caPr.disc, caPr)$w.hat_ds
 w_co_ds <- downscale(w_co_est, caPr.disc, caPr)$w.hat_ds
 
-X_high <- load_x_ca()
+X_high <- load_x_ca2()
 lodds_high_sp <- X_high %*% beta_ca_sp + w_ca_ds - X_high %*% beta_co_sp - w_co_ds
 risk_high_sp <- calc_risk(lodds_high_sp)
 
@@ -266,49 +271,37 @@ plot(r_lodds_high_p)
 r_risk_high_p <- caPr[[2]]
 r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
 
+par(mfrow=c(1,2))
+plot(r_risk_high)
+plot(r_risk_high_p)
+
+plot(x=risk_high_p, y=risk_high); abline(0,1,col=2)
+
 
 #########################
 # Compare the 3 risk maps
 #########################
 
 
+#### Figure: ps vs poisson risk map
 rescaled <- equalize_scales(r_risk_high, r_risk_high_p)
 r_risk_high_ <- rescaled[[1]]
 r_risk_high_p_ <- rescaled[[2]]
 
-
-#### Figure: ps vs poisson risk maps
 par(mfrow=c(1,2))
-plot(r_risk_high_)
-plot(r_risk_high_p_)
+plot(r_risk_high_, main='A)')
+plot(r_risk_high_p_, main='B)')
 
 
+#### Figure: ps vs spatial poisson risk map
 rescaled2 <- equalize_scales(r_risk_high, r_risk_high_sp)
 r_risk_high_2 <- rescaled2[[1]]
 r_risk_high_sp_ <- rescaled2[[2]]
 
 par(mfrow=c(1,2))
-plot(r_risk_high_2)
-plot(r_risk_high_sp_)
+plot(r_risk_high_2, main='A)')
+plot(r_risk_high_sp_, main='B)')
 
-
-# par(mfrow=c(1,2))
-# pal <- colorRampPalette(c("blue","red"))
-# plot(r_risk_high, main='A)',
-#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
-# plot(r_risk_high_p, main='B)', 
-#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
-
-
-plot(r_risk_high_sp, main='C)', 
-     breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
-
-brks <- seq(0, 0.51, by=0.03)
-par(mfrow=c(1,1))
-plot(r_risk_high, main='A)',
-     breaks=brks, col=pal(length(brks)-1))
-plot(r_risk_high_sp, main='B)', 
-     breaks=brks, col=pal(length(brks)-1))
 
 ##################
 # Compare per cell 
@@ -316,14 +309,14 @@ plot(r_risk_high_sp, main='B)',
 ##################
 
 par(mfrow=c(1,2))
-plot(x=risk_high, 
-     y=risk_high_p, main='A)', 
-     xlab='Risk (Preferential Sampling)',
-     ylab='Risk (Poisson)'); abline(0, 1, col=2)
-plot(x=risk_high, 
-     y=risk_high_sp, main='B)',
-     xlab='Risk (Preferential Sampling)',
-     ylab='Risk (Spatial Poisson)'); abline(0, 1, col=2)
+plot(y=risk_high, 
+     x=risk_high_p, main='A)', 
+     ylab='Risk (Preferential Sampling)',
+     xlab='Risk (Poisson)'); abline(0, 1, col=2)
+plot(y=risk_high, 
+     x=risk_high_sp, main='B)',
+     ylab='Risk (Preferential Sampling)',
+     xlab='Risk (Spatial Poisson)'); abline(0, 1, col=2)
 
 # summary table of risk differences
 r_diff <- abs(r_risk_high_p[][!is.na(r_risk_high_p[])] - r_risk_high[][!is.na(r_risk_high[])])
@@ -421,7 +414,7 @@ summary(abs_percs)
 ## Posterior variance map
 ##########################
 
-X_rodent <- load_x_standard(as.logical(data$loc$status), agg_factor=5)
+X_rodent <- load_x_standard2(as.logical(data$loc$status), agg_factor=5)
 risk_rodent_sep <- calc_posterior_risk(output, X_rodent)
 postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
 r <- caPr.disc[[1]]

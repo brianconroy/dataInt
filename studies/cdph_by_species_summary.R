@@ -125,10 +125,18 @@ writeRaster(
 #### Douglas squirrels together and separately
 r_risk_ds <- calc_risk_cdph('Pine Squirrel', rodents, caPr.disc, all_ids)
 r_risk_allbutds <- calc_risk_cdph('all_but_ds', rodents, caPr.disc, all_ids)
-r_list3 <- list(r_risk_ds, r_risk_allbutds)
-r_list_new3 <- equalize_scales2(r_list3)
+r_list3 <- list(r_risk_ds$r_risk_high, r_risk_allbutds$r_risk_high)
+r_list_new3 <- equalize_scales3(r_list3)
 plot(r_list_new3[[1]])
 plot(r_list_new3[[2]])
+
+
+
+
+plot(r_list_new3[[1]])
+rodents_species <- rodents[rodents$Short_Name == 'Pine Squirrel',]
+plot_risk_overlay(r_risk_ds, rodents_species)
+plot_cov_vs_w(r_risk_ds, caPr)
 
 writeRaster(
   r_list_new3[[2]], 

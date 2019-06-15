@@ -19,11 +19,15 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 # 'Chipmunk, LP': T. speciousus (Lodgepole)??
 # 'Chipmunk, S': T. senex??
 # 'Chipmunk, M': T. merriami??
+
 # species <- c('Chipmunk, LP')
-all_species <- unique(rodents$Short_Name)
-species <- as.character(all_species[all_species != 'Pine Squirrel'])
-# analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
-analysis_name <- 'analysis_all_but_ds'
+
+# all_species <- unique(rodents$Short_Name)
+# species <- as.character(all_species[all_species != 'Pine Squirrel'])
+# analysis_name <- 'analysis_all_but_ds'
+
+species <- c('GM G Sq')
+analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
 rodents <- rodents[rodents$Short_Name %in% species,]
 
 coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
@@ -160,7 +164,7 @@ m_ca <- 1000
 m_co <- 1000
 m_w <- 1000
 
-output <- prefSampleGpCC(data, n.sample, burnin,
+output <- prefSampleGpCC(data, d, n.sample, burnin,
                          L_w, L_ca, L_co, L_a_ca, L_a_co,
                          proposal.sd.theta=proposal.sd.theta,
                          m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
@@ -251,7 +255,7 @@ plot(r_risk_low)
 # high resolution
 X_high <- load_x_ca()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
-risk_high <- exp(lodds_high/(1-lodds_high))
+risk_high <- calc_risk(lodds_high)
 
 r_lodds_high <- caPr[[2]]
 r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
@@ -260,8 +264,7 @@ plot(r_lodds_high)
 r_risk_high <- caPr[[2]]
 r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
-pal <- colorRampPalette(c("blue","red"))
-plot(r_risk_high, col=pal(15))
+plot(r_risk_high)
 
 par(mfrow=c(1,2))
 plot(r_lodds_low)

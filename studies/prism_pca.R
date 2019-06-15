@@ -27,7 +27,7 @@ library(prism)
 
 
 # Download files
-options(prism.path="/Users/brianconroy/Documents/research/dataInt/data")
+options(prism.path="/Users/brianconroy/Documents/research/dataInt/data2")
 prism::get_prism_normals(type= "tmean"
                          ,resolution="4km"
                          ,annual = TRUE
@@ -85,13 +85,13 @@ reproj_vpdmax_rast <- raster::projectRaster(vpdmax_rast, crs = crs(crs_us))
 reproj_vpdmin_rast <- raster::projectRaster(vpdmin_rast, crs = crs(crs_us))
 
 # Scale Rasters by Range Transformation (can do other scaling)
-scaled_reproj_ppt_rast <- (reproj_ppt_rast-min(na.omit(reproj_ppt_rast@data@values)))/(max(na.omit(reproj_ppt_rast@data@values))-min(na.omit(reproj_ppt_rast@data@values)))
-scaled_reproj_tdmean_rast <- (reproj_tdmean_rast-min(na.omit(reproj_tdmean_rast@data@values)))/(max(na.omit(reproj_tdmean_rast@data@values))-min(na.omit(reproj_tdmean_rast@data@values)))
-scaled_reproj_tmax_rast <- (reproj_tmax_rast-min(na.omit(reproj_tmax_rast@data@values)))/(max(na.omit(reproj_tmax_rast@data@values))-min(na.omit(reproj_tmax_rast@data@values)))
-scaled_reproj_tmean_rast <- (reproj_tmean_rast-min(na.omit(reproj_tmean_rast@data@values)))/(max(na.omit(reproj_tmean_rast@data@values))-min(na.omit(reproj_tmean_rast@data@values)))
-scaled_reproj_tmin_rast <- (reproj_tmin_rast-min(na.omit(reproj_tmin_rast@data@values)))/(max(na.omit(reproj_tmin_rast@data@values))-min(na.omit(reproj_tmin_rast@data@values)))
-scaled_reproj_vpdmax_rast <- (reproj_vpdmax_rast-min(na.omit(reproj_vpdmax_rast@data@values)))/(max(na.omit(reproj_vpdmax_rast@data@values))-min(na.omit(reproj_vpdmax_rast@data@values)))
-scaled_reproj_vpdmin_rast <-(reproj_vpdmin_rast-min(na.omit(reproj_vpdmin_rast@data@values)))/(max(na.omit(reproj_vpdmin_rast@data@values))-min(na.omit(reproj_vpdmin_rast@data@values)))
+stand_reproj_ppt_rast <- (reproj_ppt_rast-min(na.omit(reproj_ppt_rast@data@values)))/(max(na.omit(reproj_ppt_rast@data@values))-min(na.omit(reproj_ppt_rast@data@values)))
+stand_reproj_tdmean_rast <- (reproj_tdmean_rast-min(na.omit(reproj_tdmean_rast@data@values)))/(max(na.omit(reproj_tdmean_rast@data@values))-min(na.omit(reproj_tdmean_rast@data@values)))
+stand_reproj_tmax_rast <- (reproj_tmax_rast-min(na.omit(reproj_tmax_rast@data@values)))/(max(na.omit(reproj_tmax_rast@data@values))-min(na.omit(reproj_tmax_rast@data@values)))
+stand_reproj_tmean_rast <- (reproj_tmean_rast-min(na.omit(reproj_tmean_rast@data@values)))/(max(na.omit(reproj_tmean_rast@data@values))-min(na.omit(reproj_tmean_rast@data@values)))
+stand_reproj_tmin_rast <- (reproj_tmin_rast-min(na.omit(reproj_tmin_rast@data@values)))/(max(na.omit(reproj_tmin_rast@data@values))-min(na.omit(reproj_tmin_rast@data@values)))
+stand_reproj_vpdmax_rast <- (reproj_vpdmax_rast-min(na.omit(reproj_vpdmax_rast@data@values)))/(max(na.omit(reproj_vpdmax_rast@data@values))-min(na.omit(reproj_vpdmax_rast@data@values)))
+stand_reproj_vpdmin_rast <-(reproj_vpdmin_rast-min(na.omit(reproj_vpdmin_rast@data@values)))/(max(na.omit(reproj_vpdmin_rast@data@values))-min(na.omit(reproj_vpdmin_rast@data@values)))
 
 ### Principal Component Analysis
 # Raster Stack for PCA
@@ -135,7 +135,49 @@ plot(ca_pc2)
 ca_pcs <- stack(ca_pc1, ca_pc2)
 
 writeRaster(ca_pcs,
-            file="Documents/research/dataInt/data/prism_pcas_ca.grd", 
+            file="Documents/research/dataInt/data/prism_pcas_ca2.grd", 
             bandorder='BIL',
             overwrite=TRUE)
 
+
+
+grDevices::pdf(file = "ca_pca.pdf", width = 7, height = 5)
+par(mfrow = c(1,2), mai = c(0.3, 0.1, 0.3, 0.1))
+# PC1
+raster::plot(mask_pc1, ext = ca_buffer, axes = F, box = F,
+             horizontal = TRUE, zlim = c(mask_pc2@data@min,mask_pc1@data@max),
+             legend.width=1, legend.shrink=0.7,
+             legend.args=list(text='coefficient', side=1, font=2, 
+                              line=-2.5, cex=0.8
+             ),
+             axis.args = list(labels = c(round(mask_pc2@data@min, digits = 2),
+                                         -0.5,0.0,0.5,
+                                         round(mask_pc1@data@max, digits = 1)
+             ),
+             at = c(mask_pc2@data@min,
+                    -0.5,0.0,0.5,
+                    mask_pc1@data@max
+             )
+             ),
+             main = "Principal component 1",
+             cex.main = 1
+)
+# PC2
+raster::plot(mask_pc2, ext = ca_buffer, axes = F, box = F,
+             horizontal = TRUE, zlim = c(mask_pc2@data@min,mask_pc1@data@max),
+             legend.args=list(text='coefficient', side=1, font=2, 
+                              line=-2.5, cex=0.8
+             ),
+             axis.args = list(labels = c(round(mask_pc2@data@min, digits = 2),
+                                         -0.5,0.0,0.5,
+                                         round(mask_pc1@data@max, digits = 1)
+             ),
+             at = c(mask_pc2@data@min,
+                    -0.5,0.0,0.5,
+                    mask_pc1@data@max
+             )
+             ),
+             legend.width=1, legend.shrink=0.7,
+             main = "Principal component 2",
+             cex.main = 1)
+dev.off()
