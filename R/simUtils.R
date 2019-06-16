@@ -249,10 +249,45 @@ calc_log_odds_species <- function(output, data, species, agg_factor){
 }
 
 
+calc_log_odds_species2 <- function(output, data, species, agg_factor){
+  
+  location_indicators <- as.logical(data$locs$status[[species]])
+  x_standard <- load_x_standard2(location_indicators, agg_factor)
+  
+  w.hat <- colMeans(output$samples.w)
+  beta_ca_h <- colMeans(output$samples.beta.ca)
+  beta_co_h <- colMeans(output$samples.beta.co)
+  alpha_ca_h <- mean(output$samples.alpha.ca)
+  alpha_co_h <- mean(output$samples.alpha.co)
+  
+  lodds.ps <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds.ps)
+  
+}
+
+
 calc_lodds_mvgp <- function(output, data, species, agg_factor){
   
   location_indicators <- as.logical(data$locs$status[[species]])
   x_standard <- load_x_standard(location_indicators, agg_factor)
+  
+  w.hat <- colMeans(output$samples.w)
+  w.hat <- w.hat[seq(species, length(w.hat), 2)]
+  beta_ca_h <- colMeans(output$samples.beta.ca[species,,])
+  beta_co_h <- colMeans(output$samples.beta.co[species,,])
+  alpha_ca_h <- mean(output$samples.alpha.ca[species,,])
+  alpha_co_h <- mean(output$samples.alpha.co[species,,])
+  
+  lodds <- x_standard %*% beta_ca_h + alpha_ca_h * w.hat - x_standard %*% beta_co_h - alpha_co_h * w.hat
+  return(lodds)
+  
+}
+
+
+calc_lodds_mvgp2 <- function(output, data, species, agg_factor){
+  
+  location_indicators <- as.logical(data$locs$status[[species]])
+  x_standard <- load_x_standard2(location_indicators, agg_factor)
   
   w.hat <- colMeans(output$samples.w)
   w.hat <- w.hat[seq(species, length(w.hat), 2)]

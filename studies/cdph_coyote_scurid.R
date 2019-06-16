@@ -163,7 +163,7 @@ output <- prefSampleMVGP(data, D, n.sample, burnin,
 
 output <- continueMCMC_mvgp(data, D, output, n.sample=2500)
 
-output <- burnin_mvgp(output, n.burn=400)
+output <- burnin_mvgp(output, n.burn=500)
 
 print(output$accept)
 
@@ -229,8 +229,8 @@ prior_alpha_co_mean <- 0
 prior_alpha_ca_var <- 6
 prior_alpha_co_var <- 6
 
-n.sample <- 4000
-burnin <- 500
+n.sample <- 5000
+burnin <- 1000
 L_w <- 8
 L_ca <- 8
 L_co <- 8
@@ -332,8 +332,8 @@ prior_alpha_co_mean <- 0
 prior_alpha_ca_var <- 6
 prior_alpha_co_var <- 6
 
-n.sample <- 4000
-burnin <- 500
+n.sample <- 5000
+burnin <- 1000
 L_w <- 8
 L_ca <- 8
 L_co <- 8

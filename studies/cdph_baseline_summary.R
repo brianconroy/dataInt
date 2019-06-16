@@ -292,6 +292,12 @@ par(mfrow=c(1,2))
 plot(r_risk_high_, main='A)')
 plot(r_risk_high_p_, main='B)')
 
+diff <- risk_high - risk_high_p
+diff <- 5 * (diff > 0)
+r_diff <- r_risk_high_p
+r_diff[][!is.na(r_diff[])] <- diff
+plot(r_diff)
+
 
 #### Figure: ps vs spatial poisson risk map
 rescaled2 <- equalize_scales(r_risk_high, r_risk_high_sp)
