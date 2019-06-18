@@ -1,5 +1,65 @@
 
 
+# rewrites get_prism_annual (prism package) 
+# to include all possible types.
+# old version excludes "vpdmin", "vpdmax", "tdmean". 
+get_prism_annual_new <- function (type, years = NULL, keepZip = TRUE)
+{
+  type <- match.arg(type, c("ppt", "tmean", "tmin", "tmax", 
+                            "all", "vpdmin", "vpdmax", "tdmean"))
+  path_check()
+  if (!is.numeric(years)) {
+    stop("You must enter a numeric year from 1895 onwards.")
+  }
+  if (any(years < 1895)) {
+    stop("You must enter a year from 1895 onwards.")
+  }
+  pre_1981 <- years[years < 1981]
+  post_1981 <- years[years > 1981]
+  uris_pre81 <- vector()
+  uris_post81 <- vector()
+  if (length(pre_1981)) {
+    uris_pre81 <- sapply(pre_1981, function(x) {
+      paste("http://services.nacse.org/prism/data/public/4km", 
+            type, x, sep = "/")
+    })
+  }
+  if (length(post_1981)) {
+    uris_post81 <- sapply(post_1981, function(x) {
+      paste("http://services.nacse.org/prism/data/public/4km", 
+            type, x, sep = "/")
+    })
+  }
+  download_pb <- txtProgressBar(min = 0, max = length(uris_post81) + 
+                                  length(uris_pre81), style = 3)
+  counter <- 0
+  if (length(uris_post81) > 0) {
+    for (i in 1:length(uris_post81)) {
+      prism_webservice(uris_post81[i], keepZip)
+      setTxtProgressBar(download_pb, i)
+    }
+  }
+  counter <- i + 1
+  if (length(uris_pre81) > 0) {
+    pre_files <- vector()
+    for (j in 1:length(uris_pre81)) {
+      pre_files[j] <- prism_webservice(uris_pre81[j], keepZip, 
+                                       returnName = T)
+      setTxtProgressBar(download_pb, counter)
+      counter <- counter + 1
+    }
+    pre_files <- unlist(strsplit(pre_files, "\\."))
+    pre_files <- pre_files[seq(1, length(pre_files), by = 2)]
+    for (k in 1:length(pre_files)) {
+      to_split <- gsub(pattern = "_all", replacement = "", 
+                       x = pre_files[k])
+      process_zip(pre_files[k], to_split)
+    }
+  }
+  close(download_pb)
+}
+
+
 add_floor <- function(r){
   
   rvals <- r[][!is.na(r[])]

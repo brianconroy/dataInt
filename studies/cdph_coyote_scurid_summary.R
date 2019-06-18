@@ -118,15 +118,8 @@ beta.ca.hat2 <- colMeans(o_mvgp$samples.beta.ca[2,,])
 beta.co.hat1 <- colMeans(o_mvgp$samples.beta.co[1,,])
 beta.co.hat2 <- colMeans(o_mvgp$samples.beta.co[2,,])
 
-
-calc_risk_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
-  
-  X_high <- load_x_ca2()
-  lodds_high <- X_high %*% beta.ca + alpha.ca * w.hat_ds - X_high %*% beta.co - alpha.co * w.hat_ds
-  risk_high <- calc_risk(lodds_high)
-  return(risk_high)
-  
-}
+lodds_rodent_ds <- calc_lodds_ds(alpha.ca.hat1, alpha.co.hat1, beta.ca.hat1, beta.co.hat1, w.hat_ds1)
+lodds_coyote_ds <- calc_lodds_ds(alpha.ca.hat2, alpha.co.hat2, beta.ca.hat2, beta.co.hat2, w.hat_ds2)
 
 risk_rodent_ds <- calc_risk_ds(alpha.ca.hat1, alpha.co.hat1, beta.ca.hat1, beta.co.hat1, w.hat_ds1)
 risk_coyote_ds <- calc_risk_ds(alpha.ca.hat2, alpha.co.hat2, beta.ca.hat2, beta.co.hat2, w.hat_ds2)
@@ -279,7 +272,7 @@ write_latex_table(ldply(t_params, 'data.frame'), "cdph_mvgp_t_params.txt", path=
 
 
 #########
-# Figure: compare log odds
+# Figure: compare log odds (not downscaled)
 #########
 
 
@@ -301,7 +294,7 @@ summary(lodds_rodent_mvgp-lodds_rodent_sep)
 
 
 #########
-# Figure: Compare Risk
+# Figure: Compare Risk (not downscaled)
 #########
 
 
@@ -368,6 +361,7 @@ summary(postvar_lodds_coyote_mvgp)
 # Posterior risk variance
 #########################
 
+
 X_rodent <- load_x_standard2(as.logical(data$locs$status[[1]]), agg_factor=6)
 X_coyote <- load_x_standard2(as.logical(data$locs$status[[2]]), agg_factor=6)
 risk_rodent_sep <- calc_posterior_risk(o_rodent_sep, X_rodent)
@@ -428,6 +422,9 @@ alpha.co.hat_c <- mean(o_coyote_sep$samples.alpha.co)
 beta.ca.hat_c <- colMeans(o_coyote_sep$samples.beta.ca)
 beta.co.hat_c <- colMeans(o_coyote_sep$samples.beta.co)
 
+lodds_rodent_ds_sep <- calc_lodds_ds(alpha.ca.hat_r, alpha.co.hat_r, beta.ca.hat_r, beta.co.hat_r, w.hat_r_sep_ds)
+lodds_coyote_ds_sep <- calc_lodds_ds(alpha.ca.hat_c, alpha.co.hat_c, beta.ca.hat_c, beta.co.hat_c, w.hat_c_sep_ds)
+
 risk_rodent_ds_sep <- calc_risk_ds(alpha.ca.hat_r, alpha.co.hat_r, beta.ca.hat_r, beta.co.hat_r, w.hat_r_sep_ds)
 risk_coyote_ds_sep <- calc_risk_ds(alpha.ca.hat_c, alpha.co.hat_c, beta.ca.hat_c, beta.co.hat_c, w.hat_c_sep_ds)
 
@@ -435,6 +432,38 @@ r_r_ds_sep <- caPr[[1]]
 r_r_ds_sep[][!is.na(r_r_ds_sep[])] <- risk_rodent_ds_sep
 r_c_ds_sep <- caPr[[1]]
 r_c_ds_sep[][!is.na(r_c_ds_sep[])] <- risk_coyote_ds_sep
+
+
+
+
+#########
+# Figure: ds lodds comparisons
+#########
+
+
+par(mfrow=c(1,2))
+plot(y=lodds_rodent_ds, x=lodds_rodent_ds_sep, ylab='Log Odds (MVGP)', xlab='Log Odds (separate)', main='A)'); abline(0,1,col=2)
+plot(y=lodds_coyote_ds, x=lodds_coyote_ds_sep, ylab='Log Odds (MVGP)', xlab='Log Odds (separate)', main='B)'); abline(0,1,col=2)
+
+
+summary(lodds_coyote_ds - lodds_coyote_ds_sep)
+summary(lodds_rodent_ds - lodds_rodent_ds_sep)
+
+
+#########
+# Figure: ds risk comparisons
+#########
+
+
+par(mfrow=c(1,2))
+plot(y=risk_rodent_ds, x=risk_rodent_ds_sep, ylab='Risk (MVGP)', xlab='Risk (separate)', main='A)'); abline(0,1,col=2)
+plot(y=risk_coyote_ds, x=risk_coyote_ds_sep, ylab='Risk (MVGP)', xlab='Risk (separate)', main='B)'); abline(0,1,col=2)
+
+
+summary(risk_coyote_ds - risk_coyote_ds_sep)
+summary(risk_rodent_ds - risk_rodent_ds_sep)
+
+summary(100*(risk_rodent_ds - risk_rodent_ds_sep)/risk_rodent_ds)
 
 
 #### Coyote risk map comparison: mvgp vs ps

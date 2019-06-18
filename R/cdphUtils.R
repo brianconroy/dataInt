@@ -1,5 +1,24 @@
 
 
+calc_lodds_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
+  
+  X_high <- load_x_ca2()
+  lodds_high <- X_high %*% beta.ca + alpha.ca * w.hat_ds - X_high %*% beta.co - alpha.co * w.hat_ds
+  return(lodds_high)
+  
+}
+
+
+calc_risk_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
+  
+  X_high <- load_x_ca2()
+  lodds_high <- X_high %*% beta.ca + alpha.ca * w.hat_ds - X_high %*% beta.co - alpha.co * w.hat_ds
+  risk_high <- calc_risk(lodds_high)
+  return(risk_high)
+  
+}
+
+
 plot_risk_overlay <- function(results, rodents_species){
   
   plot(results$r_risk_high)

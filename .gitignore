@@ -6,3 +6,5 @@ data/*
 figs/*
 output/*
 .DS_Store
+data2/*
+data_time/*
