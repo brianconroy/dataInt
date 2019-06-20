@@ -353,6 +353,14 @@ load_prism_pcs2 <- function(){
 }
 
 
+load_prism_pcs_time <- function(year){
+  
+  file <- paste("Documents/research/dataInt/data_time/prism_pcas_ca_", year, ".grd", sep="")
+  return(stack(file))
+  
+}
+
+
 #' summarize_param
 #'
 #' @param name parameter name

@@ -627,7 +627,7 @@ simConditionalGp <- function(r, loc.stats, beta, beta.samp, alpha, global.center
 }
 
 
-simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE, seed=NULL, offset=1){
+simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, center=TRUE, global.center=FALSE, seed=NULL, offset=1){
   
   
   # extract covariate values at survey locations
@@ -640,9 +640,12 @@ simConditionalGp2 <- function(r, loc.stats, beta, alpha, w, global.center=FALSE,
       vals <- values(r[[i]])[!is.na(values(r[[i]]))]
       mu <- mean(vals)
       sdev <- sd(vals) 
-    } else {
+    } else if (center){
       mu <- mean(x.i)
       sdev <- sd(x.i)
+    } else{
+      mu <- 0
+      sdev <- 1
     }
     x.i.standard <- (x.i - mu)/sdev
     x <- cbind(x, x.i)
