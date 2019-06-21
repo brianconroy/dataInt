@@ -241,65 +241,6 @@ alphaHmcUpdateTemporal <- function(count.data_time, locs_time, w, u, beta, alpha
 }
 
 
-initialize_tuning <- function(m, target){
-  return(list(
-    M_adapt=m,
-    delta_curr=0.05,
-    delta_bar=1,
-    delta_tar=target,
-    mu=log(10*0.05),
-    HbarM=0,
-    gamma=0.05,
-    t0=10,
-    kappa=0.75,
-    reject_streak=0
-  ))
-}
-
-
-update_tuning <- function(tuning, a, i, accepted){
-  
-  if (accepted){
-    tuning$reject_streak <- 0
-  } else{
-    tuning$reject_streak <- tuning$reject_streak + 1
-  }
-  
-  if (i <= tuning$M_adapt){
-    
-    delta_tar <- tuning$delta_tar
-    delta_bar <- tuning$delta_bar
-    HbarM <- tuning$HbarM
-    gamma <- tuning$gamma
-    mu <- tuning$mu
-    kappa <- tuning$kappa
-    t0 <- tuning$t0
-    
-    HbarM <- (1 - 1/(i + t0)) * HbarM + (1/(i + t0)) * (delta_tar - a)
-    log_delta_curr <- mu - (sqrt(i)/gamma) * HbarM
-    log_delta_bar <- i^{-kappa} * log_delta_curr + (1 - i^{-kappa}) * log(delta_bar)
-    delta_curr <- exp(log_delta_curr)
-    delta_bar <- exp(log_delta_bar)
-    
-    tuning$delta_bar <- delta_bar
-    tuning$HbarM <- HbarM
-    tuning$delta_curr <- delta_curr
-    
-  } else{
-    
-    tuning$delta_curr <- tuning$delta_bar
-    if (tuning$reject_streak > 1000) {
-      tuning$delta_curr <- 0.90 * tuning$delta_curr
-      tuning$delta_bar <- 0.90 * tuning$delta_bar
-    }
-    
-  }
-  
-  return(tuning)
-  
-}
-
-
 Uw_time <- function(case.data_time, ctrl.data_time, locs_time, alpha.ca, beta.ca, alpha.co, beta.co, w, u, sigma, offset){
   
   logd <- 0
@@ -433,5 +374,132 @@ wHmcUpdateTemporal <- function(case.data_time, ctrl.data_time, locs_time, alpha.
   out$accept <- accept
   out$a <- alpha
   return(out)
+  
+}
+
+
+uHmcUpdate <- function(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, u_t, delta, L, prior_u_mean, prior_u_var){
+  
+  # sample random momentum
+  p0 <- rnorm(1)
+  
+  # simulate Hamiltonian dynamics
+  ucurr <- u_t
+  pStar <- p0 - 0.5 * delta * dU_u_time(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, ucurr, prior_u_mean, prior_u_var)
+  
+  # first full step for position
+  uStar <- ucurr + delta*pStar
+  
+  # full steps
+  for (jL in 1:c(L-1)){
+    # momentum
+    pStar <- pStar - delta * dU_u_time(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, uStar, prior_u_mean, prior_u_var)
+    
+    # position
+    uStar <- uStar + delta*pStar
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta * dU_u_time(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, uStar, prior_u_mean, prior_u_var)
+  
+  # evaluate energies
+  U0 <- Uu_time(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, ucurr, prior_u_mean, prior_u_var)
+  UStar <- Uu_time(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, uStar, prior_u_mean, prior_u_var)
+  
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  alpha <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  if (is.na(alpha)){
+    alpha <- 0
+  }
+  
+  if (runif(1, 0, 1) < alpha){
+    wnext <- uStar
+    accept <- 1
+  } else {
+    wnext <- ucurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$u <- wnext
+  out$accept <- accept
+  out$a <- alpha
+  return(out)
+  
+}
+
+
+dU_u_time <- function(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, u_t, prior_u_mean, prior_u_var){
+  
+  grad <- 0
+  
+  y.l_t <- locs_t$status
+  x.t <- case.data_t$x
+  
+  # location contribution
+  for (i in 1:length(w)){
+    grad <- grad + y.l_t[i] - expit(w[i] + u_t)
+  }
+  
+  # case contribution
+  y.ca_t <- case.data_t$y
+  lin.count <- x.t %*% beta.ca
+  for (i in 1:length(locs_t$ids)){
+    id.i <- locs_t$ids[i]
+    grad <- grad + alpha.ca * (y.ca_t[i] - exp(lin.count[i] + alpha.ca * (w[id.i] + u_t)))
+  }
+
+  # control contribution
+  y.co_t <- ctrl.data_t$y
+  lin.count <- x.t %*% beta.co
+  for (i in 1:length(locs_t$ids)){
+    id.i <- locs_t$ids[i]
+    grad <- grad + alpha.co * (y.co_t[i] - exp(lin.count[i] + alpha.co * (w[id.i] + u_t)))
+  }
+  
+  # prior contribution
+  grad <- grad - (u_t - prior_u_mean)/prior_u_var
+  
+  return(-grad)
+  
+}
+
+
+Uu_time <- function(case.data_t, ctrl.data_t, locs_t, alpha.ca, beta.ca, alpha.co, beta.co, w, u_t, prior_u_mean, prior_u_var){
+  
+  logd <- 0
+    
+  # likelihood: locations
+  loc_pred <- w + u_t
+  y.l_t <- locs_t$status
+  for (i in 1:length(y.l_t)){
+    logd <- logd + dbinom(y.l_t[i], size=1, prob=expit(loc_pred[i]), log=T)
+  }
+  
+  # # # likelihood: case counts
+  y.ca_t <- case.data_t$y
+  x.t <- case.data_t$x
+  w.sub.t <- w[as.logical(locs_t$status)]
+  count_pred <- x.t %*% beta.ca + alpha.ca * (w.sub.t + u_t)
+  rates <- exp(count_pred)
+  for (i in 1:length(y.ca_t)){
+    logd <- logd + dpois(y.ca_t[i], lambda=rates[i], log=T)
+  }
+
+  # # # likelihood: control counts
+  y.co_t <- ctrl.data_t$y
+  count_pred <- x.t %*% beta.co + alpha.co * (w.sub.t + u_t)
+  rates <- exp(count_pred)
+  for (i in 1:length(y.co_t)){
+    logd <- logd + dpois(y.co_t[i], lambda=rates[i], log=T)
+  }
+  
+  # prior
+  logd <- logd + dnorm(u_t, prior_u_mean, prior_u_var, log=T)
+  
+  return(-logd)
   
 }

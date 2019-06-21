@@ -9,9 +9,9 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
                                delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, delta_u=NULL,
                                beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
                                theta_initial=NULL, phi_initial=NULL, w_initial=NULL, u_initial=NULL,
-                               prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var,
+                               prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var, prior_u_mean, prior_u_var,
                                offset=1){
-  
+
   
   ## setup
   case.data_time <- data$case.data
@@ -104,17 +104,20 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     co_tuning <- list(delta_curr=delta_co)
   }
   if (self_tune_u){
-    u_tuning <- initialize_tuning(m=m_u, target=target_u)
+    u_tuning <- list()
+    for (i in 1:N.t){
+      u_tuning[[i]] <- initialize_tuning(m=m_u, target=target_u)
+    }
   } else {
     u_tuning <- list(delta_curr=delta_u)
   }
   
   deltas_w <- c()
-  deltas_u <- c()
   deltas_ca <- c()
   deltas_co <- c()
   deltas_aca <- c()
   deltas_aco <- c()
+  deltas_u <- array(NA, c(n.sample, N.t))
   
   accept <- list(
     w=0,
@@ -122,7 +125,8 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     beta_co=0,
     alpha_ca=0,
     alpha_co=0,
-    u=rep(0, N.t)
+    u=rep(0, N.t),
+    theta=0
   )
   
   progressBar <- txtProgressBar(style = 3)
@@ -140,12 +144,12 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     ## sample from theta
     theta.out <- rangeMhUpdate(theta.i, as.numeric(w.i), d, phi.i, proposal.sd.theta, a=prior_theta[1], b=prior_theta[2])
     theta.i <- theta.out$theta
-
+    
     ## sample from phi
     R.i <- sigma.i/phi.i
     phi.i <- 1/rgamma(1, N.w/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
 
-    ## sample from beta.case
+    ## sample from beta case
     beta.out.ca <- betaHmcUpdateTemporal(case.data_time, locs_time, w.i, u.i, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca, offset=log_offset)
     beta.ca <- beta.out.ca$beta
 
@@ -154,7 +158,7 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
                                            a_ca_tuning$delta_curr, prior_alpha_ca_mean, prior_alpha_ca_var, L_a_ca, offset=log_offset)
     alpha.ca.i <- alpha.out.ca$alpha
     
-    ## sample from beta.ctrl
+    ## sample from beta control
     beta.out.co <- betaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, co_tuning$delta_curr, L_co, offset=log_offset)
     beta.co <- beta.out.co$beta
 
@@ -162,8 +166,22 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     alpha.out.co <- alphaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, a_co_tuning$delta_curr, prior_alpha_co_mean, prior_alpha_co_var, L_a_co, offset=log_offset)
     alpha.co.i <- alpha.out.co$alpha
     
+   
+    
     ## sample from u
-    ## here
+    u.accept <- rep(0, N.t)
+    u.alphas <- rep(0, N.t)
+    for(t in 1:N.t){
+      case.data_t <- case.data_time[[t]]
+      ctrl.data_t <- ctrl.data_time[[t]]
+      locs_t <- locs_time[[t]]
+      u_tuning_t <- u_tuning[[t]]
+      u_t <- u.i[t]
+      u.out.t <- uHmcUpdate(case.data_t, ctrl.data_t, locs_t, alpha.ca.i, beta.ca, alpha.co.i, beta.co, w.i, u_t, u_tuning_t$delta_curr, L_u, prior_u_mean, prior_u_var)
+      u.i[t] <- u.out.t$u
+      u.accept[t] <- u.out.t$accept
+      u.alphas[t] <- u.out.t$a
+    }
     
     if (i > burnin){
       
@@ -176,6 +194,7 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
       samples.theta[j,] <- theta.i
       samples.phi[j,] <- phi.i
       samples.w[j,] <- t(w.i)
+      samples.u[j,] <- u.i
       
       accept$w <- accept$w + w.out.i$accept
       accept$theta <- accept$theta + theta.out$accept
@@ -183,6 +202,7 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
       accept$beta_co <- accept$beta_co + beta.out.co$accept
       accept$alpha_ca <- accept$alpha_ca + alpha.out.ca$accept
       accept$alpha_co <- accept$alpha_co + alpha.out.co$accept
+      accept$u <- accept$u + u.accept
       
     }
     
@@ -206,6 +226,12 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
       co_tuning <- update_tuning(co_tuning, beta.out.co$a, i, beta.out.co$accept)
       deltas_co <- c(deltas_co, co_tuning$delta_curr)
     }
+    if (self_tune_u){
+      for (t in 1:N.t){
+        u_tuning[[t]] <- update_tuning(u_tuning[[t]], u.alphas[t], i, u.accept[t])
+        deltas_u[i,t] <- u_tuning[[t]]$delta_curr
+      }
+    }
     
     if(i %in% percentage.points){
       setTxtProgressBar(progressBar, i/n.sample)
@@ -213,7 +239,9 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     
   }
   
-  accept <- accept/n.keep
+  for (n in names(accept)){
+    accept[[n]] <- accept[[n]]/n.keep
+  }
   
   output <- list()
   output$accept <- accept
@@ -224,21 +252,26 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
   output$samples.theta <- samples.theta
   output$samples.phi <- samples.phi
   output$samples.w <- samples.w
+  output$samples.u <- samples.u
   output$deltas_w <- deltas_w
   output$deltas_aca <- deltas_aca
   output$deltas_aco <- deltas_aco
   output$deltas_ca <- deltas_ca
   output$deltas_co <- deltas_co
+  output$deltas_u <- deltas_u
   output$L_w <- L_w
   output$L_ca <- L_ca
   output$L_co <- L_co
   output$L_a_ca <- L_a_ca 
   output$L_a_co <- L_a_co
+  output$L_u <- L_u
   output$proposal.sd.theta <- proposal.sd.theta
   output$prior_phi <- prior_phi
   output$prior_theta <- prior_theta
   output$prior_alpha_ca_var <- prior_alpha_ca_var
   output$prior_alpha_co_var <- prior_alpha_co_var
+  output$prior_u_mean <- prior_u_mean
+  output$prior_u_var <- prior_u_var
   output$n.sample <- n.sample
   output$burnin <- burnin
   
