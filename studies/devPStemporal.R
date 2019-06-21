@@ -148,8 +148,7 @@ output <- prefSampleTemporal(data, D, n.sample, burnin,
                              beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
                              theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial, u_initial=u_initial,
                              prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var,
-                             prior_u_mean=prior_u_mean, prior_u_var=prior_u_var,
-                             offset=1)
+                             prior_u_mean=prior_u_mean, prior_u_var=prior_u_var)
 
 
 #### View results

@@ -9,8 +9,7 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
                                delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL, delta_u=NULL,
                                beta_ca_initial=NULL, beta_co_initial=NULL, alpha_ca_initial=NULL, alpha_co_initial=NULL,
                                theta_initial=NULL, phi_initial=NULL, w_initial=NULL, u_initial=NULL,
-                               prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var, prior_u_mean, prior_u_var,
-                               offset=1){
+                               prior_phi, prior_theta, prior_alpha_ca_var, prior_alpha_co_var, prior_u_mean, prior_u_var){
 
   
   ## setup
@@ -20,7 +19,6 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
   p <- ncol(case.data_time[[1]]$x)
   N.w <- length(locs_time[[1]]$status)
   N.t <- length(locs_time)
-  log_offset <- log(offset)
   
   
   ## starting values
@@ -138,7 +136,7 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     sigma.i <- Exponential(d, range=theta.i, phi=phi.i)
     sigma.inv.i <- solve(sigma.i)
     w.out.i <- wHmcUpdateTemporal(case.data_time, ctrl.data_time, locs_time, alpha.ca.i, beta.ca,
-                                  alpha.co.i, beta.co, w.i, u.i, sigma.i, sigma.inv.i, w_tuning$delta_curr, L_w, offset=log_offset)
+                                  alpha.co.i, beta.co, w.i, u.i, sigma.i, sigma.inv.i, w_tuning$delta_curr, L_w, offset=0)
     w.i <- w.out.i$w
     
     ## sample from theta
@@ -150,23 +148,21 @@ prefSampleTemporal <- function(data, d, n.sample, burnin,
     phi.i <- 1/rgamma(1, N.w/2 + prior_phi[1], t(w.i) %*% solve(R.i) %*% w.i/2 + prior_phi[2])
 
     ## sample from beta case
-    beta.out.ca <- betaHmcUpdateTemporal(case.data_time, locs_time, w.i, u.i, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca, offset=log_offset)
+    beta.out.ca <- betaHmcUpdateTemporal(case.data_time, locs_time, w.i, u.i, beta.ca, alpha.ca.i, ca_tuning$delta_curr, L_ca, offset=0)
     beta.ca <- beta.out.ca$beta
 
     ## sample from alpha case
     alpha.out.ca <- alphaHmcUpdateTemporal(case.data_time, locs_time, w.i, u.i, beta.ca, alpha.ca.i,
-                                           a_ca_tuning$delta_curr, prior_alpha_ca_mean, prior_alpha_ca_var, L_a_ca, offset=log_offset)
+                                           a_ca_tuning$delta_curr, prior_alpha_ca_mean, prior_alpha_ca_var, L_a_ca, offset=0)
     alpha.ca.i <- alpha.out.ca$alpha
     
     ## sample from beta control
-    beta.out.co <- betaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, co_tuning$delta_curr, L_co, offset=log_offset)
+    beta.out.co <- betaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, co_tuning$delta_curr, L_co, offset=0)
     beta.co <- beta.out.co$beta
 
     ## sample from alpha control
-    alpha.out.co <- alphaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, a_co_tuning$delta_curr, prior_alpha_co_mean, prior_alpha_co_var, L_a_co, offset=log_offset)
+    alpha.out.co <- alphaHmcUpdateTemporal(ctrl.data_time, locs_time, w.i, u.i, beta.co, alpha.co.i, a_co_tuning$delta_curr, prior_alpha_co_mean, prior_alpha_co_var, L_a_co, offset=0)
     alpha.co.i <- alpha.out.co$alpha
-    
-   
     
     ## sample from u
     u.accept <- rep(0, N.t)
