@@ -130,8 +130,8 @@ prior_alpha_co_var=4
 prior_u_mean=0
 prior_u_var=4
 
-n.sample=1500
-burnin=200
+n.sample=100
+burnin=20
 
 proposal.sd.theta=0.2
 prior_theta=c(3,2)
@@ -140,7 +140,7 @@ prior_phi <- c(3, 40)
 
 #### Fit model
 output <- prefSampleTemporal(data, D, n.sample, burnin,
-                             L_w, L_ca, L_co, L_a_ca, L_a_co,
+                             L_w, L_ca, L_co, L_a_ca, L_a_co, L_u,
                              proposal.sd.theta=proposal.sd.theta,
                              m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, m_u=m_u,
                              target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, target_u=target_u,
@@ -149,6 +149,14 @@ output <- prefSampleTemporal(data, D, n.sample, burnin,
                              theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial, u_initial=u_initial,
                              prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var,
                              prior_u_mean=prior_u_mean, prior_u_var=prior_u_var)
+
+
+#### Additional burnin
+output <- burnin_after_temporal(output, n.burn=50)
+
+
+#### Generate additional samples
+output <- continue_mcmc_temporal(data, D, output, n.sample=1000)
 
 
 #### View results
