@@ -14,8 +14,9 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species/"
-caPr <- load_prism_pcs()
-caPr.disc <- aggregate(caPr, fact=5)
+caPr <- load_prism_pcs2()
+agg_factor <- 6
+caPr.disc <- aggregate(caPr, fact=agg_factor)
 loc.disc <- caPr.disc[[1]]
 all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
 N <- n_values(caPr.disc[[1]])
@@ -38,10 +39,12 @@ groupings <- list(
   c('all_but_ds')
 )
 
+groupings <- list(c('Chipmunk, M'))
+
 #### risk maps for single species views
 for (species in groupings){
   
-  results <- calc_risk_cdph(species, rodents, caPr.disc, all_ids)
+  results <- calc_risk_cdph(species, rodents, caPr.disc, all_ids, agg_factor=agg_factor, null_alphas=T)
   plot(results$r_risk_high, main=species)
   
   #### Figure: risk map with cases overlayed
@@ -56,6 +59,28 @@ for (species in groupings){
   
   #### Figure: covariate contribution to log odds, random field contribution to log odds
   plot_cov_vs_w(results, caPr)
+  
+  #### posterior variance
+  rodents_species <- rodents[rodents$Short_Name %in% species,]
+  data <- assemble_data(rodents_species, loc.disc, caPr.disc)
+  X_rodent <- load_x_standard2(as.logical(data$loc$status), agg_factor=agg_factor)
+  analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+  output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
+  risk_rodent_sep <- calc_posterior_risk(output, X_rodent)
+  
+  postvar_rodent_sep <- apply(risk_rodent_sep, 2, var)
+  r <- caPr.disc[[1]]
+  r[][!is.na(r[])] <- postvar_rodent_sep
+  plot(r)
+  
+  xy <- data.frame(xyFromCell(r, 1:ncell(r)))
+  v <- getValues(r)
+  
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  plot(p)
   
 }
 
@@ -105,10 +130,10 @@ plot_risk_overlay(r_list_new[[3]], rodents_species)
 plot_cov_vs_w(r_list_new[[3]], caPr)
 
 #### CA GS and T Amoenus together and separately
-r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids)
-r_risk_cgs <- calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids)
-r_risk_yp_cgs <- calc_risk_cdph(c('Chipmunk, YP', 'CA G Sq'), rodents, caPr.disc, all_ids)
-r_list2 <- list(r_risk_yp, r_risk_cgs, r_risk_yp_cgs)
+r_risk_yp <- calc_risk_cdph('Chipmunk, YP', rodents, caPr.disc, all_ids, agg_factor=agg_factor)
+r_risk_cgs <- calc_risk_cdph('CA G Sq', rodents, caPr.disc, all_ids, agg_factor=agg_factor, null_alphas = T)
+r_risk_yp_cgs <- calc_risk_cdph(c('CA G Sq', 'Chipmunk, YP'), rodents, caPr.disc, all_ids, agg_factor=agg_factor)
+r_list2 <- list(r_risk_yp$r_risk_high, r_risk_cgs$r_risk_high, r_risk_yp_cgs$r_risk_high)
 r_list_new2 <- equalize_scales2(r_list2)
 plot(r_list_new2[[1]])
 plot(r_list_new2[[2]])
@@ -125,10 +150,10 @@ writeRaster(
 #### Douglas squirrels together and separately
 r_risk_ds <- calc_risk_cdph('Pine Squirrel', rodents, caPr.disc, all_ids)
 r_risk_allbutds <- calc_risk_cdph('all_but_ds', rodents, caPr.disc, all_ids)
-r_list3 <- list(r_risk_ds$r_risk_high, r_risk_allbutds$r_risk_high)
+r_list3 <- list(r_risk_ds, r_risk_allbutds)
 r_list_new3 <- equalize_scales3(r_list3)
-plot(r_list_new3[[1]])
-plot(r_list_new3[[2]])
+plot(r_list_new3[[1]]$r_risk_high)
+plot(r_list_new3[[2]]$r_risk_high)
 
 
 

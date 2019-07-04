@@ -4,29 +4,29 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-caPr <- load_prism_pcs()
-caPr.disc <- aggregate(caPr, fact=5)
+caPr <- load_prism_pcs2()
+caPr.disc <- aggregate(caPr, fact=6)
 N <- n_values(caPr.disc[[1]])
 plot(caPr.disc)
 
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
 
-# 'CA G Sq': CA Ground Squirrel
-# 'GM G Sq': Golden Mantle GS
-# 'Pine Squirrel': Douglas Squirrel
-# 'Chipmunk, YP': T. amoeunus (Yellow Pine)
-# 'Chipmunk, LP': T. speciousus (Lodgepole)??
-# 'Chipmunk, S': T. senex??
-# 'Chipmunk, M': T. merriami??
-
-# species <- c('Chipmunk, LP')
+# - 'CA G Sq': CA Ground Squirrel
+# - 'GM G Sq': Golden Mantle GS
+# - 'Pine Squirrel': Douglas Squirrel
+# - 'Chipmunk, YP': T. amoeunus (Yellow Pine)
+# - 'Chipmunk, LP': T. speciousus (Lodgepole)??
+# - 'Chipmunk, S': T. senex??
+# - 'Chipmunk, M': T. merriami??
+# - all but ds
+# - CGS and 'Chipmunk, YP' combined
 
 # all_species <- unique(rodents$Short_Name)
 # species <- as.character(all_species[all_species != 'Pine Squirrel'])
 # analysis_name <- 'analysis_all_but_ds'
 
-species <- c('GM G Sq')
+species <- c('CA G Sq', 'Chipmunk, YP')
 analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
 rodents <- rodents[rodents$Short_Name %in% species,]
 
@@ -111,15 +111,16 @@ data <- list(loc=locs, case.data=case.data, ctrl.data=ctrl.data)
 ###########
 
 # W initial value
-prior_theta <- c(1.136, 3)
-prior_phi <- c(28.5, 500)
-w_output <- logisticGp(y=locs$status, d, n.sample=1700, burnin=500, L=10,
+prior_theta <- get_gamma_prior(prior_mean=7, prior_var=10)
+prior_phi <- get_igamma_prior(prior_mean=15, prior_var=10)
+w_output <- logisticGp(y=locs$status, d, n.sample=3000, burnin=1000, L=10,
                        theta_initial=prior_theta[1]*prior_theta[2],
                        phi_initial=prior_phi[2]/(prior_phi[1] - 1),
                        prior_phi=prior_phi, prior_theta=prior_theta,
-                       proposal.sd.theta=0.20)
+                       proposal.sd.theta=0.15)
 
-w_output <- burnin_logisticGp_mcmc(w_output, n.burn=200)
+# optional extra burnin
+w_output <- burnin_logisticGp_mcmc(w_output, n.burn=100)
 
 w_output$accept
 view_tr_w(w_output$samples.w)
@@ -144,13 +145,13 @@ ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_i[locs$ids] - 1, fami
 alpha_co_i <- coefficients(ini_ctrl)[4]
 beta_co_i <- coefficients(ini_ctrl)[1:3]
 
-prior_alpha_ca_mean <- 0
-prior_alpha_co_mean <- 0
-prior_alpha_ca_var <- 6
-prior_alpha_co_var <- 6
+prior_alpha_ca_mean <- alpha_ca_i
+prior_alpha_co_mean <- alpha_co_i
+prior_alpha_ca_var <- 1
+prior_alpha_co_var <- 1
 
-n.sample <- 4000
-burnin <- 500
+n.sample <- 9000
+burnin <- 1000
 L_w <- 8
 L_ca <- 8
 L_co <- 8
@@ -176,9 +177,9 @@ output <- prefSampleGpCC(data, d, n.sample, burnin,
                          prior_phi=prior_phi, prior_theta=prior_theta,
                          prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
-output <- burnin_after(output, n.burn=500)
+output <- burnin_after(output, n.burn=1000)
 
-output <- continueMCMC(data, output, n.sample=500)
+output <- continueMCMC(data, d, output, n.sample=3000)
 
 plot(apply(output$samples.w, 1, mean), type='l')
 view_tr_w(output$samples.w)
@@ -240,9 +241,9 @@ beta.ca.hat <- colMeans(output$samples.beta.ca)
 beta.co.hat <- colMeans(output$samples.beta.co)
 
 # low resolution
-X_low <- load_x_ca(factor=5)
+X_low <- load_x_ca2(factor=6)
 lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
-risk_low <- exp(lodds_low/(1 - lodds_low))
+risk_low <- calc_risk(lodds_low)
 
 r_lodds_low <- caPr.disc[[1]]
 r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
@@ -253,7 +254,7 @@ r_risk_low[][!is.na(r_risk_low[])] <- risk_low
 plot(r_risk_low)
 
 # high resolution
-X_high <- load_x_ca()
+X_high <- load_x_ca2()
 lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
 risk_high <- calc_risk(lodds_high)
 
@@ -266,36 +267,13 @@ r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
 plot(r_risk_high)
 
+r_cases <- rodents[rodents$Res == 'POS',]
+r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
+r_ctrls <- rodents[rodents$Res == 'NEG',]
+r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
+points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
+points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+
 par(mfrow=c(1,2))
 plot(r_lodds_low)
 plot(r_lodds_high)
-
-# compare to naive model
-mod.ca <- glm(case.data$y ~ case.data$x.standardised - 1, family='poisson')
-mod.co <- glm(ctrl.data$y ~ ctrl.data$x.standardised - 1, family='poisson')
-
-beta.ca.hat_p <- unname(coefficients(mod.ca))
-beta.co.hat_p <- unname(coefficients(mod.co))
-
-lodds_low_p <- X_low %*% beta.ca.hat_p - X_low %*% beta.co.hat_p
-r_lodds_low_p <- caPr.disc[[1]]
-r_lodds_low_p[][!is.na(r_lodds_low_p[])] <- lodds_low_p
-plot(r_lodds_low_p)
-
-lodds_high_p <- X_high %*% beta.ca.hat_p - X_high %*% beta.co.hat_p
-risk_high_p <- exp(lodds_high_p/(1-lodds_high_p))
-
-r_lodds_high_p <- caPr[[2]]
-r_lodds_high_p[][!is.na(r_lodds_high_p[])] <- lodds_high_p
-plot(r_lodds_high_p)
-
-r_risk_high_p <- caPr[[2]]
-r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
-plot(r_risk_high_p)
-
-par(mfrow=c(1,2))
-plot(r_lodds_high_p)
-plot(r_lodds_high)
-
-plot(y=r_lodds_high_p[], x=r_lodds_high[], xlab='log odds (preferential sampling)', ylab='log odds (poisson)'); abline(0, 1, col=2)
-plot(y=r_risk_high_p[], x=r_risk_high[], xlab='risk (preferential sampling)', ylab='risk (poisson)'); abline(0, 1, col=2)

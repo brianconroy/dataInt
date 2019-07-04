@@ -1,5 +1,44 @@
 
 
+reformat_saved_data <- function(data){
+  new_locs <- list()
+  new_case.data <- list()
+  new_ctrl.data <- list()
+  for (t in 1:length(data$locs$ids)){
+    locs_t <- list(
+      status=data$locs$status[[t]],
+      cells=data$locs$cells[[t]],
+      coords=data$locs$coords[[t]],
+      ids=data$locs$ids[[t]]
+    )
+    new_locs[[t]] <- locs_t
+    
+    case_t <- list(
+      y=data$case.data$y[[t]],
+      x.standardised=data$case.data$x.standardised[[t]],
+      x=data$case.data$x[[t]],
+      p=data$case.data$p[[t]]
+    )
+    new_case.data[[t]] <- case_t
+    
+    ctrl_t <- list(
+      y=data$ctrl.data$y[[t]],
+      x.standardised=data$ctrl.data$x.standardised[[t]],
+      x=data$ctrl.data$x[[t]],
+      p=data$ctrl.data$p[[t]]
+    )
+    new_ctrl.data[[t]] <- ctrl_t
+  }
+  
+  new_data <- list(
+    locs=new_locs,
+    case.data=new_case.data,
+    ctrl.data=new_ctrl.data
+  )
+  return(new_data)
+}
+
+
 # rewrites get_prism_annual (prism package) 
 # to include all possible types.
 # old version excludes "vpdmin", "vpdmax", "tdmean". 

@@ -342,6 +342,70 @@ alphaHmcUpdate <- function(y, w, x, beta, alpha, delta_a, prior_mean, prior_var,
 }
 
 
+alphaHmcUpdate_constrained <- function(y, w, x, beta, alpha, constraint, direction, delta_a, prior_mean, prior_var, L_a, offset){
+  
+  
+  # sample random momentum
+  p0 <- rnorm(1)
+  
+  # simulate Hamiltonian dynamics
+  acurr <- alpha
+  pStar <- p0 - 0.5 * delta_a * dU_alpha(y, w, x, beta, acurr, prior_mean, prior_var, offset)
+  
+  # first full step for position
+  aStar <- acurr + delta_a*pStar
+  
+  # full steps
+  for (jL in 1:c(L_a-1)){
+    # momentum
+    pStar <- pStar - delta_a * dU_alpha(y, w, x, beta, aStar, prior_mean, prior_var, offset)
+    
+    # position
+    if (direction == 'less'){
+      if (aStar < constraint){
+        aStar <- aStar + delta_a*pStar
+      }
+    } else {
+      if (aStar > constraint){
+        aStar <- aStar + delta_a*pStar
+      }
+    }
+  }
+  
+  # last half step
+  pStar <- pStar - 0.5 * delta_a * dU_alpha(y, w, x, beta, aStar, prior_mean, prior_var, offset)
+  
+  # evaluate energies
+  U0 <- Ualpha(y, w, x, beta, acurr, prior_mean, prior_var, offset)
+  UStar <- Ualpha(y, w, x, beta, aStar, prior_mean, prior_var, offset)
+  
+  K0 <- K(p0)
+  KStar <- K(pStar)
+  
+  # accept/reject
+  a <- min(1, exp((U0 + K0) - (UStar + KStar)))
+  
+  if (is.na(a)){
+    a <- 0
+  }
+  
+  if (runif(1, 0, 1) < a){
+    anext <- aStar
+    accept <- 1
+  } else {
+    anext <- acurr
+    accept <- 0
+  }
+  
+  out <- list()
+  out$alpha <- anext
+  out$accept <- accept
+  out$a <- a
+  return(out)
+  
+}
+
+
 alphaHmcUpdate_truncnorm <- function(y, w, x, beta, alpha, prior_mean, prior_var, delta_a, bound, bound_type, L_a){
   
   

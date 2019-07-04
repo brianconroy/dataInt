@@ -34,7 +34,7 @@ plot_risk_overlay <- function(results, rodents_species){
 
 plot_cov_vs_w <- function(results, caPr){
   
-  X_high <- load_x_ca()
+  X_high <- load_x_ca2()
   cov_rodent <- X_high %*% results$beta.ca.hat - X_high %*% results$beta.co.hat
   w_rodent <- (results$alpha.ca.hat -  results$alpha.co.hat) * results$w.hat_ds
   r_cov_rodent <- caPr[[1]]
@@ -50,7 +50,7 @@ plot_cov_vs_w <- function(results, caPr){
 }
 
 
-calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
+calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids, agg_factor=5, null_alphas=FALSE){
   
   print(species)
   if (paste(species, collapse="") == 'all_but_ds'){
@@ -81,13 +81,18 @@ calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
   p <- mask(p, caPr[[1]])
   w.hat_ds <- p[][!is.na(p[])]
   
-  alpha.ca.hat <- mean(output$samples.alpha.ca)
-  alpha.co.hat <- mean(output$samples.alpha.co)
+  if (null_alphas){
+    alpha.ca.hat <- 0
+    alpha.co.hat <- 0
+  } else{
+    alpha.ca.hat <- mean(output$samples.alpha.ca)
+    alpha.co.hat <- mean(output$samples.alpha.co)
+  }
   beta.ca.hat <- colMeans(output$samples.beta.ca)
   beta.co.hat <- colMeans(output$samples.beta.co)
   
   # risk map (low resolution)
-  X_low <- load_x_ca(factor=5)
+  X_low <- load_x_ca2(factor=agg_factor)
   lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
   risk_low <- calc_risk(lodds_low)
   
@@ -98,7 +103,7 @@ calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids){
   r_risk_low[][!is.na(r_risk_low[])] <- risk_low
   
   # risk map (downscaled)
-  X_high <- load_x_ca()
+  X_high <- load_x_ca2()
   lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
   risk_high <- calc_risk(lodds_high)
   

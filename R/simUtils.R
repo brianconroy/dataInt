@@ -1,6 +1,144 @@
 library(jsonlite)
 
 
+calc_est_lodds_time <- function(output, data, year, year_index){
+  
+  x <- load_x_time(year=year, agg_factor=7)
+  
+  beta.case <- colMeans(output$samples.beta.ca)
+  beta.ctrl <- colMeans(output$samples.beta.co)
+  Alpha.case <- mean(output$samples.alpha.ca)
+  Alpha.ctrl <- mean(output$samples.alpha.co)
+  W <- colMeans(output$samples.w)
+  U <- colMeans(output$samples.u)[year_index]
+  
+  lodds.est <- x %*% beta.case + Alpha.case * (U + W) - x %*% beta.ctrl - Alpha.ctrl * (U + W)
+  return(lodds.est)
+  
+}
+
+
+calc_est_lodds_time_ps <- function(output, data, year, year_index){
+  
+  x <- load_x_time(year=year, agg_factor=7)
+  
+  beta.case <- colMeans(output$samples.beta.ca)
+  beta.ctrl <- colMeans(output$samples.beta.co)
+  Alpha.case <- mean(output$samples.alpha.ca)
+  Alpha.ctrl <- mean(output$samples.alpha.co)
+  W <- colMeans(output$samples.w)
+  
+  lodds.est <- x %*% beta.case + Alpha.case * W - x %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.est)
+  
+}
+
+
+calc_est_lodds_pool_ps <- function(output, data){
+  
+  x <- load_x_standard2(c(), agg_factor=7, standardize = F)
+  
+  beta.case <- colMeans(output$samples.beta.ca)
+  beta.ctrl <- colMeans(output$samples.beta.co)
+  Alpha.case <- mean(output$samples.alpha.ca)
+  Alpha.ctrl <- mean(output$samples.alpha.co)
+  W <- colMeans(output$samples.w)
+  
+  lodds.est <- x %*% beta.case + Alpha.case * W - x %*% beta.ctrl - Alpha.ctrl * W
+  return(lodds.est)
+  
+}
+
+
+calc_true_lodds_time <- function(params, data, year, year_index){
+  
+  location_indicators <- data$locs[[year_index]]$status
+  x <- load_x_time(year=year, agg_factor=7)
+  
+  beta.case <- params$beta.case
+  beta.ctrl <- params$beta.ctrl
+  Alpha.case <- params$Alpha.case
+  Alpha.ctrl <- params$Alpha.ctrl
+  W <- params$W
+  U <- params$U[year_index]
+  
+  lodds.true <- x %*% beta.case + Alpha.case * (U + W) - x %*% beta.ctrl - Alpha.ctrl * (U + W)
+  return(lodds.true)
+  
+}
+
+
+pool_temporal_data <- function(data){
+  
+  #### aggregate data
+  data_pooled <- list()
+  
+  ## pool locations
+  status <- as.numeric(data$locs[[1]]$status)
+  cells <- data$locs[[1]]$cells
+  ids <- data$locs[[1]]$ids
+  for (t in 2:length(data$locs)){
+    status <- as.numeric(status | data$locs[[t]]$status)
+    cells <- c(cells, data$locs[[t]]$cells)
+    ids <- c(ids, data$locs[[t]]$ids)
+  }
+  cells <- sort(unique(cells))
+  ids <- sort(unique(ids))
+  locs_pooled <- list(status=status, cells=cells, ids=ids)
+  
+  ## pool counts
+  df <- data.frame(cbind(data$locs[[1]]$ids, data$case.data[[1]]$y))
+  for (t in 2:length(data$locs)){
+    dft <- data.frame(cbind(data$locs[[t]]$ids, data$case.data[[t]]$y))
+    df <- merge(df, dft, by='X1', all=T)
+    df[is.na(df[,2]),2] <- 0
+    df[is.na(df[,3]),3] <- 0
+    df$X2 <- df$X2.x + df$X2.y
+    df <- df[,c('X1', 'X2')]
+  }
+  y.ca <- df$X2
+  
+  df <- data.frame(cbind(data$locs[[1]]$ids, data$ctrl.data[[1]]$y))
+  for (t in 2:length(data$locs)){
+    dft <- data.frame(cbind(data$locs[[t]]$ids, data$ctrl.data[[t]]$y))
+    df <- merge(df, dft, by='X1', all=T)
+    df[is.na(df[,2]),2] <- 0
+    df[is.na(df[,3]),3] <- 0
+    df$X2 <- df$X2.x + df$X2.y
+    df <- df[,c('X1', 'X2')]
+  }
+  y.co <- df$X2
+  
+  ## combine covariates
+  df <- data.frame(cbind(data$locs[[1]]$ids, data$case.data[[1]]$x))
+  for (t in 2:length(data$locs)){
+    dft <- data.frame(cbind(data$locs[[t]]$ids, data$case.data[[t]]$x))
+    df <- merge(df, dft, by='X1', all=T)
+    for (i in 2:7){
+      df[is.na(df[,i]),i] <- -Inf
+    }
+    x <- array(NA, c(nrow(df), 3))
+    for (i in 1:nrow(x)){
+      x[i,1] <- max(df[i,2], df[i,5])
+      x[i,2] <- max(df[i,3], df[i,6])
+      x[i,3] <- max(df[i,4], df[i,7])
+    }
+    df <- data.frame(cbind(df$X1, x))
+  }
+  case_pooled <- list(x.standardised=x, y=y.ca)
+  ctrl_pooled <- list(x.standardised=x, y=y.co)
+  
+  data_pooled <- list(
+    case.data=case_pooled,
+    ctrl.data=ctrl_pooled,
+    locs=locs_pooled
+  )
+  
+  return(data_pooled)
+  
+}
+
+
 make_row_multi <- function(est, true, var, name, species, model){
   
   return(list(
@@ -1354,7 +1492,7 @@ load_x_standard <- function(location_indicators, agg_factor=8){
 }
 
 
-load_x_standard2 <- function(location_indicators, agg_factor=8){
+load_x_standard2 <- function(location_indicators, agg_factor=8, standardize=T){
   
   caPr <- load_prism_pcs2()
   caPr.disc <- aggregate(caPr, fact=agg_factor)
@@ -1363,16 +1501,40 @@ load_x_standard2 <- function(location_indicators, agg_factor=8){
   x_1 <- x_1[][!is.na(x_1[])]
   x_2 <- caPr.disc[[2]][]
   x_2 <- x_2[][!is.na(x_2[])]
-  mu_1 <- mean(x_1[location_indicators])
-  sd_1 <- sd(x_1[location_indicators])
-  mu_2 <- mean(x_2[location_indicators])
-  sd_2 <- sd(x_2[location_indicators])
+  if (standardize){
+    mu_1 <- mean(x_1[location_indicators])
+    sd_1 <- sd(x_1[location_indicators])
+    mu_2 <- mean(x_2[location_indicators])
+    sd_2 <- sd(x_2[location_indicators])
+  } else{
+    mu_1 <- 0
+    mu_2 <- 0
+    sd_1 <- 1
+    sd_2 <- 1
+  }
   
   x_1_std <- (x_1 - mu_1)/sd_1
   x_2_std <- (x_2 - mu_2)/sd_2
   x_std <- array(1, c(length(x_1), 1))
   x_std <- cbind(x_std, x_1_std, x_2_std)
   return(x_std)
+  
+}
+
+
+load_x_time <- function(year, agg_factor=8){
+  
+  caPr <- load_prism_pcs_time(year)
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  
+  x_1 <- caPr.disc[[1]][]
+  x_1 <- x_1[][!is.na(x_1[])]
+  x_2 <- caPr.disc[[2]][]
+  x_2 <- x_2[][!is.na(x_2[])]
+  
+  x <- array(1, c(length(x_1), 1))
+  x <- cbind(x, x_1, x_2)
+  return(x)
   
 }
 
@@ -1441,8 +1603,6 @@ load_x_ca2 <- function(factor=NULL){
 }
 
 
-
-
 # load mcmc outputs
 load_sim_outputs <- function(tag=''){
   
@@ -1450,7 +1610,7 @@ load_sim_outputs <- function(tag=''){
   
   counter <- 1
   for (f in list.files('/Users/brianconroy/Documents/research/dataInt/output/')){
-    if (grepl('output', f) & !grepl('krige', f) & grepl(tag, f)) {
+    if (grepl('output', f) & !grepl('krige', f) & grepl(tag, f) & !grepl('inival', f)) {
       output_list[[counter]] <- load_output(f)
       counter <- counter + 1
     }
