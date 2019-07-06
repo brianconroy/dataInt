@@ -1,5 +1,78 @@
 
 
+calc_temporal_risks <- function(output, caPr.disc_all, caPr_all, agg_factor, years){
+  
+  # interpolate w
+  w.hat <- colMeans(output$samples.w)
+  rw <- caPr.disc_all[[1]][[1]]
+  rw[][!is.na(rw[])] <- w.hat
+  
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  
+  tps <- Tps(xy, v)
+  p <- raster(caPr_all[[1]][[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr_all[[1]][[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  
+  # calculate risks
+  alpha.ca.hat <- mean(output$samples.alpha.ca)
+  alpha.co.hat <- mean(output$samples.alpha.co)
+  beta.ca.hat <- colMeans(output$samples.beta.ca)
+  beta.co.hat <- colMeans(output$samples.beta.co)
+  u.hat <- colMeans(output$samples.u)
+  
+  risks_low <- list()
+  risks_high <- list()
+  r_risks_low <- list()
+  r_risks_high <- list()
+  for (i in 1:length(years)){
+    
+    y <- years[i]
+    u.hat_y <- u.hat[i]
+    
+    # low resolution risks
+    X_low <- load_x_time(year=y, agg_factor=agg_factor)
+    lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * (u.hat_y + w.hat) - X_low %*% beta.co.hat - alpha.co.hat * (u.hat_y + w.hat)
+    risk_low <- calc_risk(lodds_low)
+    
+    r_lodds_low <- caPr.disc_all[[i]][[1]]
+    r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+    
+    r_risk_low <- r_lodds_low
+    r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+    
+    risks_low[[i]] <- risk_low
+    r_risks_low[[i]] <- r_risk_low
+    
+    # high resolution
+    X_high <- load_x_time(year=y, agg_factor=1)
+    lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * (u.hat_y + w.hat_ds) - X_high %*% beta.co.hat - alpha.co.hat * (u.hat_y + w.hat_ds)
+    risk_high <- calc_risk(lodds_high)
+    
+    r_lodds_high <- caPr_all[[i]][[1]]
+    r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+    
+    r_risk_high <- r_lodds_high
+    r_risk_high[][!is.na(r_risk_high[])] <- risk_high
+    
+    risks_high[[i]] <- risk_high
+    r_risks_high[[i]] <- r_risk_high
+  }
+  
+  return(
+    list(
+      risks_low=risks_low,
+      risks_high=risks_high,
+      r_risks_low=r_risks_low,
+      r_risks_high=r_risks_high
+    )
+  )
+  
+}
+
+
 calc_lodds_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
   
   X_high <- load_x_ca2()
@@ -212,6 +285,38 @@ equalize_scales3 <- function(r_list){
   return(r_list_new)
   
 }
+
+
+equalize_scales4 <- function(r_list){
+  
+  vs <- list()
+  r_max <- 0
+  r_min <- 1
+  r_list_new <- list()
+  for (i in 1:length(r_list)){
+    r <- r_list[[i]]
+    r_vals <- r[][!is.na(r[])]
+    vs[[i]] <- r_vals
+    r_max <- max(r_max, r_vals)
+    r_min <- min(r_min, r_vals)
+  }
+  for (i in 1:length(r_list)){
+    r <- r_list[[i]]
+    r_vals <- r[][!is.na(r[])]
+    if (sum(r_vals == r_max) == 0){
+      r_vals[length(r_vals)] <- r_max
+    }
+    if (sum(r_vals == r_min) == 0){
+      r_vals[1] <- r_min
+    }
+    r_new <- r
+    r_new[][!is.na(r_new[])] <- r_vals 
+    r_list_new[[i]] <- r_new
+  }
+  return(r_list_new)
+  
+}
+
 
 downscale <- function(w.est, caPr.disc, caPr){
   

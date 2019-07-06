@@ -1525,7 +1525,11 @@ load_x_standard2 <- function(location_indicators, agg_factor=8, standardize=T){
 load_x_time <- function(year, agg_factor=8){
   
   caPr <- load_prism_pcs_time(year)
-  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  if (agg_factor == 1){
+    caPr.disc <- caPr
+  } else{
+    caPr.disc <- aggregate(caPr, fact=agg_factor)
+  }
   
   x_1 <- caPr.disc[[1]][]
   x_1 <- x_1[][!is.na(x_1[])]
