@@ -157,7 +157,7 @@ output <- prefSampleTemporal(data, D, n.sample, burnin,
 
 
 #### Additional burnin
-output <- burnin_after_temporal(output, n.burn=50)
+output <- burnin_after_temporal(output, n.burn=500)
 
 
 #### Generate additional samples

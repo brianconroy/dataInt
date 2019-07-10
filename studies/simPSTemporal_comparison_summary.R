@@ -11,6 +11,7 @@ library(MCMCpack)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
+dst <- "/Users/brianconroy/Documents/research/project3/simulation_comparison/"
 outputs <- load_sim_outputs(tag="simPsTemporal")
 
 
@@ -26,6 +27,104 @@ for (h in years){
 }
 plot(caPr_all[[1]])
 plot(caPr.disc_all[[1]])
+
+
+#### Plot pcs 1 and 2, separately, rescaled
+pcs1 <- list()
+pcs2 <- list()
+for (i in 1:length(years)){
+  pcs1[[i]] <- caPr_all[[i]][[1]]
+  pcs2[[i]] <- caPr_all[[i]][[2]]
+}
+pcs1_re <- equalize_scales4(pcs1)
+pcs2_re <- equalize_scales4(pcs2)
+
+#### Figure: pcs 1
+par(mfrow=c(3,3))
+for (i in 1:length(years)){
+  plot(pcs1_re[[i]], main=years[i])
+}
+
+#### Figure: pcs 1
+par(mfrow=c(3,3))
+for (i in 1:length(years)){
+  plot(pcs2_re[[i]], main=years[i])
+}
+
+
+#### Table: summarize levels of U
+levels <- c("increasing", "decreasing", "alternating")
+params_u <- list()
+counter <- 1
+for (l in levels){
+  sim_name <- paste("simPsTemporal", l, sep="_")
+  params <- load_output(paste(sim_name, '_params.json', sep=''))
+  params_u[[counter]] <- list(Pattern=l, U=paste("(", paste(params$U, collapse=", "), ")", sep=""))
+  counter <- counter + 1
+}
+params_u <- ldply(params_u, 'data.frame')
+params_u$U <- as.character(params_u$U)
+params_u$Pattern <- as.character(params_u$Pattern)
+write_latex_table(params_u, "latex_params_u.txt", path=dst)
+
+
+#### Table: summarize other simulation parameters used
+levels <- c("increasing", "decreasing", "alternating")
+params_other <- list()
+counter <- 1
+for (l in levels){
+  sim_name <- paste("simPsTemporal", l, sep="_")
+  params <- load_output(paste(sim_name, '_params.json', sep=''))
+  params_other[[counter]] <- list(
+    Pattern=l, 
+    Beta.case=paste("(", paste(params$beta.case, collapse=", "), ")", sep=""),
+    Beta.ctrl=paste("(", paste(params$beta.ctrl, collapse=", "), ")", sep=""),
+    alpha.case=params$Alpha.case,
+    alpha.ctrl=params$Alpha.ctrl
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(params_other, 'data.frame'), "latex_params_other.txt", path=dst)
+
+
+#### Table: summarize number of observation sites per year
+levels <- c("increasing", "decreasing", "alternating")
+counts_loc <- list()
+counter <- 1
+for (l in levels){
+  sim_name <- paste("simPsTemporal", l, sep="_")
+  data_ <- load_output(paste(sim_name, '_data.json', sep=''))
+  data <- reformat_saved_data(data_)
+  row_l <- list(Pattern=l)
+  for (i in 1:length(data$locs)){
+    row_l[as.character(years[i])] <- sum(data$locs[[i]]$status)
+  }
+  counts_loc[[counter]] <- row_l
+  counter <- counter + 1
+}
+write_latex_table(ldply(counts_loc, 'data.frame'), "latex_counts_loc.txt", path=dst)
+
+
+#### Table: summarize counts of observed specimen and prevalences per year
+levels <- c("increasing", "decreasing", "alternating")
+counts_prev <- list()
+counter <- 1
+for (l in levels){
+  sim_name <- paste("simPsTemporal", l, sep="_")
+  data_ <- load_output(paste(sim_name, '_data.json', sep=''))
+  data <- reformat_saved_data(data_)
+  row_l <- list(Pattern=l)
+  for (i in 1:length(data$locs)){
+    ncases <- sum(data$case.data[[i]]$y)
+    nctrls <- sum(data$ctrl.data[[i]]$y)
+    prev <- round(ncases/(ncases+nctrls), 2)
+    # row_l[as.character(years[i])] <- paste(ncases + nctrls, ' (', prev, ')', sep='')
+    row_l[as.character(years[i])] <- prev
+  }
+  counts_prev[[counter]] <- row_l
+  counter <- counter + 1
+}
+write_latex_table(ldply(counts_prev, 'data.frame'), "latex_counts_prev.txt", path=dst)
 
 
 level <- "alternating"  # increasing, decreasing, alternating
