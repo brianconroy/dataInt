@@ -1,6 +1,32 @@
 library(jsonlite)
 
 
+make_rmse_row <- function(rmses, pattern, years, model){
+  row <- list(Pattern=pattern, Model=model)
+  for (i in 1:length(years)){
+    row[[as.character(years[i])]] <- round(rmses[i],3)
+  }
+  return(row)
+}
+
+
+calc_est_lodds_time_poisson <- function(data, year, year_index){
+  
+  x <- load_x_time(year=year, agg_factor=7)
+  x_locs <- x[as.logical(data$locs[[year_index]]$status), ]
+  y_ca <- data$case.data[[year_index]]$y
+  y_co <- data$ctrl.data[[year_index]]$y
+  mod_ca <- glm(y_ca ~ x_locs - 1, family='poisson')
+  mod_co <- glm(y_co ~ x_locs - 1, family='poisson')
+  beta.case <- coefficients(mod_ca)
+  beta.ctrl <- coefficients(mod_co)
+  
+  lodds.est <- x %*% beta.case - x %*% beta.ctrl
+  return(lodds.est)
+  
+}
+
+
 calc_est_lodds_time <- function(output, data, year, year_index){
   
   x <- load_x_time(year=year, agg_factor=7)
