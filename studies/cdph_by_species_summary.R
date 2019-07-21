@@ -1,8 +1,8 @@
-###############################
-# Summarizes simulation results
-# of the baseline (scurid)
+###########################
+# Summarizes results of the 
+# by species (scurid)
 # cdph analysis
-###############################
+###########################
 
 library(plyr)
 library(grid)
@@ -14,18 +14,26 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 
 dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species/"
-caPr <- load_prism_pcs2()
-agg_factor <- 6
-caPr.disc <- aggregate(caPr, fact=agg_factor)
-loc.disc <- caPr.disc[[1]]
-all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
-N <- n_values(caPr.disc[[1]])
-print(N)
-print(mean(area(caPr.disc[[1]])[]))
-plot(caPr.disc)
-
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
+caPr <- load_prism_pcs2()
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
+
+
+#### Significance maps
+output_base <- load_output("output_cdph_baseline.json")
+rs <- calc_significance_rasters(rodents, output_base, caPr)
+plot(rs$r_fracs)
+plot(rs$r_inds)
+
+
+species <- 'Chipmunk, M'
+rodents_species <- rodents[rodents$Short_Name == species,]
+analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+output_species <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
+rs <- calc_significance_rasters(rodents_species, output_species, caPr)
+plot(rs$r_fracs)
+plot(rs$r_inds)
+
 
 groupings <- list(
   c('Pine Squirrel'),
@@ -34,12 +42,34 @@ groupings <- list(
   c('Chipmunk, S'),
   c('Chipmunk, M'),
   c('CA G Sq'),
-  c('GM G Sq'),
-  c('Chipmunk, YP', 'CA G Sq'),
-  c('all_but_ds')
+  c('GM G Sq')
 )
 
-groupings <- list(c('Chipmunk, M'))
+
+null_alphas <- c('GM G Sq', 'Pine Squirrel', 'CA G Sq')
+
+
+for (species in groupings){
+  
+  rodents_species <- rodents[rodents$Short_Name == species,]
+  analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
+  output_species <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
+  na <- F
+  if (species %in% null_alphas){ na <- T} 
+  rs <- calc_significance_rasters(rodents_species, output_species, caPr, null_alphas=na)
+  plot(rs$r_fracs, main=species)
+  plot(rs$r_inds, main=species)
+  
+}
+
+caPr.disc <- aggregate(caPr, fact=agg_factor)
+loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+N <- n_values(caPr.disc[[1]])
+print(N)
+print(mean(area(caPr.disc[[1]])[]))
+plot(caPr.disc)
+
 
 #### risk maps for single species views
 for (species in groupings){

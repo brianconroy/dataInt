@@ -157,7 +157,7 @@ calc_posterior_lodds_multi <- function(output, x, species){
 }
 
 
-calc_posterior_risk <- function(output, x){
+calc_posterior_risk <- function(output, x, null_alphas=F){
   
   n.samp <- nrow(output$samples.beta.ca)
   n.cell <- ncol(output$samples.w)
@@ -170,6 +170,11 @@ calc_posterior_risk <- function(output, x){
     alpha_ca <- output$samples.alpha.ca[i]
     alpha_co <- output$samples.alpha.co[i]
     w <- output$samples.w[i,]
+    
+    if (null_alphas){
+      alpha_ca <- 0
+      alpha_co <- 0
+    }
     
     lodds.i <- x %*% beta_ca + alpha_ca * w - x %*% beta_co - alpha_co * w
     risk_samp[i,] <- t(calc_risk(lodds.i))

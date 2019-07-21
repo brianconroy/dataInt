@@ -118,7 +118,7 @@ for (l in levels){
     ncases <- sum(data$case.data[[i]]$y)
     nctrls <- sum(data$ctrl.data[[i]]$y)
     prev <- round(ncases/(ncases+nctrls), 2)
-    # row_l[as.character(years[i])] <- paste(ncases + nctrls, ' (', prev, ')', sep='')
+    # row_l[as.character(years[i])] <- paste(prev, ' (', ncases + nctrls, ')', sep='')
     row_l[as.character(years[i])] <- prev
   }
   counts_prev[[counter]] <- row_l
@@ -207,9 +207,9 @@ for (level in levels){
   par(mfrow=c(2,2))
   ul <- 2.75
   barplot(rmse_poisson, ylim=c(0, ul), main='A)', ylab='RMSE', xlab='Year Index', names.arg=years)
-  barplot(rmse_aggregate, ylim=c(0,ul), main='B)', ylab='RMSE', xlab='Year Index')
-  barplot(rmse_pooled, ylim=c(0,ul), main='C)', ylab='RMSE', xlab='Year Index')
-  barplot(rmse_temporal, ylim=c(0,ul), main='D)', ylab='RMSE', xlab='Year Index')
+  barplot(rmse_aggregate, ylim=c(0,ul), main='B)', ylab='RMSE', xlab='Year Index', names.arg=years)
+  barplot(rmse_pooled, ylim=c(0,ul), main='C)', ylab='RMSE', xlab='Year Index', names.arg=years)
+  barplot(rmse_temporal, ylim=c(0,ul), main='D)', ylab='RMSE', xlab='Year Index', names.arg=years)
 }
 write_latex_table(ldply(rmses_all, 'data.frame'), "latex_rmses_all.txt", path=dst)
 

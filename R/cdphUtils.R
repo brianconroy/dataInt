@@ -1,5 +1,39 @@
 
 
+calc_significance_rasters <- function(rodents_data, output, caPr){
+  
+  if (ncol(output$samples.w) == 788){
+    agg_factor <- 6
+  } else{
+    agg_factor <- 5
+  }
+  
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  loc.disc <- caPr.disc[[1]]
+  all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+  N <- n_values(caPr.disc[[1]])
+  
+  data <- assemble_data(rodents_data, loc.disc, caPr.disc)
+  X_rodent <- load_x_standard2(as.logical(data$loc$status), agg_factor=agg_factor)
+  risk_rodent <- calc_posterior_risk(output, X_rodent)
+  
+  threshold <- 0.05
+  fracs <- apply(risk_rodent, 2, function(x){sum(x > threshold)/nrow(risk_rodent)})
+  r <- caPr.disc[[1]]
+  r[][!is.na(r[])] <- fracs
+  
+  indicators <- fracs > 0.95
+  r2 <- caPr.disc[[1]]
+  r2[][!is.na(r2[])] <- indicators
+  
+  return(list(
+    r_fracs=r,
+    r_inds=r2
+  ))
+  
+}
+
+
 calc_temporal_risks <- function(output, caPr.disc_all, caPr_all, agg_factor, years){
   
   # interpolate w
