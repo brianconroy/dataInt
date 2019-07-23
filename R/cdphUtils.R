@@ -1,6 +1,6 @@
 
 
-calc_significance_rasters <- function(rodents_data, output, caPr){
+calc_significance_rasters <- function(rodents_data, output, caPr, null_alphas=F){
   
   if (ncol(output$samples.w) == 788){
     agg_factor <- 6
@@ -15,7 +15,7 @@ calc_significance_rasters <- function(rodents_data, output, caPr){
   
   data <- assemble_data(rodents_data, loc.disc, caPr.disc)
   X_rodent <- load_x_standard2(as.logical(data$loc$status), agg_factor=agg_factor)
-  risk_rodent <- calc_posterior_risk(output, X_rodent)
+  risk_rodent <- calc_posterior_risk(output, X_rodent, null_alphas=null_alphas)
   
   threshold <- 0.05
   fracs <- apply(risk_rodent, 2, function(x){sum(x > threshold)/nrow(risk_rodent)})
@@ -29,6 +29,76 @@ calc_significance_rasters <- function(rodents_data, output, caPr){
   return(list(
     r_fracs=r,
     r_inds=r2
+  ))
+  
+}
+
+
+calc_significance_rasters_ds <- function(rodents_data, output, caPr, threshold, null_alphas=F){
+  
+  if (ncol(output$samples.w) == 788){
+    agg_factor <- 6
+  } else{
+    agg_factor <- 5
+  }
+  
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  loc.disc <- caPr.disc[[1]]
+  all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+  N <- n_values(caPr.disc[[1]])
+  
+  # sample from posterior distributions at high resolution
+  data <- assemble_data(rodents_data, loc.disc, caPr.disc)
+  X_rodent <- load_x_standard2(as.logical(data$loc$status), agg_factor=agg_factor)
+  risk_rodent <- calc_posterior_risk(output, X_rodent, null_alphas=null_alphas)
+  
+  # downscale posterior variances
+  postvar_rodent <- apply(risk_rodent, 2, var)
+  r <- overlay(postvar_rodent, caPr.disc[[1]])
+  xy <- data.frame(xyFromCell(r, 1:ncell(r)))
+  v <- getValues(r)
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  postvar_ds <- p[][!is.na(p)[]]
+  postvar_ds[postvar_ds <= 0] <- 1e-5
+  
+  # calculate risk estimates at high resolution
+  results_ds <- calc_risk_cdph_output(
+    output, 
+    data, 
+    caPr.disc, 
+    all_ids, 
+    agg_factor=agg_factor, 
+    null_alphas=null_alphas)$r_risk_high
+  risk_est <- results_ds[][!is.na(results_ds[])]
+
+  # calculate pvalues
+  pvals <- c()
+  for (i in 1:length(risk_est)){
+    r_i <- risk_est[i]
+    v_i <- postvar_ds[i]
+    pvals <- c(pvals, 1 - pnorm(threshold, mean=r_i, sd=sqrt(v_i)))
+  }
+  rp <- overlay(pvals, caPr[[1]])
+
+  inds_95 <- 1 * (pvals > 0.95)
+  inds_50 <- 1 * (pvals > 0.5)
+  inds_25 <- 1 * (pvals > 0.25)
+  # normalize color scales
+  if (sum(inds_95) == 0){inds_95[1]=3}
+  if (sum(inds_50) == 0){inds_95[2]=2}
+  if (sum(inds_25) == 0){inds_95[3]=1}
+  
+  inds <- inds_95 + inds_50 + inds_25
+  r_inds <- overlay(inds, caPr[[1]])
+  r_inds_95 <- overlay(inds_95, caPr[[1]])
+  
+  return(list(
+    r_fracs=rp,
+    r_inds=r_inds,
+    r_inds_95=r_inds_95
   ))
   
 }
@@ -126,9 +196,13 @@ calc_risk_ds <- function(alpha.ca, alpha.co, beta.ca, beta.co, w.hat_ds){
 }
 
 
-plot_risk_overlay <- function(results, rodents_species){
+plot_risk_overlay <- function(results, rodents_species, main=''){
   
-  plot(results$r_risk_high)
+  if ("r_risk_high" %in% names(results)){
+    plot(results$r_risk_high, main=main)
+  } else{
+    plot(results, main=main)
+  }
   r_cases <- rodents_species[rodents_species$Res == 'POS',]
   r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
   r_ctrls <- rodents_species[rodents_species$Res == 'NEG',]
@@ -170,6 +244,70 @@ calc_risk_cdph <- function(species, rodents, caPr.disc, all_ids, agg_factor=5, n
   analysis_name <- gsub(',', '', gsub(' ', '_', paste('analysis', paste(species, collapse="_"), sep='_'), fixed=T))
   output <- load_output(paste("cdph_", analysis_name, ".json", sep=""))
   data <- assemble_data(rodents_species, loc.disc, caPr.disc)
+  
+  coords <- xyFromCell(caPr.disc, cell=all_ids)
+  d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+  
+  # random field (downscaled)
+  w.hat <- colMeans(output$samples.w)
+  rw <- caPr.disc[[1]]
+  rw[][!is.na(rw[])] <- w.hat
+  
+  xy <- data.frame(xyFromCell(rw, 1:ncell(rw)))
+  v <- getValues(rw)
+  
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  w.hat_ds <- p[][!is.na(p[])]
+  
+  if (null_alphas){
+    alpha.ca.hat <- 0
+    alpha.co.hat <- 0
+  } else{
+    alpha.ca.hat <- mean(output$samples.alpha.ca)
+    alpha.co.hat <- mean(output$samples.alpha.co)
+  }
+  beta.ca.hat <- colMeans(output$samples.beta.ca)
+  beta.co.hat <- colMeans(output$samples.beta.co)
+  
+  # risk map (low resolution)
+  X_low <- load_x_ca2(factor=agg_factor)
+  lodds_low <- X_low %*% beta.ca.hat + alpha.ca.hat * w.hat - X_low %*% beta.co.hat - alpha.co.hat * w.hat
+  risk_low <- calc_risk(lodds_low)
+  
+  r_lodds_low <- caPr.disc[[1]]
+  r_lodds_low[][!is.na(r_lodds_low[])] <- lodds_low
+  
+  r_risk_low <- caPr.disc[[1]]
+  r_risk_low[][!is.na(r_risk_low[])] <- risk_low
+  
+  # risk map (downscaled)
+  X_high <- load_x_ca2()
+  lodds_high <- X_high %*% beta.ca.hat + alpha.ca.hat * w.hat_ds - X_high %*% beta.co.hat - alpha.co.hat * w.hat_ds
+  risk_high <- calc_risk(lodds_high)
+  
+  r_lodds_high <- caPr[[2]]
+  r_lodds_high[][!is.na(r_lodds_high[])] <- lodds_high
+  
+  r_risk_high <- caPr[[2]]
+  r_risk_high[][!is.na(r_risk_high[])] <- risk_high
+  
+  response <- list(
+    r_risk_high=r_risk_high,
+    alpha.ca.hat=alpha.ca.hat,
+    alpha.co.hat=alpha.co.hat,
+    beta.ca.hat=beta.ca.hat,
+    beta.co.hat=beta.co.hat,
+    w.hat_ds=w.hat_ds
+  )
+  return(response)
+  
+}
+
+
+calc_risk_cdph_output <- function(output, data, caPr.disc, all_ids, agg_factor=5, null_alphas=FALSE){
   
   coords <- xyFromCell(caPr.disc, cell=all_ids)
   d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
@@ -583,17 +721,6 @@ summarize_ps_params <- function(output){
 }
 
 
-#' compare_params
-#'
-#' @param beta.ca.hat_p (numeric) vector of parameter estimates from case poisson model
-#' @param beta.co.hat_p (numeric) vector of parameter estimates from control poisson model
-#' @param beta.ca.hat (numeric) vector of parameter estimates from case preferential sampling model
-#' @param beta.co.hat (numeric) vector of parameter estimates from control preferential sampling model
-#'
-#' @return
-#' @export
-#'
-#' @examples
 compare_params <- function(output, output.sp_ca, output.sp_co, mod.ca, mod.co){
   
   beta.ca.hat <- colMeans(output$samples.beta.ca)

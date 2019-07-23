@@ -1608,7 +1608,7 @@ load_x_ca2 <- function(factor=NULL){
     caPr <- aggregate(caPr, fact=factor)
     x_1 <- caPr[[1]][]
     x_1 <- x_1[][!is.na(x_1[])]
-    x_2 <- caPr.disc[[2]][]
+    x_2 <- caPr[[2]][]
     x_2 <- x_2[][!is.na(x_2[])]
   } else {
     pc1 <- mask(caPr[[1]], caPr[[2]])

@@ -186,6 +186,52 @@ calc_posterior_risk <- function(output, x, null_alphas=F){
 }
 
 
+calc_posterior_risk_ds <- function(output, x, caPr, caPr.disc, null_alphas=F){
+  
+  n.samp <- nrow(output$samples.beta.ca)
+  
+  n.cell_ds <- length(caPr[[1]][][!is.na(caPr[[1]][])])
+  cell_ds <- c(1:ncell(caPr[[1]]))[!is.na(values(caPr[[1]]))]
+  
+  n.cell_lr <- length(caPr.disc[[1]][][!is.na(caPr.disc[[1]][])])
+  cells_lr <- c(1:ncell(caPr.disc[[1]]))[!is.na(values(caPr.disc[[1]]))]
+  
+  risk_samp <- array(NA, c(n.samp, n.cell_ds))
+  
+  for (i in 1:n.samp){
+    
+    beta_ca <- output$samples.beta.ca[i,]
+    beta_co <- output$samples.beta.co[i,]
+    alpha_ca <- output$samples.alpha.ca[i]
+    alpha_co <- output$samples.alpha.co[i]
+    w <- output$samples.w[i,]
+    
+    xy_ds <- xyFromCell(caPr[[1]], cell_ds)
+    mapped_lr <- cellFromXY(caPr.disc[[1]], xy_ds)
+    mapped_lr <- data.frame(cbind(cell_ds, mapped_lr))
+    names(mapped_lr) <- c('cell_ds', 'cells_lr')
+    
+    w2id <- data.frame(cbind(c(1:length(w)), cells_lr))
+    names(w2id) <- c('w_id', 'cells_lr')
+    wid2ds <- merge(w2id, mapped_lr, by='cells_lr')
+    wid2ds <- wid2ds[with(wid2ds, order(cell_ds)),]
+    w_ds <- w[wid2ds$w_id]
+    
+    if (null_alphas){
+      alpha_ca <- 0
+      alpha_co <- 0
+    }
+    
+    lodds.i <- x %*% beta_ca + alpha_ca * w_ds - x %*% beta_co - alpha_co * w_ds
+    risk_samp[i,] <- t(calc_risk(lodds.i))
+    
+  }
+  
+  return(risk_samp)
+  
+}
+
+
 calc_posterior_lodds <- function(output, x){
   
   n.samp <- nrow(output$samples.beta.ca)

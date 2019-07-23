@@ -1,49 +1,19 @@
-#############################
-# Summarize the discrete time
-# spatiotemporal model fit
-# to Sciurid data
-#############################
+#######################
+# Fit the discrete time
+# spatiotemporal model
+# to coyote data
+#######################
 
 
-library(plyr)
 library(mvtnorm)
 library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-analysis_name <- "cdph_temporal_analysis"
-agg_factor <- 7
-dst <- "/Users/brianconroy/Documents/research/project3/analysis/p3_figs_analysis/"
+analysis_name <- "cdph_temporal_coyte_analysis"
+agg_factor <- 6
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
-rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
-
-
-#### Assemble data
-locs <- list()
-case.data <- list()
-ctrl.data <- list()
-bin_width <- 5
-
-for (i in 1:length(years)){
-  y <- years[i]
-  y_ub <- y + (bin_width - 1)/2
-  y_lb <- y - (bin_width - 1)/2
-  
-  rodents_y <- rodents[rodents$Year <= y_ub & rodents$Year >= y_lb,]
-  loc.disc_y <- caPr.disc_all[[i]][[1]]
-  caPr.disc_y <- caPr.disc_all[[i]]
-  data_y <- assemble_data(rodents_y, loc.disc_y, caPr.disc_y)
-  
-  locs[[i]] <- data_y$loc
-  case.data[[i]] <- data_y$case.data
-  ctrl.data[[i]] <- data_y$ctrl.data
-}
-
-
-cells.all <- c(1:ncell(caPr.disc_all[[1]]))[!is.na(values(caPr.disc_all[[1]][[1]]))]
-coords <- xyFromCell(caPr.disc_all[[1]], cell=cells.all)
-D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
-data <- list(locs=locs, case.data=case.data, ctrl.data=ctrl.data)
+coyotes <- read.csv(paste(src, "CDPH_coyote_recoded_full.csv", sep=""), header=T, sep=",")
 
 
 #### Prism Principal Components
@@ -62,46 +32,35 @@ plot(caPr.disc_all[[1]])
 loc.disc_y <- caPr.disc_all[[1]]
 
 
-#### Plot pcs 1 and 2, separately, rescaled
-pcs1 <- list()
-pcs2 <- list()
+#### Assemble data
+locs <- list()
+case.data <- list()
+ctrl.data <- list()
+bin_width <- 5
+
 for (i in 1:length(years)){
-  pcs1[[i]] <- caPr_all[[i]][[1]]
-  pcs2[[i]] <- caPr_all[[i]][[2]]
-}
-pcs1_re <- equalize_scales4(pcs1)
-pcs2_re <- equalize_scales4(pcs2)
-
-#### Figure: pcs 1
-par(mfrow=c(3,3))
-for (i in 1:length(years)){
-  plot(pcs1_re[[i]], main=years[i])
-}
-
-#### Figure: pcs 2
-par(mfrow=c(3,3))
-for (i in 1:length(years)){
-  plot(pcs2_re[[i]], main=years[i])
+  y <- years[i]
+  y_ub <- y + (bin_width - 1)/2
+  y_lb <- y - (bin_width - 1)/2
+  
+  coyotes_y <- coyotes[coyotes$Year <= y_ub & coyotes$Year >= y_lb,]
+  loc.disc_y <- caPr.disc_all[[i]][[1]]
+  caPr.disc_y <- caPr.disc_all[[i]]
+  data_y <- assemble_data_coyotes(coyotes_y, caPr.disc_y)
+  
+  locs[[i]] <- data_y$loc
+  case.data[[i]] <- data_y$case.data
+  ctrl.data[[i]] <- data_y$ctrl.data
 }
 
+for(l in locs){print(sum(l$status))}
+for(d in case.data){print(sum(d$y))}
+for(d in ctrl.data){print(sum(d$y))}
 
-#### Table: summarize specimen counts/prevalences/observation sites per year
-prevs <- list()
-counter <- 1
-for (i in 1:length(data$locs)){
-  ncases <- sum(data$case.data[[i]]$y)
-  nctrls <- sum(data$ctrl.data[[i]]$y)
-  prev <- round(ncases/(ncases+nctrls), 2)
-  row_i <- list(
-    Time_Interval=years[i],
-    Observation_Sites=sum(data$locs[[i]]$status),
-    Total_Specimen=ncases+nctrls,
-    Prevalence=prev
-  )
-  prevs[[i]] <- row_i
-  counter <- counter + 1
-}
-write_latex_table(ldply(prevs, 'data.frame'), "latex_counts_prev.txt", path=dst)
+cells.all <- c(1:ncell(caPr.disc_all[[1]]))[!is.na(values(caPr.disc_all[[1]][[1]]))]
+coords <- xyFromCell(caPr.disc_all[[1]], cell=cells.all)
+D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
+data <- list(locs=locs, case.data=case.data, ctrl.data=ctrl.data)
 
 
 ###########
@@ -109,7 +68,7 @@ write_latex_table(ldply(prevs, 'data.frame'), "latex_counts_prev.txt", path=dst)
 ###########
 
 
-#### Specify MCMC parameters
+## Specify MCMC parameters
 m_aca=2000
 m_aco=2000
 m_ca=700
@@ -137,16 +96,16 @@ L_a_co=8
 L_u=8
 
 
-## Initial values
+## Initial spatial values
 caPr <- load_prism_pcs2()
-caPr.disc <- aggregate(caPr, fact=7)
-data_pooled <- assemble_data(rodents, loc.disc_y, caPr.disc)
+caPr.disc <- aggregate(caPr, fact=agg_factor)
+data_pooled <- assemble_data_coyotes(coyotes, caPr.disc)
 
 prior_theta <- c(6, 1)
 prior_phi <- c(18, 204)
 w_output <- logisticGp(y=data_pooled$loc$status, D, n.sample=1000, burnin=200, L=10,
                        prior_phi=prior_phi, prior_theta=prior_theta)
-# w_output <- burnin_logisticGp_mcmc(w_output, n.burn=50)
+w_output <- burnin_logisticGp_mcmc(w_output, n.burn=200)
 plot(w_output$samples.theta, type='l')
 plot(w_output$samples.phi, type='l')
 
@@ -157,7 +116,7 @@ theta_i <- mean(w_output$samples.theta)
 phi_i <- mean(w_output$samples.phi)
 
 
-# Beta & alpha initial values
+## Initial beta & alpha values
 ini_case <- glm(data_pooled$case.data$y ~ data_pooled$case.data$x + w_i[data_pooled$loc$ids] - 1, family='poisson')
 alpha_ca_i <- coefficients(ini_case)[4]
 beta_ca_i <- coefficients(ini_case)[1:3]
@@ -177,9 +136,9 @@ u_initial=rep(0, length(years))
 
 prior_theta=get_gamma_prior(theta_i, 3)
 prior_phi=get_igamma_prior(phi_initial, 3)
-prior_alpha_ca_mean=alpha_ca_initial
+prior_alpha_ca_mean=0.5
 prior_alpha_ca_var=2
-prior_alpha_co_mean=alpha_ca_initial
+prior_alpha_co_mean=0.5
 prior_alpha_co_var=2
 prior_u_mean=0
 prior_u_var=2
@@ -201,12 +160,13 @@ output <- prefSampleTemporal(data, D, n.sample, burnin,
 
 
 #### Additional burnin
-output <- burnin_after_temporal(output, n.burn=50)
+output <- burnin_after_temporal(output, n.burn=500)
 
 
 #### Generate additional samples
 output <- continue_mcmc_temporal(data, D, output, n.sample=2000)
 
+print(output$accept)
 
 #### View results
 par(mfrow=c(2,3))
@@ -226,6 +186,7 @@ plot(output$samples.phi, type='l')
 
 w.hat <- colMeans(output$samples.w)
 u.hat <- colMeans(output$samples.u)
+
 par(mfrow=c(2,4))
 hist(w.hat + u.hat[1])
 hist(w.hat + u.hat[2])
