@@ -216,3 +216,109 @@ for (i in 1:length(years)){
   plot(rescaled[[i]], main=years[i])
 }
 
+
+#####################################
+# fit reference model
+# (nontemporal preferential sampling)
+#####################################
+
+
+caPr <- load_prism_pcs2()
+loc.disc <- caPr.disc[[1]]
+caPr.disc <- aggregate(caPr, fact=agg_factor)
+data_pooled <- assemble_data(rodents, loc.disc, caPr.disc)
+print(sum(data_pooled$case.data$y + data_pooled$ctrl.data$y))
+print(sum(data_pooled$case.data$y)/sum(data_pooled$case.data$y + data_pooled$ctrl.data$y))
+
+## W initial value
+prior_theta <- c(6, 1)
+prior_phi <- c(18, 204)
+# w_output <- logisticGp(y=data_pooled$locs$status, D, n.sample=1000, burnin=200, L=10,
+#                        prior_phi=prior_phi, prior_theta=prior_theta)
+# view_logistic_output(w_output)
+# save_output(w_output, paste("w_inival_output_", analysis_name, ".json", sep=""))
+w_output <- load_output(paste("w_inival_output_", analysis_name, ".json", sep=""))
+w_i <- colMeans(w_output$samples.w)
+theta_i <- mean(w_output$samples.theta)
+phi_i <- mean(w_output$samples.phi)
+
+# Beta & alpha initial values
+ini_case <- glm(data_pooled$case.data$y ~ data_pooled$case.data$x + w_i[data_pooled$loc$ids] - 1, family='poisson')
+alpha_ca_i <- coefficients(ini_case)[4]
+beta_ca_i <- coefficients(ini_case)[1:3]
+
+ini_ctrl <- glm(data_pooled$ctrl.data$y ~ data_pooled$ctrl.data$x.standardised + w_i[data_pooled$loc$ids] - 1, family='poisson')
+alpha_co_i <- coefficients(ini_ctrl)[4]
+beta_co_i <- coefficients(ini_ctrl)[1:3]
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+m_aca <- 1000
+m_aco <- 1000
+m_ca <- 1000
+m_co <- 1000
+m_w <- 1000
+
+n.sample <- 8000
+burnin <- 1000
+L_w <- 8
+L_ca <- 8
+L_co <- 8
+L_a_ca <- 8
+L_a_co <- 8
+proposal.sd.theta <- 0.15
+
+prior_theta=get_gamma_prior(theta_i, 3)
+prior_phi=get_igamma_prior(phi_i, 3)
+prior_alpha_ca_mean=alpha_ca_i
+prior_alpha_ca_var=2
+prior_alpha_co_mean=alpha_co_i
+prior_alpha_co_var=2
+
+output_ps <- prefSampleGpCC(data_pooled, D, n.sample, burnin,
+                            L_w, L_ca, L_co, L_a_ca, L_a_co,
+                            proposal.sd.theta=proposal.sd.theta,
+                            m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                            target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                            self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                            delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                            beta_ca_initial=beta_ca_i, beta_co_initial=beta_co_i, alpha_ca_initial=alpha_ca_i, alpha_co_initial=alpha_co_i,
+                            theta_initial=theta_i, phi_initial=phi_i, w_initial=w_i,
+                            prior_phi=prior_phi, prior_theta=prior_theta,
+                            prior_alpha_ca_var, prior_alpha_co_var)
+
+
+# optionally burnin the output more
+output_ps <- burnin_after(output_ps, n.burn=1000)
+
+
+# optionally continue running if necessary
+output_ps <- continueMCMC(data_pooled, D, output_ps, n.sample=2000)
+
+
+w.hat <- colMeans(output_ps$samples.w)
+par(mfrow=c(1,2))
+view_tr(output_ps$samples.theta)
+view_tr(output_ps$samples.phi)
+
+par(mfrow=c(2, 3))
+view_tr(output_ps$samples.beta.ca[,1])
+view_tr(output_ps$samples.beta.ca[,2])
+view_tr(output_ps$samples.beta.ca[,3])
+view_tr(output_ps$samples.beta.co[,1])
+view_tr(output_ps$samples.beta.co[,2])
+view_tr(output_ps$samples.beta.co[,3])
+
+par(mfrow=c(1,2))
+view_tr(output_ps$samples.alpha.ca)
+view_tr(output_ps$samples.alpha.co)
+
+## save results
+tag <- paste(analysis_name, "_aggregated_ps", sep="")
+output_ps$description <- tag
+save_output(output_ps, paste('output_', tag, ".json", sep=""))
+

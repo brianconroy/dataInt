@@ -116,6 +116,7 @@ pool_temporal_data <- function(data){
   df <- data.frame(cbind(data$locs[[1]]$ids, data$case.data[[1]]$y))
   for (t in 2:length(data$locs)){
     dft <- data.frame(cbind(data$locs[[t]]$ids, data$case.data[[t]]$y))
+    names(dft) <- c('X1', 'X2')
     df <- merge(df, dft, by='X1', all=T)
     df[is.na(df[,2]),2] <- 0
     df[is.na(df[,3]),3] <- 0
@@ -127,6 +128,7 @@ pool_temporal_data <- function(data){
   df <- data.frame(cbind(data$locs[[1]]$ids, data$ctrl.data[[1]]$y))
   for (t in 2:length(data$locs)){
     dft <- data.frame(cbind(data$locs[[t]]$ids, data$ctrl.data[[t]]$y))
+    names(dft) <- c('X1', 'X2')
     df <- merge(df, dft, by='X1', all=T)
     df[is.na(df[,2]),2] <- 0
     df[is.na(df[,3]),3] <- 0
@@ -137,8 +139,10 @@ pool_temporal_data <- function(data){
   
   ## combine covariates
   df <- data.frame(cbind(data$locs[[1]]$ids, data$case.data[[1]]$x))
+  names(df) <- c('X1', 'X2', 'X3', 'X4')
   for (t in 2:length(data$locs)){
     dft <- data.frame(cbind(data$locs[[t]]$ids, data$case.data[[t]]$x))
+    names(dft) <- c('X1', 'X2', 'X3', 'X4')
     df <- merge(df, dft, by='X1', all=T)
     for (i in 2:7){
       df[is.na(df[,i]),i] <- -Inf

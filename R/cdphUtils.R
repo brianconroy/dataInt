@@ -38,7 +38,9 @@ calc_significance_rasters_ds <- function(rodents_data, output, caPr, threshold, 
   
   if (ncol(output$samples.w) == 788){
     agg_factor <- 6
-  } else{
+  } else if (ncol(output$samples.w) == 584){
+    agg_factor <- 7
+  }else{
     agg_factor <- 5
   }
   
@@ -100,6 +102,78 @@ calc_significance_rasters_ds <- function(rodents_data, output, caPr, threshold, 
     r_inds=r_inds,
     r_inds_95=r_inds_95
   ))
+  
+}
+
+
+calc_significance_rasters_ds_temporal <- function(data, output, caPr_all, caPr.disc_all, threshold){
+  
+  if (ncol(output$samples.w) == 788){
+    agg_factor <- 6
+  } else if (ncol(output$samples.w) == 584){
+    agg_factor <- 7
+  }else{
+    agg_factor <- 5
+  }
+  
+  loc.disc <- caPr.disc_all[[1]][[1]]
+  all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+  N <- n_values(caPr.disc[[1]])
+  years <- c(1983, 1988, 1993, 1998, 2003, 2008, 2013)
+  
+  risks_all_t <- calc_temporal_risks(output, caPr.disc_all, caPr_all, agg_factor, years)
+  
+  results <- list()
+  counter <- 1
+  for (t in 1:ncol(output$samples.u)){
+    
+    # sample from posterior distributions at high resolution
+    data_y <- list(locs=data$locs[[t]], case.data=data$case.data[[t]], ctrl.data=data$ctrl.data[[t]])
+    X_rodent <- load_x_time(year=years[t], agg_factor=agg_factor)
+    risk_rodent_y <- calc_posterior_risk(output, X_rodent, null_alphas=F)
+    
+    # downscale posterior variances
+    postvar_rodent <- apply(risk_rodent_y, 2, var)
+    r <- overlay(postvar_rodent, caPr.disc[[1]])
+    xy <- data.frame(xyFromCell(r, 1:ncell(r)))
+    v <- getValues(r)
+    tps <- Tps(xy, v)
+    p <- raster(caPr[[2]])
+    p <- interpolate(p, tps)
+    p <- mask(p, caPr[[1]])
+    postvar_ds <- p[][!is.na(p)[]]
+    postvar_ds[postvar_ds <= 0] <- 1e-5
+    
+    # get risk estimates at high resolution
+    risk_est <- risks_all_t$risks_high[[t]]
+    
+    # calculate pvalues
+    pvals <- c()
+    for (i in 1:length(risk_est)){
+      r_i <- risk_est[i]
+      v_i <- postvar_ds[i]
+      pvals <- c(pvals, 1 - pnorm(threshold, mean=r_i, sd=sqrt(v_i)))
+    }
+    rp <- overlay(pvals, caPr_all[[1]][[1]])
+    
+    inds_95 <- 1 * (pvals > 0.95)
+    inds_50 <- 1 * (pvals > 0.5)
+    inds_25 <- 1 * (pvals > 0.25)
+    
+    inds <- inds_95 + inds_50 + inds_25
+    r_inds <- overlay(inds, caPr[[1]])
+    r_inds_95 <- overlay(inds_95, caPr[[1]])
+    
+    results[[counter]] <- list(
+      r_fracs=rp,
+      r_inds=r_inds,
+      r_inds_95=r_inds_95
+    )
+    counter <- counter + 1
+    
+  }
+  
+  return(results)
   
 }
 

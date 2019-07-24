@@ -16,10 +16,13 @@ agg_factor <- 7
 dst <- "/Users/brianconroy/Documents/research/project3/analysis/p3_figs_analysis/"
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
+output <- load_output(paste("output_", analysis_name, ".json", sep=""))
+output_agg <- load_output(paste('output_', paste(analysis_name, "_aggregated_ps", sep=""), ".json", sep=""))
 
 
 #### Assemble data
 locs <- list()
+years <- c(1983, 1988, 1993, 1998, 2003, 2008, 2013)
 case.data <- list()
 ctrl.data <- list()
 bin_width <- 5
@@ -104,154 +107,18 @@ for (i in 1:length(data$locs)){
 write_latex_table(ldply(prevs, 'data.frame'), "latex_counts_prev.txt", path=dst)
 
 
-###########
-# fit model
-###########
+#### Model fitting details
+## Temporal model
+print(output$n.sample)
+print(output$burnin)
+print(ncol(D))
+print(mean(area(caPr.disc_all[[1]][[1]])[]))
+## Reference model
+print(output_agg$n.sample)
+print(output_agg$burnin)
 
 
-#### Specify MCMC parameters
-m_aca=2000
-m_aco=2000
-m_ca=700
-m_co=700
-m_w=700
-m_u=700
-target_aca=0.75
-target_aco=0.75
-target_ca=0.75
-target_co=0.75
-target_w=0.75
-target_u=0.75
-self_tune_w=TRUE
-self_tune_aca=TRUE
-self_tune_aco=TRUE
-self_tune_ca=TRUE
-self_tune_co=TRUE
-self_tune_u=TRUE
-
-L_w=8
-L_ca=8
-L_co=8
-L_a_ca=8
-L_a_co=8
-L_u=8
-
-
-## Initial values
-caPr <- load_prism_pcs2()
-caPr.disc <- aggregate(caPr, fact=7)
-data_pooled <- assemble_data(rodents, loc.disc_y, caPr.disc)
-
-prior_theta <- c(6, 1)
-prior_phi <- c(18, 204)
-w_output <- logisticGp(y=data_pooled$loc$status, D, n.sample=1000, burnin=200, L=10,
-                       prior_phi=prior_phi, prior_theta=prior_theta)
-# w_output <- burnin_logisticGp_mcmc(w_output, n.burn=50)
-plot(w_output$samples.theta, type='l')
-plot(w_output$samples.phi, type='l')
-
-save_output(w_output, paste("w_inival_output_", analysis_name, ".json", sep=""))
-
-w_i <- colMeans(w_output$samples.w)
-theta_i <- mean(w_output$samples.theta)
-phi_i <- mean(w_output$samples.phi)
-
-
-# Beta & alpha initial values
-ini_case <- glm(data_pooled$case.data$y ~ data_pooled$case.data$x + w_i[data_pooled$loc$ids] - 1, family='poisson')
-alpha_ca_i <- coefficients(ini_case)[4]
-beta_ca_i <- coefficients(ini_case)[1:3]
-
-ini_ctrl <- glm(data_pooled$ctrl.data$y ~ data_pooled$ctrl.data$x.standardised + w_i[data_pooled$loc$ids] - 1, family='poisson')
-alpha_co_i <- coefficients(ini_ctrl)[4]
-beta_co_i <- coefficients(ini_ctrl)[1:3]
-
-w_initial=w_i
-beta_ca_initial=beta_ca_i
-beta_co_initial=beta_co_i
-alpha_ca_initial=alpha_ca_i
-alpha_co_initial=alpha_co_i
-theta_initial=theta_i
-phi_initial=phi_i
-u_initial=rep(0, length(years))
-
-prior_theta=get_gamma_prior(theta_i, 3)
-prior_phi=get_igamma_prior(phi_initial, 3)
-prior_alpha_ca_mean=alpha_ca_initial
-prior_alpha_ca_var=2
-prior_alpha_co_mean=alpha_ca_initial
-prior_alpha_co_var=2
-prior_u_mean=0
-prior_u_var=2
-
-n.sample=1000
-burnin=500
-proposal.sd.theta=0.2
-
-output <- prefSampleTemporal(data, D, n.sample, burnin,
-                             L_w, L_ca, L_co, L_a_ca, L_a_co, L_u,
-                             proposal.sd.theta=proposal.sd.theta,
-                             m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, m_u=m_u,
-                             target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, target_u=target_u,
-                             self_tune_w=self_tune_w, self_tune_aca=self_tune_aca, self_tune_aco=self_tune_aco, self_tune_ca=self_tune_ca, self_tune_co=self_tune_co, self_tune_u=self_tune_u,
-                             beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
-                             theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial, u_initial=u_initial,
-                             prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var,
-                             prior_u_mean=prior_u_mean, prior_u_var=prior_u_var)
-
-
-#### Additional burnin
-output <- burnin_after_temporal(output, n.burn=50)
-
-
-#### Generate additional samples
-output <- continue_mcmc_temporal(data, D, output, n.sample=2000)
-
-
-#### View results
-par(mfrow=c(2,3))
-plot(output$samples.beta.ca[,1], type='l')
-plot(output$samples.beta.ca[,2], type='l')
-plot(output$samples.beta.ca[,3], type='l')
-plot(output$samples.beta.co[,1], type='l')
-plot(output$samples.beta.co[,2], type='l')
-plot(output$samples.beta.co[,3], type='l')
-
-par(mfrow=c(1,2))
-plot(output$samples.alpha.ca, type='l')
-plot(output$samples.alpha.co, type='l')
-
-plot(output$samples.theta, type='l')
-plot(output$samples.phi, type='l')
-
-w.hat <- colMeans(output$samples.w)
-u.hat <- colMeans(output$samples.u)
-par(mfrow=c(2,4))
-hist(w.hat + u.hat[1])
-hist(w.hat + u.hat[2])
-hist(w.hat + u.hat[3])
-hist(w.hat + u.hat[4])
-hist(w.hat + u.hat[5])
-hist(w.hat + u.hat[6])
-hist(w.hat + u.hat[7])
-
-par(mfrow=c(1,2))
-plot(mean(w.hat) + u.hat, type='l')
-prevalences <- c()
-for (i in 1:length(years)){
-  prevalences <- c(prevalences,
-                   sum(data$case.data[[i]]$y)/(sum(data$case.data[[i]]$y) + sum(data$ctrl.data[[i]]$y)))
-  
-}
-plot(prevalences, type='l')
-
-
-#### Save output
-output$description <- analysis_name
-save_output(output, paste("output_", analysis_name, ".json", sep=""))
-
-
-#### Calculate temporal risk surfaces
+#### Figure: Plot temporal risk surfaces
 temporal_risks <- calc_temporal_risks(output, caPr.disc_all, caPr_all, agg_factor, years)
 
 rescaled <- equalize_scales4(temporal_risks$r_risks_high)
@@ -259,4 +126,60 @@ par(mfrow=c(2,4))
 for (i in 1:length(years)){
   plot(rescaled[[i]], main=years[i])
 }
+
+
+#### Figure: Plot risk surface from reference method
+caPr <- load_prism_pcs2()
+caPr.disc <- aggregate(caPr, fact=agg_factor)
+loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+risk_agg <- calc_risk_cdph_output(
+  output_agg, 
+  data, 
+  caPr.disc, 
+  all_ids, 
+  agg_factor=agg_factor)$r_risk_high
+plot(risk_agg)
+
+
+#### Figure: compare prevalences and process
+w.hat <- colMeans(output$samples.w)
+u.hat <- colMeans(output$samples.u)
+par(mfrow=c(1,2))
+plot(mean(w.hat) + u.hat, type='l', main='A)', ylab='Mean', xlab='Time Interval')
+prevalences <- c()
+for (i in 1:length(years)){
+  prevalences <- c(prevalences,
+                   sum(data$case.data[[i]]$y)/(sum(data$case.data[[i]]$y) + sum(data$ctrl.data[[i]]$y)))
+  
+}
+plot(prevalences, type='l', main='B)', ylab='Prevalence', xlab='Time Interval')
+
+
+#### Figure: scatterplots of values for spatiotemp model vs aggregate model
+par(mfrow=c(2,4))
+for (t in 1:length(years)){
+  r_t <- temporal_risks$risks_high[[t]]
+  r_a <- risk_agg[][!is.na(risk_agg[])]
+  plot(x=r_a, y=r_t, main=years[t], ylab='Temporal Risk', xlab='Aggregate Risk'); abline(0,1,col=2)
+  
+}
+
+
+#### Figure: significance value comparison
+rs <- calc_significance_rasters_ds(rodents, output_agg, caPr, threshold=0.05)
+plot(rs$r_fracs)
+plot(rs$r_inds)
+plot(rs$r_inds_95)
+plot_risk_overlay(rs$r_inds_95, rodents)
+plot_risk_overlay(rs$r_inds, rodents)
+
+rs_temporal <- calc_significance_rasters_ds_temporal(data, output, caPr_all, caPr.disc_all, threshold=0.05)
+par(mfrow=c(2,4))
+for (t in 1:length(years)){
+  plot(rs_temporal[[t]]$r_inds_95, main=years[t])
+}
+
+
+
 
