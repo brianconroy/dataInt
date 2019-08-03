@@ -1,7 +1,7 @@
 #############################
 # Summarize the discrete time
 # spatiotemporal model fit
-# to Sciurid data
+# to coyote data
 #############################
 
 
@@ -11,11 +11,11 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-analysis_name <- "cdph_temporal_analysis"
-agg_factor <- 7
+analysis_name <- "cdph_temporal_coyte_analysis"
+agg_factor <- 6
 dst <- "/Users/brianconroy/Documents/research/project3/analysis/p3_figs_analysis/"
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
-rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
+coyotes <- read.csv(paste(src, "CDPH_coyote_recoded_full.csv", sep=""), header=T, sep=",")
 output <- load_output(paste("output_", analysis_name, ".json", sep=""))
 output_agg <- load_output(paste('output_', paste(analysis_name, "_aggregated_ps", sep=""), ".json", sep=""))
 
@@ -38,7 +38,6 @@ loc.disc_y <- caPr.disc_all[[1]]
 
 #### Assemble data
 locs <- list()
-years <- c(1983, 1988, 1993, 1998, 2003, 2008, 2013)
 case.data <- list()
 ctrl.data <- list()
 bin_width <- 5
@@ -48,16 +47,19 @@ for (i in 1:length(years)){
   y_ub <- y + (bin_width - 1)/2
   y_lb <- y - (bin_width - 1)/2
   
-  rodents_y <- rodents[rodents$Year <= y_ub & rodents$Year >= y_lb,]
+  coyotes_y <- coyotes[coyotes$Year <= y_ub & coyotes$Year >= y_lb,]
   loc.disc_y <- caPr.disc_all[[i]][[1]]
   caPr.disc_y <- caPr.disc_all[[i]]
-  data_y <- assemble_data(rodents_y, loc.disc_y, caPr.disc_y)
+  data_y <- assemble_data_coyotes(coyotes_y, caPr.disc_y)
   
   locs[[i]] <- data_y$loc
   case.data[[i]] <- data_y$case.data
   ctrl.data[[i]] <- data_y$ctrl.data
 }
 
+for(l in locs){print(sum(l$status))}
+for(d in case.data){print(sum(d$y))}
+for(d in ctrl.data){print(sum(d$y))}
 
 cells.all <- c(1:ncell(caPr.disc_all[[1]]))[!is.na(values(caPr.disc_all[[1]][[1]]))]
 coords <- xyFromCell(caPr.disc_all[[1]], cell=cells.all)
@@ -104,7 +106,7 @@ for (i in 1:length(data$locs)){
   prevs[[i]] <- row_i
   counter <- counter + 1
 }
-write_latex_table(ldply(prevs, 'data.frame'), "latex_counts_prev.txt", path=dst)
+write_latex_table(ldply(prevs, 'data.frame'), "latex_counts_prev_coyotes.txt", path=dst)
 
 
 #### Model fitting details
@@ -141,24 +143,11 @@ risk_agg <- calc_risk_cdph_output(
   agg_factor=agg_factor)$r_risk_high
 plot(risk_agg)
 
-y=v
-x1=xy[,1]
-x2=xy[,2]
-intmod <- bigssa(y~x1 + x2, type=list(x1="cub",x2="cub"))
-predict(intmod)
-
-pa=caPr.disc[[2]]
-xy_ <- data.frame(xyFromCell(p, 1:ncell(p)))
-
-newdata <- data.frame(x1=xy_[,1],x2=xy_[,2])
-# get fitted values and standard errors for new data
-yc <- predict(intmod,newdata,se.fit=F)
-
 
 #### Figure: compare prevalences and process
 w.hat <- colMeans(output$samples.w)
 u.hat <- colMeans(output$samples.u)
-par(mfrow=c(1,3))
+par(mfrow=c(2,2))
 plot(mean(w.hat) + u.hat, type='l', main='A)', ylab='Mean', xlab='Time Interval')
 prevalences <- c()
 n_obs <- c()
@@ -168,7 +157,7 @@ for (i in 1:length(years)){
   n_obs <- c(n_obs, sum(data$locs[[i]]$status))
 }
 plot(prevalences, type='l', main='B)', ylab='Prevalence', xlab='Time Interval')
-plot(n_obs, type='l', main='C)', ylab='# Observations', xlab='Time Interval')
+plot(n_obs, type='l', main='B)', ylab='# Observations', xlab='Time Interval')
 
 
 #### Figure: scatterplots of values for spatiotemp model vs aggregate model

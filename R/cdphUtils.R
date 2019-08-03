@@ -34,6 +34,138 @@ calc_significance_rasters <- function(rodents_data, output, caPr, null_alphas=F)
 }
 
 
+calc_significance_rasters_ds2 <- function(output, caPr, threshold, null_alphas=F){
+  
+  # calculate posterior variances of low res random effects
+  # interpolate posterior variance
+  # interpolate posterior mean
+  # predicted w ~ N(interpolated mean, interpolated var)
+  # draw n.samples from w
+  # calculate posterior risk at high resolution
+  
+  if (ncol(output$samples.w) == 788){
+    agg_factor <- 6
+  } else if (ncol(output$samples.w) == 584){
+    agg_factor <- 7
+  }else{
+    agg_factor <- 5
+  }
+  
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+  loc.disc <- caPr.disc[[1]]
+  all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+  N <- n_values(caPr.disc[[1]])
+  
+  # interpolate posterior variances of gaussian process
+  postvar_w <- apply(output$samples.w, 2, var)
+  r <- overlay(postvar_w, caPr.disc[[1]])
+  xy <- data.frame(xyFromCell(r, 1:ncell(r)))
+  v <- getValues(r)
+  tps <- Tps(xy, v)
+  p <- raster(caPr[[2]])
+  p <- interpolate(p, tps)
+  p <- mask(p, caPr[[1]])
+  postvar_w_ds <- p[][!is.na(p)[]]
+  postvar_w_ds[postvar_w_ds <= 0] <- 1e-5
+  p[][!is.na(p[])] <- postvar_w_ds
+  
+  # interpolate posterior means of gaussian process
+  postmean_w <- colMeans(output$samples.w)
+  r <- overlay(postmean_w, caPr.disc[[1]])
+  xy <- data.frame(xyFromCell(r, 1:ncell(r)))
+  v <- getValues(r)
+  tps <- Tps(xy, v)
+  p_mu <- raster(caPr[[2]])
+  p_mu <- interpolate(p_mu, tps)
+  p_mu <- mask(p_mu, caPr[[1]])
+  postmean_w_ds <- p_mu[!is.na(p_mu[])]
+  
+  # identify observed sample ids
+  ids_ds_raster <- 1:ncell(p_mu)
+  ids_ds_raster_vals <- ids_ds_raster[!is.na(p_mu[])]
+  xy_ds_vals <- xyFromCell(p_mu, ids_ds_raster_vals)
+  xy_vals <- xyFromCell(loc.disc, all_ids)
+  id_lookup <- c()
+  for  (i in 1:nrow(xy_ds_vals)){
+    for (j in 1:nrow(xy_vals)){
+      if (sum(round(xy_ds_vals[i,], 4) == round(xy_vals[j,], 4)) == 2){
+        id_lookup <- rbind(id_lookup, c(i, j))
+      }
+    }
+  }
+  
+  # sample from interpolated distributions for predicted values
+  n.samples <- nrow(output$samples.w)
+  n.ds_vals <- length(postmean_w_ds)
+  samples.w_interpolated <- array(NA, c(n.samples, n.ds_vals))
+  for (i in 1:n.ds_vals){
+    
+    if (!(i %in% id_lookup[,1])){
+      
+      samples.w_interpolated[,i] <- rnorm(n.samples, postmean_w_ds[i], sd=sqrt(postvar_w_ds[i]))
+      
+    } else {
+      
+      samples.w_interpolated[,i] <- output$samples.w[,id_lookup[id_lookup[,1] == i][2]]
+      
+    }
+  }
+  
+  # calculate posterior risk at high resolution
+  samples.beta.ca <- output$samples.beta.ca
+  samples.beta.co <- output$samples.beta.co
+  if (null_alphas){
+    samples.alpha.ca <- rep(0, n.samples)
+    samples.alpha.co <- rep(0, n.samples)
+  } else {
+    samples.alpha.ca <- output$samples.alpha.ca
+    samples.alpha.co <- output$samples.alpha.co
+  }
+  X_high <- load_x_ca2()
+  samples.risk <- array(NA, c(n.samples, n.ds_vals))
+  for (i in 1:n.samples){
+    w_i <- samples.w_interpolated[i,]
+    beta.ca_i <- samples.beta.ca[i,]
+    beta.co_i <- samples.beta.co[i,]
+    alpha.ca_i <- samples.alpha.ca[i]
+    alpha.co_i <- samples.alpha.co[i]
+    lodds_i <- X_high %*% beta.ca_i + alpha.ca_i * w_i - X_high %*% beta.co_i - alpha.co_i * w_i
+    risk_high <- calc_risk(lodds_i)
+    samples.risk[i,] <- risk_high
+  }
+  
+  check <- colMeans(samples.risk)
+  plot(overlay(check, caPr[[1]]))
+  
+  # calculate pvalues
+  pvals <- c()
+  for (i in 1:ncol(samples.risk)){
+    r_i <- samples.risk[,i]
+    pvals <- c(pvals, sum(r_i > threshold)/length(r_i))
+  }
+  rp <- overlay(pvals, caPr[[1]])
+  
+  inds_95 <- 1 * (pvals > 0.95)
+  inds_50 <- 1 * (pvals > 0.5)
+  inds_25 <- 1 * (pvals > 0.25)
+  # normalize color scales
+  if (sum(inds_95) == 0){inds_95[1]=3}
+  if (sum(inds_50) == 0){inds_95[2]=2}
+  if (sum(inds_25) == 0){inds_95[3]=1}
+  
+  inds <- inds_95 + inds_50 + inds_25
+  r_inds <- overlay(inds, caPr[[1]])
+  r_inds_95 <- overlay(inds_95, caPr[[1]])
+  
+  return(list(
+    r_fracs=rp,
+    r_inds=r_inds,
+    r_inds_95=r_inds_95
+  ))
+  
+}
+
+
 calc_significance_rasters_ds <- function(rodents_data, output, caPr, threshold, null_alphas=F){
   
   if (ncol(output$samples.w) == 788){
