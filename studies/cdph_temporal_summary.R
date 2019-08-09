@@ -38,6 +38,10 @@ plot(caPr.disc_all[[1]])
 loc.disc_y <- caPr.disc_all[[1]]
 
 
+#### Significance maps
+
+
+
 #### Assemble data
 locs <- list()
 years <- c(1983, 1988, 1993, 1998, 2003, 2008, 2013)

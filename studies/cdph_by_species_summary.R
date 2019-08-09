@@ -25,11 +25,12 @@ rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T
 
 
 output_base <- load_output("output_cdph_baseline.json")
+# samples_int <- interpolate_w_batched(samples, bws, r_train, r_pred, batch_size=500)
 samples_int <- load_output("cdph_baseline_interpolated_w.json")
-samples_risk <- calc_posterior_samples(output_base, samples_int)
-# save_output(samples_ris)
-# calculate significance maps
-
+samples.risk <- calc_posterior_risk(output_base, samples_int)
+sigmaps <- calc_significance(samples.risk, caPr[[1]], threshold=0.05)
+plot(sigmaps$r_inds)
+plot(sigmaps$r_inds_95)
 
 
 

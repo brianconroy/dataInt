@@ -207,6 +207,34 @@ output$description <- analysis_name
 save_output(output, paste("output_", analysis_name, ".json", sep=""))
 
 
+#### Interpolate random field
+samples <- output$samples.w
+r_pred <- caPr_all[[1]][[1]]
+r_train <- caPr.disc_all[[1]][[1]]
+
+# choose bandwidths
+z <- colMeans(samples)
+txdat <- data.frame(xyFromCell(r_train, (1:ncell(r_train))[!is.na(r_train[])]))
+x <- txdat[,1]
+y <- txdat[,2]
+df_new <- data.frame(xyFromCell(r_pred, (1:ncell(r_pred))[!is.na(r_pred[])]))
+bw <- npregbw(formula=z~x+y,
+              regtype="lc",
+              bwmethod="cv.ls",
+              ckertype="gaussian")
+print(bw)
+model.np <- npreg(bws=c(0.09, 0.09),
+                  formula=z~x+y,
+                  regtype="lc",
+                  ckertype="gaussian")
+pred <- predict(model.np, newdata=df_new)
+plot(overlay(pred, r_pred))
+bws <- c(0.09, 0.09)
+
+# Run interpolation
+samples_int <- interpolate_w_batched(samples, bws, r_train, r_pred, batch_size=500)
+save_output(samples_int, paste(analysis_name, "_w_interpolated.json", sep=""))
+
 #### Calculate temporal risk surfaces
 temporal_risks <- calc_temporal_risks(output, caPr.disc_all, caPr_all, agg_factor, years)
 

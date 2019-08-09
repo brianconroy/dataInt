@@ -6,15 +6,11 @@ library(doParallel)
 
 interpolate_w_batched  <- function(samples, bws, r_train, r_pred, batch_size=500){
   
-  samples_int <- c()
-  
-  for (batch in 1:(nrow(output_base$samples.w)/batch_size)){
-    
+  samples_int <- lapply(1:(nrow(samples)/batch_size),function(batch) {
     print(paste(batch))
-    samples_batch <- interpolate_w(samples[(batch_size * (batch-1) + 1):(batch_size * batch),], bws, r_train, r_pred)
-    samples_int <- rbind(samples_int, samples_batch)
-
-  }
+    interpolate_w(samples[(batch_size * (batch-1) + 1):(batch_size * batch),], bws, r_train, r_pred)
+  })
+  samples_int <- do.call(rbind, samples_int)
   
   return(samples_int)
   
