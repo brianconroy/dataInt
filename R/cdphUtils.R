@@ -34,6 +34,36 @@ calc_significance_rasters <- function(rodents_data, output, caPr, null_alphas=F)
 }
 
 
+calc_posterior_samples <- function(output, samples_int, caPr, threshold){
+  
+  samples.beta.ca <- output$samples.beta.ca
+  samples.beta.co <- output$samples.beta.co
+  samples.alpha.ca <- output$samples.alpha.ca
+  samples.alpha.co <- output$samples.alpha.co
+  X_high <- load_x_ca2()
+  n.samples <- nrow(samples_int)
+  samples.risk <- c()
+  progressBar <- txtProgressBar(style = 3, min=1, max=n.samples)
+  for (i in 1:n.samples){
+    w_i <- samples_int[i,]
+    beta.ca_i <- samples.beta.ca[i,]
+    beta.co_i <- samples.beta.co[i,]
+    alpha.ca_i <- samples.alpha.ca[i]
+    alpha.co_i <- samples.alpha.co[i]
+    lodds_i <- X_high %*% beta.ca_i + alpha.ca_i * w_i - X_high %*% beta.co_i - alpha.co_i * w_i
+    risk_high <- calc_risk(lodds_i)
+    samples.risk <- rbind(samples.risk, t(risk_high))
+    setTxtProgressBar(progressBar, i)
+  }
+  
+  check <- colMeans(samples.risk)
+  plot(overlay(check, caPr[[1]]))
+  
+  return(samples_int)
+  
+}
+
+
 calc_significance_rasters_ds2 <- function(output, caPr, threshold, null_alphas=F){
   
   # calculate posterior variances of low res random effects

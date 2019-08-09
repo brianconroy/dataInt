@@ -16,20 +16,30 @@ sourceDirectory('Documents/research/dataInt/R/')
 dst <- "/Users/brianconroy/Documents/research/project2/cdph_by_species/"
 src <- "/Users/brianconroy/Documents/research/cdph/data/"
 caPr <- load_prism_pcs2()
-rodents <- read.csv(paste(src, "CDPH_scurid_updated_full.csv", sep=""), header=T, sep=",")
 
-
-######################
-#### Significance maps
-######################
-
+##########
+# baseline
+##########
 
 output_base <- load_output("output_cdph_baseline.json")
-samples_int <- load_output("cdph_baseline_interpolated_w.json")
-samples_risk <- calc_posterior_samples(output_base, samples_int)
-# save_output(samples_ris)
-# calculate significance maps
+samples <- output_base$samples.w
+r_pred <- caPr[[1]]
+r_train <- aggregate(r_pred, fact=5)
+bws <- c(0.08, 0.09)
+samples_int <- interpolate_w_batched(samples, bws, r_train, r_pred, batch_size=500)
+# save_output(samples_int, "cdph_baseline_interpolated_w.json")
 
+
+
+
+
+
+
+# w.hat <- colMeans(samples_int)
+# var.hat <- apply(samples_int, 2, var)
+# plot(overlay(w.hat, r_pred))
+# plot(overlay(var.hat, r_pred))
+# plot(overlay(apply(output_base$samples.w, 2, var), r_train))
 
 
 

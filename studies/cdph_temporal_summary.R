@@ -4,7 +4,9 @@
 # to Sciurid data
 #############################
 
-
+library(gridExtra)
+library(grid)
+library(ggplot2)
 library(plyr)
 library(mvtnorm)
 library(R.utils)
@@ -141,25 +143,10 @@ risk_agg <- calc_risk_cdph_output(
   agg_factor=agg_factor)$r_risk_high
 plot(risk_agg)
 
-y=v
-x1=xy[,1]
-x2=xy[,2]
-intmod <- bigssa(y~x1 + x2, type=list(x1="cub",x2="cub"))
-predict(intmod)
-
-pa=caPr.disc[[2]]
-xy_ <- data.frame(xyFromCell(p, 1:ncell(p)))
-
-newdata <- data.frame(x1=xy_[,1],x2=xy_[,2])
-# get fitted values and standard errors for new data
-yc <- predict(intmod,newdata,se.fit=F)
-
 
 #### Figure: compare prevalences and process
 w.hat <- colMeans(output$samples.w)
 u.hat <- colMeans(output$samples.u)
-par(mfrow=c(1,3))
-plot(mean(w.hat) + u.hat, type='l', main='A)', ylab='Mean', xlab='Time Interval')
 prevalences <- c()
 n_obs <- c()
 for (i in 1:length(years)){
@@ -167,8 +154,43 @@ for (i in 1:length(years)){
                    sum(data$case.data[[i]]$y)/(sum(data$case.data[[i]]$y) + sum(data$ctrl.data[[i]]$y)))
   n_obs <- c(n_obs, sum(data$locs[[i]]$status))
 }
-plot(prevalences, type='l', main='B)', ylab='Prevalence', xlab='Time Interval')
-plot(n_obs, type='l', main='C)', ylab='# Observations', xlab='Time Interval')
+
+# quantiles
+samples <- array(NA, c(nrow(output$samples.w), length(years)))
+for (i in 1:nrow(output$samples.w)){
+  w.hat_i <- mean(output$samples.w[i,])
+  for (t in 1:length(years)){
+    samples[i,t] <- w.hat_i + output$samples.u[i,t]
+  }
+}
+q25 <- c()
+q75 <- c()
+for (t in 1:ncol(samples)){
+  q25 <- c(q25, quantile(samples[,t], probs=c(0.25)))
+  q75 <- c(q75, quantile(samples[,t], probs=c(0.75)))
+}
+
+dat <- cbind(years, mean(w.hat) + u.hat, q25, q75)
+dat <- data.frame(dat)
+names(dat) <- c('years', 'mean', 'q25', 'q75')
+
+p1 <- ggplot(dat, aes(x=years, y=mean)) + 
+  geom_ribbon(aes(ymin=q25, ymax=q75), alpha=0.2) + 
+  geom_line() + 
+  scale_x_continuous(breaks=years) + 
+  xlab("Year") + ylab("Mean") + ggtitle("A)")
+
+p2 <- ggplot(data.frame(cbind(years, prevalences)), aes(x=years, y=prevalences)) + 
+  geom_line() + 
+  scale_x_continuous(breaks=years) +
+  xlab("Year") + ylab("Prevalence") + ggtitle("B)")
+
+p3 <- ggplot(data.frame(cbind(years, n_obs)), aes(x=years, y=n_obs)) + 
+  geom_line() + 
+  scale_x_continuous(breaks=years) +
+  xlab("Year") + ylab("Observed Cells") + ggtitle("C)")
+
+grid.arrange(p1, p2, p3)
 
 
 #### Figure: scatterplots of values for spatiotemp model vs aggregate model
@@ -177,7 +199,7 @@ for (t in 1:length(years)){
   r_t <- temporal_risks$risks_high[[t]]
   r_a <- risk_agg[][!is.na(risk_agg[])]
   plot(x=r_a, y=r_t, main=years[t], ylab='Temporal Risk', xlab='Aggregate Risk'); abline(0,1,col=2)
-  
+  print(round(mean(r_t - r_a), 3))
 }
 
 
