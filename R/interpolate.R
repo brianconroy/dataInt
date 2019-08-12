@@ -34,7 +34,7 @@ interpolate_w <- function(samples, bws, r_train, r_pred, out_file=NULL){
   samples_pred <- foreach(i=1:nrow(samples), .combine=rbind) %dopar% {
     library(np)
     z <- samples[i,]
-    model.np = npreg(bws=c(0.08, 0.09),
+    model.np = npreg(bws=bws,
                      formula=z~x+y,
                      regtype="lc",
                      ckertype="gaussian")

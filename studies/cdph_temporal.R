@@ -223,13 +223,13 @@ bw <- npregbw(formula=z~x+y,
               bwmethod="cv.ls",
               ckertype="gaussian")
 print(bw)
-model.np <- npreg(bws=c(0.09, 0.09),
+model.np <- npreg(bws=c(0.14, 0.14),
                   formula=z~x+y,
                   regtype="lc",
                   ckertype="gaussian")
 pred <- predict(model.np, newdata=df_new)
 plot(overlay(pred, r_pred))
-bws <- c(0.09, 0.09)
+bws <- c(0.14, 0.14)
 
 # Run interpolation
 samples_int <- interpolate_w_batched(samples, bws, r_train, r_pred, batch_size=500)
@@ -345,8 +345,13 @@ par(mfrow=c(1,2))
 view_tr(output_ps$samples.alpha.ca)
 view_tr(output_ps$samples.alpha.co)
 
-## save results
+## Run interpolation
 tag <- paste(analysis_name, "_aggregated_ps", sep="")
+samples <- output_ps$samples.w
+bws <- c(0.14, 0.14)
+samples_int <- interpolate_w_batched(samples, bws, caPr.disc_all[[1]][[1]], caPr_all[[1]][[1]], batch_size=500)
+save_output(samples_int, paste(tag, "_w_interpolated.json", sep=""))
+
+## Save results
 output_ps$description <- tag
 save_output(output_ps, paste('output_', tag, ".json", sep=""))
-

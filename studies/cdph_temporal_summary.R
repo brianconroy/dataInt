@@ -39,7 +39,25 @@ loc.disc_y <- caPr.disc_all[[1]]
 
 
 #### Significance maps
+samples_int <- load_output(paste(analysis_name, "_w_interpolated.json", sep=""))
+samples.risk <- calc_posterior_risk_temporal(output, samples_int)
+sigmaps <- calc_significance_temporal(samples.risk, caPr_all[[1]][[1]], threshold=0.05)
+par(mfrow=c(2,4))
+for (t in 1:7){plot(sigmaps$r_inds_95[[]])}
 
+samples_int_agg <- load_output("cdph_temporal_analysis_aggregated_ps_w_interpolated.json")
+samples.risk_agg <- calc_posterior_risk(output_agg, samples_int_agg)
+sigmap_agg <- calc_significance(samples.risk_agg, caPr_all[[1]][[1]], threshold=0.05)
+plot(sigmap_agg$r_inds_95)
+
+baseline <- sum(sigmap_agg$r_inds_95[][!is.na(sigmap_agg$r_inds_95[])])
+frac_baseline <- c()
+for (t in 1:length(years)){
+  frac_baseline <- c(
+    frac_baseline,
+    round(sum(sigmaps[[t]]$r_inds_95[][!is.na(sigmaps[[t]]$r_inds_95[])])/baseline, 3)
+  )
+}
 
 
 #### Assemble data
@@ -205,29 +223,3 @@ for (t in 1:length(years)){
   plot(x=r_a, y=r_t, main=years[t], ylab='Temporal Risk', xlab='Aggregate Risk'); abline(0,1,col=2)
   print(round(mean(r_t - r_a), 3))
 }
-
-
-#### Figure: significance value comparison
-rs <- calc_significance_rasters_ds(rodents, output_agg, caPr, threshold=0.05)
-plot(rs$r_fracs)
-plot(rs$r_inds)
-plot(rs$r_inds_95)
-plot_risk_overlay(rs$r_inds_95, rodents)
-plot_risk_overlay(rs$r_inds, rodents)
-
-rs_temporal <- calc_significance_rasters_ds_temporal(data, output, caPr_all, caPr.disc_all, threshold=0.05)
-par(mfrow=c(2,4))
-for (t in 1:length(years)){
-  plot(rs_temporal[[t]]$r_inds_95, main=years[t])
-}
-
-baseline <- sum(rs$r_inds_95[][!is.na(rs$r_inds_95[])])
-frac_baseline <- c()
-for (t in 1:length(years)){
-  frac_baseline <- c(
-    frac_baseline,
-    round(sum(rs_temporal[[t]]$r_inds_95[][!is.na(rs_temporal[[t]]$r_inds_95[])])/baseline, 3)
-  )
-}
-
-
