@@ -162,6 +162,42 @@ calc_significance_temporal <- function(samples.temporal, r, threshold=0.05){
 }
 
 
+calc_significance_temporal_negative <- function(samples.temporal, r, threshold=0.05){
+  
+  pvals <- lapply(1:length(samples.temporal), function(t){
+    sapply(1:ncol(samples.temporal[[t]]), function(i){
+      r_i <- samples.temporal[[t]][,i]
+      sum(r_i < threshold)/length(r_i)
+    })
+  })
+  
+  rp <- lapply(1:length(samples.temporal), function(t){
+    overlay(pvals[[t]], r)
+  })
+  
+  inds_95 <- lapply(1:length(samples.temporal), function(t){ 1 * (pvals[[t]] > 0.95)})
+  inds_50 <- lapply(1:length(samples.temporal), function(t){ 1 * (pvals[[t]] > 0.5)})
+  inds_25 <- lapply(1:length(samples.temporal), function(t){ 1 * (pvals[[t]] > 0.25)})
+  
+  inds <- lapply(1:length(samples.temporal), function(t){
+    inds_95[[t]] + inds_50[[t]] + inds_25[[t]]
+  })
+  r_inds <- lapply(1:length(samples.temporal), function(t){
+    overlay(inds[[t]], r)
+  })
+  r_inds_95 <- lapply(1:length(samples.temporal), function(t){
+    overlay(inds_95[[t]], r)
+  })
+  
+  return(list(
+    r_fracs=rp,
+    r_inds=r_inds,
+    r_inds_95=r_inds_95
+  ))
+  
+}
+
+
 calc_significance_rasters_ds <- function(rodents_data, output, caPr, threshold, null_alphas=F){
   
   if (ncol(output$samples.w) == 788){

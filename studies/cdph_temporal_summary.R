@@ -43,21 +43,42 @@ samples_int <- load_output(paste(analysis_name, "_w_interpolated.json", sep=""))
 samples.risk <- calc_posterior_risk_temporal(output, samples_int)
 sigmaps <- calc_significance_temporal(samples.risk, caPr_all[[1]][[1]], threshold=0.05)
 par(mfrow=c(2,4))
-for (t in 1:7){plot(sigmaps$r_inds_95[[]])}
+for (t in 1:7){plot(sigmaps$r_inds_95[[t]])}
+for (t in 1:7){plot(sigmaps$r_inds[[t]])}
 
 samples_int_agg <- load_output("cdph_temporal_analysis_aggregated_ps_w_interpolated.json")
 samples.risk_agg <- calc_posterior_risk(output_agg, samples_int_agg)
 sigmap_agg <- calc_significance(samples.risk_agg, caPr_all[[1]][[1]], threshold=0.05)
 plot(sigmap_agg$r_inds_95)
+plot(sigmap_agg$r_inds)
 
 baseline <- sum(sigmap_agg$r_inds_95[][!is.na(sigmap_agg$r_inds_95[])])
 frac_baseline <- c()
 for (t in 1:length(years)){
   frac_baseline <- c(
     frac_baseline,
-    round(sum(sigmaps[[t]]$r_inds_95[][!is.na(sigmaps[[t]]$r_inds_95[])])/baseline, 3)
+    round(sum(sigmaps$r_inds_95[[t]][][!is.na(sigmaps$r_inds_95[[t]][])])/baseline, 3)
   )
 }
+
+
+#### More significance maps
+sigmaps_negative <- calc_significance_temporal_negative(samples.risk, caPr_all[[1]][[1]], threshold=0.05)
+par(mfrow=c(2,2))
+plot(sigmaps_negative$r_inds_95[[1]], main='A)')
+plot(sigmaps_negative$r_inds_95[[7]], main='B)')
+plot(sigmaps$r_inds_95[[1]], main='C)')
+plot(sigmaps$r_inds_95[[7]], main='D)')
+
+neg_vals <- sigmaps_negative$r_inds_95[[7]][]
+neg_vals <- neg_vals[!is.na(neg_vals)]
+neg_vals[neg_vals == 1] <- -1
+neg_vals[neg_vals == 0] <- 1
+neg_vals[neg_vals == -1] <- 0
+pos_vals <- sigmaps$r_inds_95[[7]][]
+pos_vals <- pos_vals[!is.na(pos_vals)]
+diff <- neg_vals - pos_vals
+plot(overlay(diff, caPr_all[[1]][[1]]))
 
 
 #### Assemble data

@@ -1057,45 +1057,6 @@ viewTraces <- function(results, param, line=NULL, titletype='ini'){
 }
 
 
-## viewTracesInt
-  # create traceplots from the output of the 
-  # data integration CAR models
-## arguments
-  # results: list (output of data integration)
-  # d: index for which dataset to visualize
-  # title.type: either 'tune' or 'initial'
-  # overall.title: overall title
-viewTracesInt <- function(results, param, d=NULL, line=NULL, title.type='tune', overall.title=NULL){
-  
-  for (r in results){
-    
-    samples <- getSamples(param, output)
-    
-    if (title.type == 'tune'){
-      title <- paste('tune beta:', r$tune.beta, '| tune phi:', r$tune.phi)
-    } else if (title.type == 'pooled'){
-      title <- param
-    } else{
-      taus <- sapply(r$tau2.initial, function(x){round(x,2)})
-      title <- paste(c('beta0:', round(r$beta.initial[1], 2),
-                     '| beta1:', round(r$beta.initial[2], 2),
-                     '| tau2:', taus), collapse=" ")
-    }
-    
-    plot(samples, type='l', main=title)
-    if (!is.null(line)){
-      abline(h=line, col='2')
-    } 
-    
-  }
-  
-  if (!is.null(overall.title)){
-    title(overall.title, outer=TRUE)
-  }
-
-}
-
-
 # creates histograms from a list of results,
 # i.e. outputs of either carBYM / carLeroux. 
 # param specifies which parameter to plot
@@ -1114,63 +1075,6 @@ viewHists <- function(results, param, line=NULL){
 }
 
 
-## viewTracesInt
-  # create sample histograms from the output of the 
-  # data integration CAR models
-## arguments
-  # results: list (output of data integration)
-  # d: index for which dataset to visualize
-  # title.type: either 'tune' or 'initial'
-  # overall.title: overall title
-viewHistsInt <- function(results, param, d=NULL, line=NULL, title.type='tune', overall.title=NULL){
-  
-  for (r in results){
-    
-    if (param == 'beta0'){
-      samples <- r$samples.beta[,1]
-    } else if (param == 'beta1'){
-      samples <- r$samples.beta[,2]
-    } else if (param == 'beta2'){
-      samples <- r$samples.beta[,3]
-    } else if (param == 'beta3'){
-      samples <- r$samples.beta[,4]
-    } else if (param == 'beta4'){
-      samples <- r$samples.beta[,5]
-    } else if (param == 'tau2'){
-      samples <- r$samples.tau2[,d]
-    } else if (param == 'sigma2'){
-      samples <- r$samples.sigma2
-    } else if (param == 'rho.1'){
-      samples <- r$samples.rho[1,,]
-    } else if (param == 'rho.2'){
-      samples <- r$samples.rho[2,,]
-    }
-    
-    if (title.type == 'tune'){
-      title <- paste('tune beta:', r$tune.beta, '| tune phi:', r$tune.phi)
-    } else if (title.type == 'pooled'){
-      title <- param
-    } else{
-      taus <- sapply(r$tau2.initial, function(x){round(x,2)})
-      title <- paste(c('beta0:', round(r$beta.initial[1], 2),
-                       '| beta1:', round(r$beta.initial[2], 2),
-                       '| tau2:', taus), collapse=" ")
-    }
-    
-    hist(samples, main=title)
-    if (!is.null(line)){
-      abline(v=line, col='2')
-    }
-    
-  }
-  
-  if (!is.null(overall.title)){
-    title(overall.title, outer=TRUE)
-  }
-  
-}
-
-
 # exploratory function: plot any variable of the bioclim dataset (CA only)
 # var: character name of worldclim variable to be plotted
 # wc: worldclim RasterStack
@@ -1178,16 +1082,6 @@ plotwc <- function(varIndex, wc){
   
   datVar <- wc[[varIndex]]
   plot(datVar)
-  bounds <- us_boundaries(type='state', resolution='low')
-  plot(st_geometry(bounds), add=T)
-  
-}
-
-
-# x: RasterLayer
-plotstates <- function(x){
-  
-  plot(x)
   bounds <- us_boundaries(type='state', resolution='low')
   plot(st_geometry(bounds), add=T)
   
@@ -1202,23 +1096,6 @@ cropmask <- function(x, ext, spdf){
   
   dat_sub <- crop(x, ext)
   return(mask(dat_sub, spdf))
-  
-}
-
-
-# create a raster from scratch with the supplied values
-inirast <- function(vals, rname='samp1'){
-  
-  r <- raster(nrow=nrow(dat_ca),
-              ncol=ncol(dat_ca),
-              xmn=-130,
-              xmx=-100,
-              ymn=25,
-              ymx=50)
-  r[] <- vals
-  rm <- mask(r, ca)
-  names(rm) <- c(rname)
-  return(rm)
   
 }
 

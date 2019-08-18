@@ -169,7 +169,7 @@ for (i in 0:7){
   points(coords_neg)
   coords_pos <- matrix(rodents_pos$Lon_Add_Fix)
   coords_pos <- cbind(coords_pos, rodents_pos$Lat_Add_Fix)
-  points(coords_pos, col='2')
+  points(coords_pos)#, col='2')
   
 }
 
