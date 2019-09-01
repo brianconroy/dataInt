@@ -115,6 +115,11 @@ output <- prefSampleGpV2(data, d, n.sample, burnin,
                            theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
                            prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
+# optional: additional samples, burnin
+output <- burnin_after_v2(output, n.burn=50)
+
+output <- continue_mcmc_v2(data, d, output, n.sample=20)
+
 par(mfrow=c(1,3))
 plot(output$samples.beta.loc[,1], type='l'); abline(h=beta.samp[1], col=2)
 plot(output$samples.beta.loc[,2], type='l'); abline(h=beta.samp[2], col=2)
@@ -126,3 +131,4 @@ plot(colMeans(output$samples.w), W); abline(0, 1, col=2)
 par(mfrow=c(1,2))
 plot(output$samples.alpha.ca, type='l'); abline(h=Alpha.case, col=2)
 plot(output$samples.alpha.co, type='l'); abline(h=Alpha.ctrl, col=2)
+
