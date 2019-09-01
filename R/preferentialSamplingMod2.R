@@ -28,7 +28,6 @@ continue_mcmc_v2 <- function(data, D, output, n.sample){
   beta_loc_initial <- output$samples.beta.loc[n.sample.old,]
   alpha_ca_initial <- output$samples.alpha.ca[n.sample.old]
   alpha_co_initial <- output$samples.alpha.co[n.sample.old]
-
   w_initial <- output$samples.w[n.sample.old,]
   theta_initial <- output$samples.theta[n.sample.old]
   phi_initial <- output$samples.phi[n.sample.old]
@@ -54,16 +53,16 @@ continue_mcmc_v2 <- function(data, D, output, n.sample){
   prior_alpha_ca_var <- output$prior_alpha_ca_var
   prior_alpha_co_var <- output$prior_alpha_co_var
   more_output <- prefSampleGpV2(data, D, n.sample, burnin=0, 
-                                  L_w=L_w, L_ca=L_ca, L_co=L_co, L_a_ca=L_a_ca, L_a_co=L_a_co,
-                                  proposal.sd.theta=proposal.sd.theta,
-                                  self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE, self_tune_loc=FALSE,
-                                  delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, delta_loc=delta_loc,
-                                  beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, 
-                                  alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial, beta_loc_initial=beta_loc_initial,
-                                  theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
-                                  prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, 
-                                  prior_alpha_co_var=prior_alpha_ca_var)
-  
+                                L_w=L_w, L_ca=L_ca, L_co=L_co, L_a_ca=L_a_ca, L_a_co=L_a_co,
+                                proposal.sd.theta=proposal.sd.theta,
+                                self_tune_w=FALSE, self_tune_aca=FALSE, self_tune_aco=FALSE, self_tune_ca=FALSE, self_tune_co=FALSE, self_tune_loc=FALSE,
+                                delta_w=delta_w, delta_aca=delta_aca, delta_aco=delta_aco, delta_ca=delta_ca, delta_co=delta_co, delta_loc=delta_loc,
+                                beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, 
+                                alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial, beta_loc_initial=beta_loc_initial,
+                                theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
+                                prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, 
+                                prior_alpha_co_var=prior_alpha_ca_var)
+
   # combine outputs
   new_output <- output
   new_output$samples.alpha.ca <- c(new_output$samples.alpha.ca, more_output$samples.alpha.ca)

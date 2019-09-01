@@ -84,27 +84,58 @@ self_tune_ca=TRUE
 self_tune_co=TRUE
 self_tune_loc=TRUE
 
-beta_loc_initial=c(0,0,0)
-beta_ca_initial=beta.case
-beta_co_initial=beta.ctrl
-alpha_ca_initial=Alpha.case
-alpha_co_initial=Alpha.ctrl
-theta_initial=Theta
-phi_initial=Phi
-w_initial=W
-
 prior_alpha_ca_mean <- Alpha.case
 prior_alpha_ca_var <- 4
 prior_alpha_co_mean <- Alpha.ctrl
 prior_alpha_co_var <- 4
 prior_theta <- c(6, 1)
-prior_phi <- c(18, 204)
+prior_phi <- get_igamma_prior(12, 5)
 
-n.sample <- 200
+
+# estimate initial values
+output_ini <- logisticGpCov(locs$status, locs$x.scaled, d, n.sample=1000, burnin=0, L_beta=8, L_w=8, proposal.sd.theta=0.3,
+                            w_initial=NULL, theta_initial=NULL, phi_initial=NULL, beta_initial=NULL,
+                            prior_phi=prior_phi, prior_theta=prior_theta)
+
+
+# view traceplots
+par(mfrow=c(1,3))
+plot(output_ini$samples.beta[,1], type='l'); abline(h=beta.samp[1], col=2)
+plot(output_ini$samples.beta[,2], type='l'); abline(h=beta.samp[2], col=2)
+plot(output_ini$samples.beta[,3], type='l'); abline(h=beta.samp[3], col=2)
+view_logistic_output(output_ini)
+
+
+# optional burnin
+output_ini <- burnin_logistic_gp_cov(output_ini, n.burn=600)
+
+
+# optional additional samples
+output_ini <- continue_logistic_gp_cov(data, output_ini, n.sample=3000)
+
+
+# assign initial values
+w_initial <- colMeans(output_ini$samples.w)
+theta_initial <- mean(output_ini$samples.theta)
+phi_initial <- mean(output_ini$samples.phi)
+beta_loc_initial <- colMeans(output_ini$samples.beta)
+
+
+# beta/alpha case initial values
+ini_case <- glm(case.data$y ~ case.data$x.standardised + w_initial[locs$ids] - 1, family='poisson')
+alpha_ca_initial <- coefficients(ini_case)[4]
+beta_ca_initial <- coefficients(ini_case)[1:3]
+
+
+# beta/alpha control initial values
+ini_ctrl <- glm(ctrl.data$y ~ ctrl.data$x.standardised + w_initial[locs$ids] - 1, family='poisson')
+alpha_co_initial <- coefficients(ini_ctrl)[4]
+beta_co_initial <- coefficients(ini_ctrl)[1:3]
+
+
+# fit model
+n.sample <- 2000
 burnin <- 0
-
-# ToDo: estimate initial values
-
 output <- prefSampleGpV2(data, d, n.sample, burnin, 
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=proposal.sd.theta,
@@ -115,10 +146,14 @@ output <- prefSampleGpV2(data, d, n.sample, burnin,
                            theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
                            prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
 
-# optional: additional samples, burnin
+
+# optional additional burnin
 output <- burnin_after_v2(output, n.burn=50)
 
+
+# optional additional samples
 output <- continue_mcmc_v2(data, d, output, n.sample=20)
+
 
 par(mfrow=c(1,3))
 plot(output$samples.beta.loc[,1], type='l'); abline(h=beta.samp[1], col=2)
@@ -131,4 +166,3 @@ plot(colMeans(output$samples.w), W); abline(0, 1, col=2)
 par(mfrow=c(1,2))
 plot(output$samples.alpha.ca, type='l'); abline(h=Alpha.case, col=2)
 plot(output$samples.alpha.co, type='l'); abline(h=Alpha.ctrl, col=2)
-

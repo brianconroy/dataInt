@@ -94,7 +94,6 @@ U_beta_loc <- function(y.l, w, x.l, beta.loc){
 }
 
 
-
 Uw_v2 <- function(y.l, x.c, x.l, y.ca, alpha.ca, beta.ca, beta.loc, y.co, alpha.co, beta.co, w, sigma, loc.stats, offset){
   
   logd <- 0
