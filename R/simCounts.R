@@ -538,7 +538,7 @@ simBernoulliLocCov <- function(r, beta, w, seed=NULL){
   output <- list()
   output$status <- status
   output$cells <- cells
-  output$coords <- xyFromCell(loc.disc, cell=cells)
+  output$coords <- xyFromCell(r[[1]], cell=cells)
   output$probs <- probs
   output$p <- ncol(x)
   output$x <- x

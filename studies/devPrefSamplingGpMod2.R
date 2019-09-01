@@ -40,22 +40,21 @@ Alpha.case <- 1.75
 Alpha.ctrl <- 0.25
 beta.case <- c(0.25, 1, -0.5)
 beta.ctrl <- c(4, 1, -0.5)
-cov.disc <- caPr.disc
-case.data <- simConditionalGp2(cov.disc, locs, beta.case, Alpha.case, W, seed=42)
-ctrl.data <- simConditionalGp2(cov.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40)
-print(sum(case.data$y)/sum(case.data$y + ctrl.data$y))
-print(sum(case.data$y))
-print(sum(ctrl.data$y))
 
-
-#### Fit
+case.data <- simConditionalGp2(caPr.disc, locs, beta.case, Alpha.case, W, seed=42)
+ctrl.data <- simConditionalGp2(caPr.disc, locs, beta.ctrl, Alpha.ctrl, W, seed=40)
 data <- list(
   loc=locs,
   case.data=case.data,
   ctrl.data=ctrl.data
 )
 
+print(sum(case.data$y)/sum(case.data$y + ctrl.data$y))
+print(sum(case.data$y))
+print(sum(ctrl.data$y))
 
+
+#### Fit
 m_aca <- 1000
 m_aco <- 1000
 m_ca <- 1000
@@ -85,7 +84,7 @@ self_tune_ca=TRUE
 self_tune_co=TRUE
 self_tune_loc=TRUE
 
-beta_locs_initial=rep(0,0,0)
+beta_loc_initial=c(0,0,0)
 beta_ca_initial=beta.case
 beta_co_initial=beta.ctrl
 alpha_ca_initial=Alpha.case

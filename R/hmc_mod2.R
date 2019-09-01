@@ -62,7 +62,7 @@ dU_beta_loc <- function(y.l, w, x.l, beta.loc){
   loc_pred <- x.l %*% beta.loc + w
   for (j in 1:length(beta.loc)){
     for (i in 1:length(w)){
-      grad[j] <- grad[j] + x[i,j] * (y.l[i] - expit(loc_pred[i]))
+      grad[j] <- grad[j] + x.l[i,j] * (y.l[i] - expit(loc_pred[i]))
     }
   }
   
