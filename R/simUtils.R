@@ -1212,9 +1212,9 @@ calc_log_odds_pr <- function(sampling, prevalence){
 #'
 #' @return writes output as json file
 #'
-save_output <- function(output, fname){
+save_output <- function(output, fname, dst="/Users/brianconroy/Documents/research/dataInt/output/"){
   
-  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  path <- paste(dst, fname, sep="")
   write(toJSON(output), path)
   
 }
@@ -1228,9 +1228,9 @@ save_output <- function(output, fname){
 #' @export
 #'
 #' @examples load_output("prefSampleGpCC_med.json")
-load_output <- function(fname){
+load_output <- function(fname, src="/Users/brianconroy/Documents/research/dataInt/output/"){
   
-  path <- paste("/Users/brianconroy/Documents/research/dataInt/output/", fname, sep="")
+  path <- paste(src, fname, sep="")
   return(fromJSON(path))
   
 }

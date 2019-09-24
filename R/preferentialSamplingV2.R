@@ -318,6 +318,7 @@ prefSampleGpV2 <- function(data, d, n.sample, burnin,
       accept[4] <- accept[4] + beta.out.co$accept
       accept[5] <- accept[5] + alpha.out.ca$accept
       accept[6] <- accept[6] + alpha.out.co$accept
+      accept[7] <- accept[7] + beta.out.loc$accept
       
     }
     

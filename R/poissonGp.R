@@ -109,9 +109,71 @@ poissonGp <- function(x, y, d, n.sample, burnin, L_w=20, L_b=22, proposal.sd.the
   output$samples.w <- samples.w
   output$deltas_w <- deltas_w
   output$deltas_b <- deltas_b
+  output$n.sample <- n.sample
+  output$burnin <- burnin
+  output$proposal.sd.theta <- proposal.sd.theta
+  output$prior_phi <- prior_phi
+  output$prior_theta <- prior_theta
   
   return(output)
   
+  
+}
+
+
+burnin_poisson_gp <- function(output_poisson, n.burn){
+  
+  n.curr <- nrow(output_poisson$samples.w)
+  i.start <- n.burn + 1
+  output_poisson$n.sample <- output_poisson$n.sample - n.burn
+  output_poisson$burnin <- output_poisson$burnin + n.burn
+  output_poisson$samples.w <- output_poisson$samples.w[i.start:n.curr,]
+  output_poisson$samples.phi <- output_poisson$samples.phi[i.start:n.curr]
+  output_poisson$samples.beta <- output_poisson$samples.beta[i.start:n.curr,]
+  output_poisson$samples.theta <- output_poisson$samples.theta[i.start:n.curr]
+  return(output_poisson)
+  
+}
+
+
+continue_poisson_gp <- function(data, x, y, output_poisson, n.sample, d.sub){
+  
+  # get initial values
+  n.sample.old <- nrow(output_poisson$samples.w)
+  w_initial <- output_poisson$samples.w[n.sample.old,]
+  theta_initial <- output_poisson$samples.theta[n.sample.old]
+  phi_initial <- output_poisson$samples.phi[n.sample.old]
+  beta_initial <- output_poisson$samples.beta[n.sample.old,]
+  
+  # get tuning parameters
+  delta_w <- tail(output_poisson$deltas_w, 1)
+  L_w <- 8
+  deltas_beta <- tail(output_poisson$deltas_b, 1)
+  L_b <- 8
+  proposal.sd.theta <- output_poisson$proposal.sd.theta
+  prior_phi <- output_poisson$prior_phi
+  prior_theta <- output_poisson$prior_theta
+  
+  # run fit
+  more_output_poisson <- poissonGp(x, y, d.sub,
+                                   n.sample=n.sample, burnin=0, proposal.sd.theta=proposal.sd.theta,
+                                   L_w=L_w, L_b=L_b,
+                                   beta_initial=beta_initial, w_initial=w_initial, 
+                                   phi_initial=phi_initial, theta_initial=theta_initial,
+                                   prior_phi=prior_phi, prior_theta=prior_theta)
+  
+  # merge samples
+  new_output_poisson <- output_poisson
+  new_output_poisson$samples.phi <- c(new_output_poisson$samples.phi, more_output_poisson$samples.phi)
+  new_output_poisson$samples.theta <- c(new_output_poisson$samples.theta, more_output_poisson$samples.theta)
+  new_output_poisson$samples.w <- rbind(new_output_poisson$samples.w, more_output_poisson$samples.w)
+  new_output_poisson$samples.beta <- rbind(new_output_poisson$samples.beta, more_output_poisson$samples.beta)
+  new_output_poisson$deltas_w <- c(new_output_poisson$deltas_w, more_output_poisson$deltas_w)
+  new_output_poisson$deltas_b <- c(new_output_poisson$deltas_b, more_output_poisson$deltas_b)
+  new_output_poisson$n.sample <- new_output_poisson$n.sample + n.sample
+  new_output_poisson$accept <- (more_output_poisson$accept * n.sample + output_poisson$accept * output_poisson$n.sample)/(n.sample + output_poisson$n.sample)
+  
+  return(new_output_poisson)
   
 }
 

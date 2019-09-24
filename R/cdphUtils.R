@@ -1,5 +1,30 @@
 
 
+calc_ps_contribution <- function(cov.disc, locs, beta.case, alpha.case, beta.ctrl, alpha.ctrl, w){
+  
+  # extract covariate values at survey locations
+  k <- length(locs$cells)
+  x <- matrix(rep(1, k), ncol=1)
+  x.standardised <- x
+  for (i in 1:length(names(cov.disc))){
+    x.i <- raster::extract(cov.disc[[i]], locs$coords)
+    vals <- values(cov.disc[[i]])[!is.na(values(cov.disc[[i]]))]
+    mu <- mean(vals)
+    sdev <- sd(vals) 
+    x.i.standard <- (x.i - mu)/sdev
+    x <- cbind(x, x.i)
+    x.standardised <- cbind(x.standardised, x.i.standard)
+  }
+  
+  w.sub <- w[as.logical(locs$status)]
+  re_contribution <- (alpha.case - alpha.ctrl) * w.sub
+  fe_contribution <- x.standardised %*% (beta.case - beta.ctrl)
+  
+  return(100*mean(abs(re_contribution)/(abs(re_contribution) + abs(fe_contribution))))
+  
+}
+
+
 calc_significance_rasters <- function(rodents_data, output, caPr, null_alphas=F){
   
   if (ncol(output$samples.w) == 788){

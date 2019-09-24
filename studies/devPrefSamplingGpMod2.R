@@ -54,7 +54,7 @@ print(sum(case.data$y))
 print(sum(ctrl.data$y))
 
 
-#### Fit
+#### Fit model
 m_aca <- 1000
 m_aco <- 1000
 m_ca <- 1000
@@ -137,22 +137,25 @@ beta_co_initial <- coefficients(ini_ctrl)[1:3]
 n.sample <- 2000
 burnin <- 0
 output <- prefSampleGpV2(data, d, n.sample, burnin, 
-                           L_w, L_ca, L_co, L_a_ca, L_a_co,
-                           proposal.sd.theta=proposal.sd.theta,
-                           m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, 
-                           target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, target_loc=target_loc,
-                           self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE, self_tune_loc=TRUE,
-                           beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial, beta_loc_initial=beta_loc_initial,
-                           theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
-                           prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+                         L_w, L_ca, L_co, L_a_ca, L_a_co,
+                         proposal.sd.theta=proposal.sd.theta,
+                         m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, 
+                         target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, target_loc=target_loc,
+                         self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE, self_tune_loc=TRUE,
+                         beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial, beta_loc_initial=beta_loc_initial,
+                         theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
+                         prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+
+
+print(output$accept)
 
 
 # optional additional burnin
-output <- burnin_after_v2(output, n.burn=50)
+output <- burnin_after_v2(output, n.burn=500)
 
 
 # optional additional samples
-output <- continue_mcmc_v2(data, d, output, n.sample=20)
+output <- continue_mcmc_v2(data, d, output, n.sample=5000)
 
 
 par(mfrow=c(1,3))
@@ -166,3 +169,14 @@ plot(colMeans(output$samples.w), W); abline(0, 1, col=2)
 par(mfrow=c(1,2))
 plot(output$samples.alpha.ca, type='l'); abline(h=Alpha.case, col=2)
 plot(output$samples.alpha.co, type='l'); abline(h=Alpha.ctrl, col=2)
+
+
+# save output
+output$description <- "prototype_v2_model"
+save_output(output, paste("output_", output$description, ".json", sep=""))
+
+
+# ToDo
+# calc true log odds
+# calc est log odds
+# compare to reference models
