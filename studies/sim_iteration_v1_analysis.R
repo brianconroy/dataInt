@@ -16,8 +16,8 @@ library(R.utils)
 sourceDirectory('Documents/research/dataInt/R/')
 
 
-src <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration/"
-agg_factor <- 10
+src <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration_v1/"
+agg_factor <- 11
 n_sims <- 25
 
 #### Prism Principal Components
@@ -36,7 +36,7 @@ d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
 
 sampling <- "low"
-sim_name <- paste("sim_iteration_v2_", sampling, sep="")
+sim_name <- paste("sim_iteration_v1_", sampling, sep="")
 
 rmse_ps_low <- c()
 rmse_pr_low <- c()
@@ -91,32 +91,31 @@ for (i in 1:n_sims){
   rmse_pr_low <- c(rmse_pr_low, sqrt(mean((lodds.true-lodds.r)^2)))
   
   # Reference model (Spatial Poisson Regression)
-  output_sp_ca <- load_output(paste("output.sp_ca_", sim_name, "_", i, ".json", sep=""), src=src)
-  output_sp_co <- load_output(paste("output.sp_co_", sim_name, "_", i,  ".json", sep=""), src=src)
-  kriged_w_ca <- load_output(paste("output.krige_ca_", sim_name, "_", i, ".json", sep=""), src=src)
-  kriged_w_co <- load_output(paste("output.krige_co_", sim_name, "_", i, ".json", sep=""), src=src)
-  w.hat_spca <- colMeans(output_sp_ca$samples.w)
-  w.hat_spco <- colMeans(output_sp_co$samples.w)
-  w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(data$locs$status))
-  w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, as.logical(data$locs$status))
-  beta_co_sp <- colMeans(output_sp_co$samples.beta)
-  beta_ca_sp <- colMeans(output_sp_ca$samples.beta)
-  lodds_sp <- X.standard %*% beta_ca_sp + w_ca_est - X.standard %*% beta_co_sp - w_co_est
-  rmse_sp_low <- c(rmse_sp_low, sqrt(mean((lodds.true-lodds_sp)^2)))
-  plot(x=lodds.true, y=lodds_sp, main='reference 2', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
-  
+  # output_sp_ca <- load_output(paste("output.sp_ca_", sim_name, "_", i, ".json", sep=""), src=src)
+  # output_sp_co <- load_output(paste("output.sp_co_", sim_name, "_", i,  ".json", sep=""), src=src)
+  # kriged_w_ca <- load_output(paste("output.krige_ca_", sim_name, "_", i, ".json", sep=""), src=src)
+  # kriged_w_co <- load_output(paste("output.krige_co_", sim_name, "_", i, ".json", sep=""), src=src)
+  # w.hat_spca <- colMeans(output_sp_ca$samples.w)
+  # w.hat_spco <- colMeans(output_sp_co$samples.w)
+  # w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(data$locs$status))
+  # w_co_est <- combine_w(w.hat_spco, kriged_w_co$mu.new, as.logical(data$locs$status))
+  # beta_co_sp <- colMeans(output_sp_co$samples.beta)
+  # beta_ca_sp <- colMeans(output_sp_ca$samples.beta)
+  # lodds_sp <- X.standard %*% beta_ca_sp + w_ca_est - X.standard %*% beta_co_sp - w_co_est
+  # rmse_sp_low <- c(rmse_sp_low, sqrt(mean((lodds.true-lodds_sp)^2)))
+  # plot(x=lodds.true, y=lodds_sp, main='reference 2', xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
+  # 
   n_cells_obs_low <- c(n_cells_obs_low, sum(data$locs$status))
   prevalences_low <- c(prevalences_low, sum(data$case.data$y)/(sum(data$case.data$y + data$ctrl.data$y)))
   
 }
 
+# Initial inspection
 summary(rmse_ps_low)
 summary(rmse_sp_low)
 summary(rmse_pr_low)
 
-df1 <- data.frame(cbind(rmse_ps_low, rmse_sp_low, rmse_pr_low))
-names(df1) <- c("ps", "sp", "pr")
-boxplot(df1, col=rainbow(3, s=0.5))
+boxplot(cbind(rmse_ps_low, rmse_sp_low, rmse_pr_low), col=rainbow(3, s=0.5))
 plot(x=n_cells_obs_low, y=rmse_ps_low)
 points(x=n_cells_obs_low, y=rmse_pr_low, col=2)
 
@@ -128,7 +127,7 @@ points(x=n_cells_obs_low, y=rmse_pr_low, col=2)
 
 sampling <- "high"
 src <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration/"
-sim_name <- paste("sim_iteration_v2_", sampling, sep="")
+sim_name <- paste("sim_iteration_v1_", sampling, sep="")
 
 rmse_ps_high <- c()
 rmse_pr_high <- c()

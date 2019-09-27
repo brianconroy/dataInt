@@ -11,7 +11,7 @@ sourceDirectory('Documents/research/dataInt/R/')
 
 #### Simulation parameters for each level
 n_sims <- 25
-agg_factor <- 10
+agg_factor <- 11
 
 
 #### Prism Principal Components
@@ -32,12 +32,11 @@ Alpha.case <- 0.5
 Alpha.ctrl <- 0.3
 beta.case <- c(1, 0.75, 0.25)
 beta.ctrl <- c(3, 1, 0.5)
-beta.loc <- c(-1.5, 1, -0.25)
+Theta <- 7
+Phi <- 12
 for (i in 1:n_sims){
   
   #### Simulate gaussian process
-  Theta <- 6
-  Phi <- 12
   cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
   coords <- xyFromCell(caPr.disc, cell=cells.all)
   d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
@@ -46,7 +45,10 @@ for (i in 1:n_sims){
   N <- length(W)
   
   #### Simulate locations
-  locs <- simBernoulliLocCov(caPr.disc, beta.loc, w=W)
+  locs <-simLocW(W, caPr.disc[[1]], beta=0)
+  if (sum(locs$status < 30)){
+    locs <-simLocW(W, caPr.disc[[1]], beta=0)
+  }
   obs_cells <- c(obs_cells, sum(locs$status))
 
   ps_contribs <- c(ps_contribs, 
@@ -65,21 +67,20 @@ for (i in 1:n_sims){
     beta.ctrl=beta.ctrl,
     alpha.case=Alpha.case,
     alpha.ctrl=Alpha.ctrl,
-    beta.loc=beta.loc,
     Theta=Theta,
     Phi=Phi,
     W=W
   )
   
-  # dst <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration/"
-  # save_output(params, paste("params_low_", i, ".json", sep=""), dst=dst)
-  # 
-  # data <- list(
-  #   case.data=case.data,
-  #   ctrl.data=ctrl.data,
-  #   locs=locs
-  # )
-  # save_output(data, paste("data_low_", i, ".json", sep=""), dst=dst)
+  dst <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration_v1/"
+  save_output(params, paste("params_low_", i, ".json", sep=""), dst=dst)
+
+  data <- list(
+    case.data=case.data,
+    ctrl.data=ctrl.data,
+    locs=locs
+  )
+  save_output(data, paste("data_low_", i, ".json", sep=""), dst=dst)
 
 }
 
@@ -97,15 +98,14 @@ obs_cells <- c()
 n_specimen <- c()
 
 Alpha.case <- 1
-Alpha.ctrl <- -0.25
+Alpha.ctrl <- -0.5
 beta.case <- c(-1.5, 0.25, 0.25)
-beta.ctrl <- c(3, 1, 0.5)
-beta.loc <- c(-1.5, 1, -0.25)
+beta.ctrl <- c(3.5, 1, 0.5)
+Theta <- 7
+Phi <- 12
 for (i in 1:n_sims){
   
   #### Simulate gaussian process
-  Theta <- 6
-  Phi <- 12
   cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
   coords <- xyFromCell(caPr.disc, cell=cells.all)
   d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
@@ -114,7 +114,10 @@ for (i in 1:n_sims){
   N <- length(W)
   
   #### Simulate locations
-  locs <- simBernoulliLocCov(caPr.disc, beta.loc, w=W)
+  locs <-simLocW(W, caPr.disc[[1]], beta=0)
+  if (sum(locs$status < 30)){
+    locs <-simLocW(W, caPr.disc[[1]], beta=0)
+  }
   obs_cells <- c(obs_cells, sum(locs$status))
   
   ps_contribs <- c(ps_contribs, 
@@ -133,13 +136,12 @@ for (i in 1:n_sims){
     beta.ctrl=beta.ctrl,
     alpha.case=Alpha.case,
     alpha.ctrl=Alpha.ctrl,
-    beta.loc=beta.loc,
     Theta=Theta,
     Phi=Phi,
     W=W
   )
   
-  dst <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration/"
+  dst <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration_v1/"
   save_output(params, paste("params_high_", i, ".json", sep=""), dst=dst)
 
   data <- list(
