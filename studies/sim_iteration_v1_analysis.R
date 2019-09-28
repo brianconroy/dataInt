@@ -806,7 +806,8 @@ p1 <- ggplot(df_b_low, aes(x=Parameter, y=Bias)) +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
   ggtitle("A)") + 
-  geom_hline(yintercept=0, color="red")
+  geom_hline(yintercept=0, color="red") + 
+  ylim(-9, 3.5)
 
 # High
 df_bca_high <- data.frame(c(bias_beta_ca_high[,1], bias_beta_ca_high[,2], bias_beta_ca_high[,3]))
@@ -825,7 +826,8 @@ p2 <- ggplot(df_b_high, aes(x=Parameter, y=Bias)) +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
   ggtitle("B)") + 
-  geom_hline(yintercept=0, color="red")
+  geom_hline(yintercept=0, color="red") + 
+  ylim(-9, 3.5)
 
 #### Plot biases vs sample size
 # Low
@@ -838,7 +840,8 @@ p3 <- ggplot(df_b_low, aes(x=N, y=Bias, group=Parameter)) +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ggtitle("C)") + 
-  geom_hline(yintercept=0, color="red")
+  geom_hline(yintercept=0, color="red") + 
+  ylim(-9, 3.5)
 
 # High
 df_b_high$N <- c(rep(n_cells_obs_high, 3))
@@ -850,6 +853,14 @@ p4 <- ggplot(df_b_high, aes(x=N, y=Bias, group=Parameter)) +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ggtitle("D)") + 
-  geom_hline(yintercept=0, color="red")
+  geom_hline(yintercept=0, color="red") + 
+  ylim(-9, 3.5)
 
+grid.arrange(p1,p2,p3,p4,ncol=2)
+
+print(round(colMeans(bias_beta_ca_low), 3))
+print(round(apply(bias_beta_ca_low, 2, sd), 3))
+
+print(round(colMeans(bias_beta_co_high), 3))
+print(round(apply(bias_beta_co_low, 2, sd), 3))
 
