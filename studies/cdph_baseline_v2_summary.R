@@ -137,36 +137,11 @@ r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 
 summary(risk_high)
 
-
-#### Figure: low to high resolution risk map
-rescaled <- equalize_scales(r_risk_low, r_risk_high)
-par(mfrow=c(1,2))
-plot(rescaled[[1]], main='A)')
-plot(rescaled[[2]], main='B)')
-
-
-#### Figure: risk map without county lines
-plot(r_risk_high)
-
-
-#### Figure: risk map with county lines
-# pal <- colorRampPalette(c("blue","red"))
-# plot(r_risk_high,
-#      breaks=c(0, 0.01, 0.03, 0.06, 0.09, 0.12, 0.15, 0.18, 0.21), col=pal(8))
-us <- getData("GADM", country="USA", level=2)
-ca <- us[us$NAME_1 == 'California',]
-plot(r_risk_high)
-plot(ca, add=T)
-
-
-#### Figure: risk map with cases overlayed
-r_cases <- rodents[rodents$Res == 'POS',]
-r_coords <- cbind(r_cases$Lon_Add_Fix, r_cases$Lat_Add_Fix)
-r_ctrls <- rodents[rodents$Res == 'NEG',]
-r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
-plot(r_risk_high)
-points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
-points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+#### Significance map
+samples <- output$samples.w
+r_pred <- caPr[[1]]
+r_train <- aggregate(r_pred, fact=5)
+hen = interpolate_w(samples, c(0.08, 0.09), r_train, r_pred)
 
 
 #### Figure: covariate contribution to log odds, random field contribution to log odds
@@ -182,6 +157,11 @@ plot(r_cov_rodent, main='A)')
 pal <- colorRampPalette(c("blue","red"))
 plot(r_w_rodent, main='B)', col=pal(20))
 summary(w_rodent[])
+
+#### Figure: risk, contributions
+par(mfrow=c(1,2))
+plot(r_w_rodent,col=pal(20))
+plot(r_cov_rodent)
 
 
 #################
@@ -222,6 +202,14 @@ plot(x=risk_high, y=risk_high_sp); abline(0, 1, col=2)
 r_risk_high_sp <- caPr[[2]]
 r_risk_high_sp[][!is.na(r_risk_high_sp[])] <- risk_high_sp
 
+#### Figure
+par(mfrow=c(1,3))
+rescaled <- equalize_scales(r_risk_high, r_risk_high_sp)
+plot(rescaled[[1]])
+plot(rescaled[[2]])
+plot(x=risk_high, y=risk_high_sp, xlab='Risk (Proposed Model)', ylab='Risk (Spatial Poisson)'); abline(0, 1, col=2)
+
+
 #################
 # Compare to 
 # poisson model
@@ -251,6 +239,14 @@ r_risk_high_p[][!is.na(r_risk_high_p[])] <- risk_high_p
 par(mfrow=c(1,2))
 plot(r_risk_high)
 plot(r_risk_high_p)
+
+#### Figure
+par(mfrow=c(1,3))
+rescaled <- equalize_scales(r_risk_high, r_risk_high_p)
+plot(rescaled[[1]])
+plot(rescaled[[2]])
+plot(x=risk_high, y=risk_high_p, xlab='Risk (Proposed Model)', ylab='Risk (Poisson)'); abline(0, 1, col=2)
+
 
 plot(x=risk_high_p, y=risk_high); abline(0,1,col=2)
 

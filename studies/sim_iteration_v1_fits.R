@@ -237,7 +237,7 @@ sampling <- "high"
 src <- "/Users/brianconroy/Documents/research/dataInt/output/sim_iteration_v1/"
 sim_name <- paste("sim_iteration_v1_", sampling, sep="")
 n_sims <- 25
-agg_factor <- 10
+agg_factor <- 11
 
 #### Prism Principal Components
 caPr <- load_prism_pcs2()
@@ -248,11 +248,11 @@ cells.all <- c(1:ncell(caPr.disc))[!is.na(values(caPr.disc[[1]]))]
 coords <- xyFromCell(caPr.disc, cell=cells.all)
 d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
-for (i in 2:n_sims){
+for (i in 13:13){
   
   print(paste("dataset", i))
   data <- load_output(paste("data_high_", i, ".json", sep=""), src=src)
-  
+
   ## Initial Values
   # Random effects, beta.samp, theta, phi
   params <- load_output(paste("params_high_", i, ".json", sep=""), src=src)
@@ -260,14 +260,13 @@ for (i in 2:n_sims){
   Phi <- params$Phi
   prior_theta <- get_gamma_prior(Theta, 5)
   prior_phi <- get_igamma_prior(Phi, 5)
-  w_output <- logisticGpCov(y=data$locs$status, x=data$locs$x.scaled, d, n.sample=1500, burnin=500, L_beta=8, L_w=8, proposal.sd.theta=0.3,
-                            w_initial=NULL, theta_initial=NULL, phi_initial=NULL, beta_initial=NULL,
-                            prior_phi=prior_phi, prior_theta=prior_theta)
+  
+  w_output <- logisticGp(y=data$locs$status, d, n.sample=2000, burnin=700, L=10,
+                         prior_phi=prior_phi, prior_theta=prior_theta)
   
   w_initial <- colMeans(w_output$samples.w)
   theta_initial <- mean(w_output$samples.theta)
   phi_initial <- mean(w_output$samples.phi)
-  beta_loc_initial <- colMeans(w_output$samples.beta)
   
   # Beta & alpha (case) initial values
   ini_case <- glm(data$case.data$y ~ data$case.data$x.standardised + w_initial[data$locs$ids] - 1, family='poisson')
@@ -280,7 +279,11 @@ for (i in 2:n_sims){
   beta_co_initial <- coefficients(ini_ctrl)[1:3]
   
   # Fit full model
-  prior_alpha_ca_mean <- alpha_ca_initial
+  if ((alpha_ca_initial) > 0){
+    prior_alpha_ca_mean <- alpha_ca_initial
+  } else {
+    prior_alpha_ca_mean <- 0
+  }
   prior_alpha_ca_var <- 3
   prior_alpha_co_mean <- alpha_co_initial
   prior_alpha_co_var <- 3
@@ -314,15 +317,17 @@ for (i in 2:n_sims){
   target_loc=0.65
   
   # Run fit
-  output <- prefSampleGpV2(data, d, n.sample, burnin,
+  output <- prefSampleGpCC(data, d, n.sample, burnin,
                            L_w, L_ca, L_co, L_a_ca, L_a_co,
                            proposal.sd.theta=proposal.sd.theta,
-                           m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w, 
-                           target_aca=target_aca, target_aco=target_aco, target_ca=target_ca, target_co=target_co, target_w=target_w, target_loc=target_loc,
-                           self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE, self_tune_loc=TRUE,
-                           beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial, beta_loc_initial=beta_loc_initial,
+                           m_aca=m_aca, m_aco=m_aco, m_ca=m_ca, m_co=m_co, m_w=m_w,
+                           target_aca=0.65, target_aco=0.65, target_ca=0.65, target_co=0.65, target_w=0.65,
+                           self_tune_w=TRUE, self_tune_aca=TRUE, self_tune_aco=TRUE, self_tune_ca=TRUE, self_tune_co=TRUE,
+                           delta_w=NULL, delta_aca=NULL, delta_aco=NULL, delta_ca=NULL, delta_co=NULL,
+                           beta_ca_initial=beta_ca_initial, beta_co_initial=beta_co_initial, alpha_ca_initial=alpha_ca_initial, alpha_co_initial=alpha_co_initial,
                            theta_initial=theta_initial, phi_initial=phi_initial, w_initial=w_initial,
-                           prior_phi=prior_phi, prior_theta=prior_theta, prior_alpha_ca_var=prior_alpha_ca_var, prior_alpha_co_var=prior_alpha_co_var)
+                           prior_phi=prior_phi, prior_theta=prior_theta,
+                           prior_alpha_ca_var, prior_alpha_co_var)
   
   # Check estimated log odds
   w.hat <- colMeans(output$samples.w)
@@ -355,7 +360,9 @@ for (i in 2:n_sims){
 #### Spatial poisson regression
 ###############################
 
-for (i in 1:n_sims){
+# i = 13
+
+for (i in 13:n_sims){
   
   print(paste("dataset", i))
   data <- load_output(paste("data_high_", i, ".json", sep=""), src=src)
@@ -391,11 +398,14 @@ for (i in 1:n_sims){
                             phi_initial=phi_i_, theta_initial=theta_i_,
                             prior_phi=prior_phi_, prior_theta=prior_theta_)
   
-  # Krige random effects
-  w.hat_spca <- colMeans(output.sp_ca$samples.w)
-
-  kriged_w_ca <- krigeW(output.sp_ca, d, data$locs$ids)
-  w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(data$locs$status))
+  if (sum(data$locs$status) < ncol(d)){
+    # Krige random effects
+    w.hat_spca <- colMeans(output.sp_ca$samples.w)
+    
+    kriged_w_ca <- krigeW(output.sp_ca, d, data$locs$ids)
+    w_ca_est <- combine_w(w.hat_spca, kriged_w_ca$mu.new, as.logical(data$locs$status))
+  }
+  
   
   # Save output and kriged estimates
   output.sp_ca$description <- paste(sim_name, "_", i, sep="")
