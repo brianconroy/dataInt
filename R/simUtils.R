@@ -10,9 +10,9 @@ make_rmse_row <- function(rmses, pattern, years, model){
 }
 
 
-calc_est_lodds_time_poisson <- function(data, year, year_index){
+calc_est_lodds_time_poisson <- function(data, year, year_index, agg_factor){
   
-  x <- load_x_time(year=year, agg_factor=7)
+  x <- load_x_time(year=year, agg_factor=agg_factor)
   x_locs <- x[as.logical(data$locs[[year_index]]$status), ]
   y_ca <- data$case.data[[year_index]]$y
   y_co <- data$ctrl.data[[year_index]]$y
@@ -27,9 +27,9 @@ calc_est_lodds_time_poisson <- function(data, year, year_index){
 }
 
 
-calc_est_lodds_time <- function(output, data, year, year_index){
+calc_est_lodds_time <- function(output, data, year, year_index, agg_factor){
   
-  x <- load_x_time(year=year, agg_factor=7)
+  x <- load_x_time(year=year, agg_factor=agg_factor)
   
   beta.case <- colMeans(output$samples.beta.ca)
   beta.ctrl <- colMeans(output$samples.beta.co)
@@ -76,10 +76,10 @@ calc_est_lodds_pool_ps <- function(output, data){
 }
 
 
-calc_true_lodds_time <- function(params, data, year, year_index){
+calc_true_lodds_time <- function(params, data, year, year_index, agg_factor){
   
   location_indicators <- data$locs[[year_index]]$status
-  x <- load_x_time(year=year, agg_factor=7)
+  x <- load_x_time(year=year, agg_factor=agg_factor)
   
   beta.case <- params$beta.case
   beta.ctrl <- params$beta.ctrl

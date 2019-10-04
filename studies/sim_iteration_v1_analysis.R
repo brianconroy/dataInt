@@ -860,7 +860,29 @@ grid.arrange(p1,p2,p3,p4,ncol=2)
 
 print(round(colMeans(bias_beta_ca_low), 3))
 print(round(apply(bias_beta_ca_low, 2, sd), 3))
+print(round(colMeans(bias_beta_co_low), 3))
 
+print(round(colMeans(bias_beta_ca_high), 3))
 print(round(colMeans(bias_beta_co_high), 3))
 print(round(apply(bias_beta_co_low, 2, sd), 3))
 
+# summary of preferential sampling contributions 
+sampling <- "low"
+sim_name <- paste("sim_iteration_v1_", sampling, sep="")
+ps_contribs <- c()
+for (i in 1:n_sims){
+  
+  data <- load_output(paste("data_low_", i, ".json", sep=""), src=src)
+  params <- load_output(paste("params_", sampling, "_", i, ".json", sep=""), src=src)
+  Theta <- params$Theta
+  Phi <- params$Phi
+  Alpha.case <- params$alpha.case
+  Alpha.ctrl <- params$alpha.ctrl
+  beta.case <- params$beta.case
+  beta.ctrl <- params$beta.ctrl
+  W <- params$W
+  
+  ps_contribs <- c(ps_contribs, 
+                   calc_ps_contribution(caPr.disc, data$locs, beta.case, Alpha.case, beta.ctrl, Alpha.ctrl, W))
+
+}
