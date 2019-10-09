@@ -1,5 +1,60 @@
 library(jsonlite)
 
+combine_ws <- function(w1, w2){
+  w <- c()
+  for (i in 1:length(w1)){
+    w <- c(w, w1[i], w2[i])
+  }
+  return(w)
+}
+
+
+reformat_saved_mvgp <- function(data){
+  
+  locs1 <- list(
+    status=data$locs$status[[1]],
+    cells=data$locs$cells[[1]],
+    coords=data$locs$coords[[1]],
+    ids=data$locs$ids[[1]]
+  )
+  locs2 <- list(
+    status=data$locs$status[[2]],
+    cells=data$locs$cells[[2]],
+    coords=data$locs$coords[[2]],
+    ids=data$locs$ids[[2]]
+  )
+  case.data1 <- list(
+    y=data$case.data$y[[1]],
+    x.standardised=data$case.data$x.standardised[[1]],
+    x=data$case.data$x[[1]],
+    p=data$case.data$p[[1]]
+  )
+  case.data2 <- list(
+    y=data$case.data$y[[2]],
+    x.standardised=data$case.data$x.standardised[[2]],
+    x=data$case.data$x[[2]],
+    p=data$case.data$p[[2]]
+  )
+  ctrl.data1 <- list(
+    y=data$ctrl.data$y[[1]],
+    x.standardised=data$ctrl.data$x.standardised[[1]],
+    x=data$ctrl.data$x[[1]],
+    p=data$ctrl.data$p[[1]]
+  )
+  ctrl.data2 <- list(
+    y=data$ctrl.data$y[[2]],
+    x.standardised=data$ctrl.data$x.standardised[[2]],
+    x=data$ctrl.data$x[[2]],
+    p=data$ctrl.data$p[[2]]
+  )
+  data <- list(
+    locs=list(locs1, locs2),
+    case.data=list(case.data1, case.data2),
+    ctrl.data=list(ctrl.data1, ctrl.data2)
+  )
+  return(data)
+}
+
 
 make_rmse_row <- function(rmses, pattern, years, model){
   row <- list(Pattern=pattern, Model=model)
@@ -386,7 +441,7 @@ load_priors <- function(param, index){
 calc_log_odds_output <- function(output, true_params){
   
   location_indicators <- true_params$location_indicators
-  x_standard <- load_x_standard(location_indicators)
+  x_standard <- f(location_indicators)
   
   w.hat <- colMeans(output$samples.w)
   beta_ca_h <- colMeans(output$samples.beta.ca)
@@ -436,8 +491,8 @@ calc_log_odds_species2 <- function(output, data, species, agg_factor){
 
 calc_lodds_mvgp <- function(output, data, species, agg_factor){
   
-  location_indicators <- as.logical(data$locs$status[[species]])
-  x_standard <- load_x_standard(location_indicators, agg_factor)
+  location_indicators <- as.logical(data$locs[[species]]$status)
+  x_standard <- load_x_standard2(location_indicators, agg_factor)
   
   w.hat <- colMeans(output$samples.w)
   w.hat <- w.hat[seq(species, length(w.hat), 2)]
@@ -522,14 +577,14 @@ calc_log_odds_true_multi_general <- function(true_params, species){
 }
 
 
-calc_lodds_true_multi <- function(params, data, species){
+calc_lodds_true_multi <- function(params, data, species, agg_factor){
   
-  location_indicators <- as.logical(data$locs$status[[species]])
-  x_standard <- load_x_standard(location_indicators)
+  location_indicators <- as.logical(data$locs[[species]]$status)
+  x_standard <- load_x_standard2(location_indicators, agg_factor=agg_factor)
   beta.case <- params$beta.cases[species,]
   beta.ctrl <- params$beta.ctrls[species,]
-  Alpha.case <- params$Alpha.cases[species,]
-  Alpha.ctrl <- params$Alpha.ctrls[species,]
+  Alpha.case <- params$alpha.cases[species]
+  Alpha.ctrl <- params$alpha.ctrls[species]
   W <- params$W
   W <- W[seq(species, length(W), 2)]
   lodds.true <- x_standard %*% beta.case + Alpha.case * W - x_standard %*% beta.ctrl - Alpha.ctrl * W

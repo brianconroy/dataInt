@@ -1,6 +1,6 @@
 
 
-logisticMVGP <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
+logisticMVGP <- function(y, locs, d, n.sample, burnin, L, proposal.sd.theta=0.3,
                          w_initial=NULL, theta_initial=NULL, t_initial=NULL,
                          prior_t, prior_theta){
   
@@ -49,7 +49,7 @@ logisticMVGP <- function(y, d, n.sample, burnin, L, proposal.sd.theta=0.3,
     ## sample from w
     sigma.i <- kronecker(H.i, t.i)
     sigma.inv.i <- kronecker(solve(H.i), solve(t.i))
-    w.out.i <- wHmcUpdateMVGPLogit(w.i, sigma.i, sigma.inv.i, y, w_tuning$delta_curr, L)
+    w.out.i <- wHmcUpdateMVGPLogit(w.i, locs, sigma.i, sigma.inv.i, y, w_tuning$delta_curr, L)
     w.i <- w.out.i$w
     
     ## sample from theta
@@ -398,7 +398,7 @@ Uw_mvgp_logit <- function(y, w, sigma){
 }
 
 
-dU_w_mvgp_logit <- function(w, sigma.inv, y){
+dU_w_mvgp_logit <- function(w, locs, sigma.inv, y){
   
   grad <- array(0, c(length(w), 1))
   
@@ -422,14 +422,14 @@ dU_w_mvgp_logit <- function(w, sigma.inv, y){
 }
 
 
-wHmcUpdateMVGPLogit <- function(w, sigma, sigma.inv, y, delta, L){
+wHmcUpdateMVGPLogit <- function(w, locs, sigma, sigma.inv, y, delta, L){
   
   # sample random momentum
   p0 <- matrix(rnorm(length(w)))
   
   # simulate Hamiltonian dynamics
   wcurr <- matrix(w)
-  pStar <- p0 - 0.5 * delta * dU_w_mvgp_logit(wcurr, sigma.inv, y)
+  pStar <- p0 - 0.5 * delta * dU_w_mvgp_logit(wcurr, locs, sigma.inv, y)
   
   # first full step for position
   wStar <- wcurr + delta*pStar
@@ -437,14 +437,14 @@ wHmcUpdateMVGPLogit <- function(w, sigma, sigma.inv, y, delta, L){
   # full steps
   for (jL in 1:c(L-1)){
     # momentum
-    pStar <- pStar - delta * dU_w_mvgp_logit(wStar, sigma.inv, y)
+    pStar <- pStar - delta * dU_w_mvgp_logit(wStar, locs, sigma.inv, y)
     
     # position
     wStar <- wStar + delta*pStar
   }
   
   # last half step
-  pStar <- pStar - 0.5 * delta * dU_w_mvgp_logit(wStar, sigma.inv, y)
+  pStar <- pStar - 0.5 * delta * dU_w_mvgp_logit(wStar, locs, sigma.inv, y)
   
   # evaluate energies
   U0 <- Uw_mvgp_logit(y, wcurr, sigma)
