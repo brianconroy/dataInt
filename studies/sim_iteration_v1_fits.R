@@ -144,7 +144,7 @@ for (i in 1:n_sims){
 #### Spatial poisson regression
 ###############################
 
-for (i in 2:n_sims){
+for (i in 1:n_sims){
   
   print(paste("dataset", i))
   data <- load_output(paste("data_low_", i, ".json", sep=""), src=src)

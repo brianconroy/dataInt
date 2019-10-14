@@ -29,15 +29,15 @@ d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
 Alpha.case1 <- 0.5
 Alpha.ctrl1 <- 0.1
-Alpha.case2 <- 1
+Alpha.case2 <- 0.8
 Alpha.ctrl2 <- 0.25
 beta.case1 <- c(0.1, 0.75, -0.50)
 beta.ctrl1 <- c(3.5, 0.5, 0.5)
 beta.case2 <- c(1, 0.8, -0.5)
-beta.ctrl2 <- c(4, 0.5, 0.5)
+beta.ctrl2 <- c(3.75, 0.5, 0.5)
 Theta <- 7
 Phi <- 12
-Tmat <- matrix(c(8, 0, 0, 9), nrow=2)
+Tmat <- matrix(c(8, 5, 5, 9), nrow=2)
 H <- Exponential(d, range=Theta, phi=1)
 
 prevalences <- array(NA, c(n_sims, 2))

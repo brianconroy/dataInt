@@ -1,5 +1,59 @@
 library(jsonlite)
 
+
+pool_mvgp_data <- function(data){
+  
+  locs1 <- data$locs[[1]]
+  locs2 <- data$locs[[2]]
+  case.data1 <- data$case.data[[1]]
+  case.data2 <- data$case.data[[2]]
+  ctrl.data1 <- data$ctrl.data[[1]]
+  ctrl.data2 <- data$ctrl.data[[2]]
+  
+  status <- as.numeric(locs1$status | locs2$status)
+  cells <- sort(unique(c(locs1$cells, locs2$cells)))
+  ids <- sort(unique(c(locs1$ids, locs2$ids)))
+  locs_pooled <- list(status=status, cells=cells, ids=ids)
+  
+  df1 <- data.frame(cbind(locs1$ids, case.data1$y))
+  df2 <- data.frame(cbind(locs2$ids, case.data2$y))
+  df <- merge(df1, df2, by='X1', all=T)
+  df[is.na(df[,2]),2] <- 0
+  df[is.na(df[,3]),3] <- 0
+  y.ca <- df$X2.x + df$X2.y
+  
+  df1 <- data.frame(cbind(locs1$ids, ctrl.data1$y))
+  df2 <- data.frame(cbind(locs2$ids, ctrl.data2$y))
+  df <- merge(df1, df2, by='X1', all=T)
+  df[is.na(df[,2]),2] <- 0
+  df[is.na(df[,3]),3] <- 0
+  y.co <- df$X2.x + df$X2.y
+  
+  df1 <- data.frame(cbind(locs1$ids, case.data1$x.standardised))
+  df2 <- data.frame(cbind(locs2$ids, case.data2$x.standardised))
+  df <- merge(df1, df2, by='X1', all=T)
+  for (i in 2:7){
+    df[is.na(df[,i]),i] <- -Inf
+  }
+  x.standardised <- array(NA, c(nrow(df), 3))
+  for (i in 1:nrow(x.standardised)){
+    x.standardised[i,1] <- max(df[i,2], df[i,5])
+    x.standardised[i,2] <- max(df[i,3], df[i,6])
+    x.standardised[i,3] <- max(df[i,4], df[i,7])
+  }
+  
+  case_pooled <- list(x.standardised=x.standardised, y=y.ca)
+  ctrl_pooled <- list(x.standardised=x.standardised, y=y.co)
+  
+  data_pooled <- list(
+    case.data=case_pooled,
+    ctrl.data=ctrl_pooled,
+    locs=locs_pooled
+  )
+  return(data_pooled)
+  
+}
+
 combine_ws <- function(w1, w2){
   w <- c()
   for (i in 1:length(w1)){
