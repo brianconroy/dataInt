@@ -42,8 +42,7 @@ sim_name <- paste("simPsTemporal", level, sep="_")
 ###################
 #### Proposed model
 ###################
-failures <- c(6, 8, 10, 24)
-for (i in failures){
+for (i in 1:n_sims){
   
   print(paste("dataset", i))
   data <- reformat_saved_data(load_output(paste("data_", level, "_", i, ".json", sep=""), src=src))
@@ -273,7 +272,6 @@ for (i in 1:n_sims){
 
 
 ### Check u + w estimation
-
 level <- "alternating"
 sim_name <- paste("simPsTemporal", level, sep="_")
 for (i in 1:n_sims){
