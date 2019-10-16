@@ -4,6 +4,10 @@
 ############################
 
 
+library(gridExtra)
+library(grid)
+library(ggplot2)
+library(lattice)
 library(plyr)
 library(mvtnorm)
 library(R.utils)
@@ -30,12 +34,15 @@ d <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 #####################
 #### RMSE in log odds
 #####################
-rmse_mvgp <- array(NA, c(n_sims, 2))
+# Species |  RMSE | N
+rmse_mvgp <- array(NA, c(2 * n_sims, 3))
+rmse_sep <- array(NA, c(2 * n_sims, 3))
 n_cells_obs <- array(NA, c(n_sims, 2))
 prevalences <- array(NA, c(n_sims, 2))
 bias_alpha_ca <- array(NA, c(n_sims, 2))
 bias_alpha_co <- array(NA, c(n_sims, 2))
-for (i in 1:14){
+counter <- 1
+for (i in 1:25){
   print(paste("dataset", i))
   data <- reformat_saved_mvgp(load_output(paste("data_", i, ".json", sep=""), src=src))
   params <- load_output(paste("params_", i, ".json", sep=""), src=src)
@@ -48,17 +55,38 @@ for (i in 1:14){
     lodds_true <- calc_lodds_true_multi(params, data, species=k, agg_factor=agg_factor)
     
     # proposed model
+    n <- sum(data$locs[[k]]$status)
     lodds <- calc_lodds_mvgp(output_mvgp, data, species=k, agg_factor=agg_factor)
-    rmse_mvgp[i,k] <- sqrt(mean((lodds-lodds_true)^2))
-    n_cells_obs[i,k] <- sum(data$locs[[k]]$status)
+    rmse_mvgp[counter,1] <- k
+    rmse_mvgp[counter,2] <- sqrt(mean((lodds-lodds_true)^2))
+    rmse_mvgp[counter,3] <- n
     prevalences[i,k] <- sum(data$case.data[[k]]$y)/sum(data$case.data[[k]]$y + data$ctrl.data[[k]]$y)
     plot(x=lodds_true, y=lodds, xlab='True Log Odds', ylab='Estimated Log Odds', main=paste("species", k)); abline(0, 1, col=2)
+    
+    # reference: separate analysis
+    output_sep <- load_output(paste("output_ps_", i, "_species", "_", k, ".json", sep=""), src=src)
+    lodds_sep <- calc_log_odds_species(output_sep, data, species=k, agg_factor=agg_factor)
+    rmse_sep[counter,1] <- k
+    rmse_sep[counter,2] <- sqrt(mean((lodds-lodds_sep)^2))
+    rmse_sep[counter,3] <- n
+    counter <- counter + 1
     
     # parameter biases
     bias_alpha_ca[i,k] <- mean(output_mvgp$samples.alpha.ca[k,,]) - params$alpha.cases[k]
     bias_alpha_co[i,k] <- mean(output_mvgp$samples.alpha.co[k,,]) - params$alpha.ctrls[k]
   }
 }
+
+reformat <- function(m){
+  df <- data.frame(m)
+  names(df) <- c("Species", "RMSE", "N")
+  return(df)
+}
+rmse_mvgp <- reformat(rmse_mvgp)
+rmse_sep <- reformat(rmse_sep)
+rmse_mvgp$Model <- "MVGP"
+rmse_sep$Model <- "Separate"
+rmse_combined <- rbind(rmse_mvgp, rmse_sep)
 
 # Summary of datasets
 data_summary <- list()
@@ -96,6 +124,27 @@ data_summary[[4]] <- list(
 )
 
 # Boxplot
+ggplot() + 
+  geom_boxplot(data = rmse_combined, mapping = aes(Species, RMSE, fill=Model)) + 
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+  ylim(0, 10) + 
+  ggtitle("A)")
+
+# Lineplot
+ggplot(rmse_combined[rmse_combined$Species==1,], aes(x=N, y=RMSE, fill=Model)) +
+  geom_line(aes(color=Model)) +
+  geom_point() + 
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+ggplot(rmse_combined[rmse_combined$Species==2,], aes(x=N, y=RMSE, fill=Model)) +
+  geom_line(aes(color=Model)) +
+  geom_point() + 
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 
 # RMSE summary  table
 

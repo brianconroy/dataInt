@@ -122,6 +122,9 @@ make_rmse_row <- function(rmses, pattern, years, model){
 calc_est_lodds_time_poisson <- function(data, year, year_index, agg_factor){
   
   x <- load_x_time(year=year, agg_factor=agg_factor)
+  if (sum(data$locs[[year_index]]$status) == 1){
+    return(rep(0, nrow(x)))
+  }
   x_locs <- x[as.logical(data$locs[[year_index]]$status), ]
   y_ca <- data$case.data[[year_index]]$y
   y_co <- data$ctrl.data[[year_index]]$y
@@ -153,9 +156,9 @@ calc_est_lodds_time <- function(output, data, year, year_index, agg_factor){
 }
 
 
-calc_est_lodds_time_ps <- function(output, data, year, year_index){
+calc_est_lodds_time_ps <- function(output, data, year, year_index, agg_factor){
   
-  x <- load_x_time(year=year, agg_factor=7)
+  x <- load_x_time(year=year, agg_factor=agg_factor)
   
   beta.case <- colMeans(output$samples.beta.ca)
   beta.ctrl <- colMeans(output$samples.beta.co)
@@ -511,8 +514,8 @@ calc_log_odds_output <- function(output, true_params){
 
 calc_log_odds_species <- function(output, data, species, agg_factor){
   
-  location_indicators <- as.logical(data$locs$status[[species]])
-  x_standard <- load_x_standard(location_indicators, agg_factor)
+  location_indicators <- as.logical(data$locs[[species]]$status)
+  x_standard <- load_x_standard2(location_indicators, agg_factor)
   
   w.hat <- colMeans(output$samples.w)
   beta_ca_h <- colMeans(output$samples.beta.ca)

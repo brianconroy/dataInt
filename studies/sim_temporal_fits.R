@@ -37,27 +37,53 @@ D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
 
 #### Specify trend
-level <- "increasing"
+level <- "alternating"
 sim_name <- paste("simPsTemporal", level, sep="_")
-
 ###################
 #### Proposed model
 ###################
-for (i in 1:n_sims){
+failures <- c(6, 8, 10, 24)
+for (i in failures){
   
   print(paste("dataset", i))
   data <- reformat_saved_data(load_output(paste("data_", level, "_", i, ".json", sep=""), src=src))
   params <- load_output(paste("params_", level, "_", i, ".json", sep=""), src=src)
   
-  # Initial values
-  w_initial=rep(0, ncol(D))
-  beta_ca_initial=rep(0, 3)
-  beta_co_initial=rep(0, 3)
-  alpha_ca_initial=0
-  alpha_co_initial=0
-  theta_initial=params$Theta
-  phi_initial=params$Phi
+  caPr <- load_prism_pcs2()
+  caPr.disc <- aggregate(caPr, fact=agg_factor)
+
+  data_pooled <- pool_temporal_data(data)
+  prior_theta <- get_gamma_prior(params$Theta, 5)
+  prior_phi <- get_igamma_prior(params$Phi, 5)
+  w_output <- logisticGp(y=data_pooled$loc$status, D, n.sample=1000, burnin=200, L=10,
+                         prior_phi=prior_phi, prior_theta=prior_theta)
+  plot(w_output$samples.theta, type='l'); abline(h=params$Theta)
+  plot(w_output$samples.phi, type='l'); abline(h=params$Phi)
+  plot(x=params$W, y=colMeans(w_output$samples.w));abline(0,1)
+  
+  w_initial <- colMeans(w_output$samples.w)
+  theta_initial <- mean(w_output$samples.theta)
+  phi_initial <- mean(w_output$samples.phi)
+  
+  
+  # Beta & alpha initial values
+  ini_case <- glm(data_pooled$case.data$y ~ data_pooled$case.data$x + w_initial[data_pooled$loc$ids] - 1, family='poisson')
+  alpha_ca_initial <- coefficients(ini_case)[4]
+  beta_ca_initial <- coefficients(ini_case)[1:3]
+  
+  ini_ctrl <- glm(data_pooled$ctrl.data$y ~ data_pooled$ctrl.data$x.standardised + w_initial[data_pooled$loc$ids] - 1, family='poisson')
+  alpha_co_initial <- coefficients(ini_ctrl)[4]
+  beta_co_initial <- coefficients(ini_ctrl)[1:3]
+  
   u_initial=rep(0, length(years))
+  prior_theta=get_gamma_prior(theta_initial, 2)
+  prior_phi=get_igamma_prior(phi_initial, 2)
+  prior_alpha_ca_mean=alpha_ca_initial
+  prior_alpha_ca_var=2
+  prior_alpha_co_mean=alpha_co_initial
+  prior_alpha_co_var=2
+  prior_u_mean=0
+  prior_u_var=2
   
   # Tuning parameters
   m_aca=2000
@@ -86,20 +112,10 @@ for (i in 1:n_sims){
   L_a_co=8
   L_u=8
   
-  # Priors
-  prior_alpha_ca_mean=0
-  prior_alpha_ca_var=4
-  prior_alpha_co_mean=0
-  prior_alpha_co_var=4
-  prior_u_mean=0
-  prior_u_var=4
-  
   n.sample=8000
   burnin=3000
   
   proposal.sd.theta=0.2
-  prior_theta=get_gamma_prior(params$Theta, 5)
-  prior_phi=get_igamma_prior(params$Phi, 5)
   
   #### Fit model
   output <- prefSampleTemporal(data, D, n.sample, burnin,
@@ -115,18 +131,27 @@ for (i in 1:n_sims){
                                prior_u_mean=prior_u_mean, prior_u_var=prior_u_var)
   
   #### Check estimated log odds
+  # par(mfrow=c(2,4))
+  # for (y_idx in 1:length(years)){
+  #   year <- years[y_idx]
+  #   params$alpha.case=params$Alpha.case
+  #   params$alpha.ctrl=params$Alpha.ctrl
+  #   lodds_true <- calc_true_lodds_time(params, data, year, y_idx, agg_factor=agg_factor)
+  #   lodds_est_tmp <- calc_est_lodds_time(output, data, year, y_idx, agg_factor=agg_factor)
+  #   n <- sum(data$locs[[y_idx]]$status)
+  #   plot(x=lodds_true, y=lodds_est_tmp, main=paste("N: ", n)); abline(0,1,col=2)
+  # }
+  # par(mfrow=c(1,1))
+  # plot(x=lodds_true, y=lodds_est_tmp, main=paste("N: ", n)); abline(0,1,col=2)
+  w.hat <- colMeans(output$samples.w)
+  u.hat <- colMeans(output$samples.u)
   par(mfrow=c(2,4))
   for (y_idx in 1:length(years)){
-    year <- years[y_idx]
-    params$alpha.case=params$Alpha.case
-    params$alpha.ctrl=params$Alpha.ctrl
-    lodds_true <- calc_true_lodds_time(params, data, year, y_idx, agg_factor=agg_factor)
-    lodds_est_tmp <- calc_est_lodds_time(output, data, year, y_idx, agg_factor=agg_factor)
     n <- sum(data$locs[[y_idx]]$status)
-    plot(x=lodds_true, y=lodds_est_tmp, main=paste("N: ", n)); abline(0,1,col=2)
+    year <- years[y_idx]
+    plot(x=params$U[y_idx] + params$W, y=u.hat[y_idx]+w.hat, main=paste("dataset: ", i, " N: ", n)); abline(0,1,col=2)
   }
   par(mfrow=c(1,1))
-  plot(x=lodds_true, y=lodds_est_tmp, main=paste("N: ", n)); abline(0,1,col=2)
   
   #### Save output
   output$description <- paste(sim_name, "_", i, sep="")
@@ -244,4 +269,29 @@ for (i in 1:n_sims){
   output_ps$description <- paste(sim_name, "_", i, "_pooled", sep="")
   save_output(output_ps, paste("output_pooled_", sim_name, "_", i, ".json", sep=""), dst=src)
 
+}
+
+
+### Check u + w estimation
+
+level <- "alternating"
+sim_name <- paste("simPsTemporal", level, sep="_")
+for (i in 1:n_sims){
+  
+  print(paste("dataset", i))
+  data <- reformat_saved_data(load_output(paste("data_", level, "_", i, ".json", sep=""), src=src))
+  params <- load_output(paste("params_", level, "_", i, ".json", sep=""), src=src)
+  
+  output <- load_output(paste("output_", sim_name, "_", i, ".json", sep=""), src=src)
+  
+  w.hat <- colMeans(output$samples.w)
+  u.hat <- colMeans(output$samples.u)
+  par(mfrow=c(2,4))
+  for (y_idx in 1:length(years)){
+    n <- sum(data$locs[[y_idx]]$status)
+    year <- years[y_idx]
+    plot(x=params$U[y_idx] + params$W, y=u.hat[y_idx]+w.hat, main=paste("dataset: ", i, " N: ", n)); abline(0,1,col=2)
+  }
+  par(mfrow=c(1,1))
+  
 }

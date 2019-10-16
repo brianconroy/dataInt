@@ -265,8 +265,8 @@ for (i in 1:n_sims){
     plot(x=lodds.true, y=lodds.ps, main=sum(data_k$locs$status), xlab='True Log Odds', ylab='Estimated Log Odds'); abline(0, 1, col='2')
     
     # Save output
-    output$description <- paste(sim_name, "_", k, sep="")
-    save_output(output, paste("output_ps_species", "_", k, ".json", sep=""), dst=src)
+    output$description <- paste(sim_name, i, "_", k, sep="")
+    save_output(output, paste("output_ps_", i, "_species", "_", k, ".json", sep=""), dst=src)
     
   }
 }
@@ -365,10 +365,10 @@ for (i in 1:n_sims){
   par(mfrow=c(1,2))
   W <- params$W
   plot(x=W[seq(1,length(W),by=2)],y=w.hat); abline(0,1)
-  plot(x=W[seq(1,length(W),by=2)],y=w.hat); abline(0,1)
+  plot(x=W[seq(2,length(W),by=2)],y=w.hat); abline(0,1)
   
   # Save output
-  output$description <- paste(sim_name, "_pooled", sep="")
-  save_output(output, paste("output_pooled", "_", ".json", sep=""), dst=src)
+  output$description <- paste(sim_name, "_pooled", "_", i, sep="")
+  save_output(output, paste("output_pooled", "_", i, ".json", sep=""), dst=src)
     
 }
