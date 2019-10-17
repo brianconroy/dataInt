@@ -45,6 +45,27 @@ coords <- xyFromCell(caPr.disc_all[[1]], cell=cells.all)
 D <- as.matrix(dist(coords, diag=TRUE, upper=TRUE))
 
 
+# plot principal components
+pcs1 <- list()
+pcs2 <- list()
+for (i in 1:length(years)){
+  pcs1[[i]] <- caPr.disc_all[[i]][[1]]
+  pcs2[[i]] <- caPr.disc_all[[i]][[2]]
+}
+pcs1_eq <- equalize_scales4(pcs1)
+pcs2_eq <- equalize_scales4(pcs2)
+par(mfrow=c(2,4))
+for (i in 1:7){
+  plot(pcs1_eq[[i]], main=years[i])
+}
+par(mfrow=c(1,1))
+par(mfrow=c(2,4))
+for (i in 1:7){
+  plot(pcs2_eq[[i]], main=years[i])
+}
+par(mfrow=c(1,1))
+
+
 ####################
 # Make main analytics tables
 # year | trend | N | rmse
@@ -147,21 +168,24 @@ p1 <- ggplot() +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ylim(0, 10) + 
-  ggtitle("A)")
+  ggtitle("A)") +
+  geom_hline(yintercept=0, color="red")
 p2 <- ggplot() + 
   geom_boxplot(data = rmse_decreasing, mapping = aes(Year, RMSE, fill=Model)) + 
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ylim(0, 10) + 
-  ggtitle("B)")
+  ggtitle("B)") +
+  geom_hline(yintercept=0, color="red")
 p3 <- ggplot() + 
   geom_boxplot(data = rmse_alternating, mapping = aes(Year, RMSE, fill=Model)) + 
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ylim(0, 10) + 
-  ggtitle("C)")
+  ggtitle("C)") +
+  geom_hline(yintercept=0, color="red")
 grid.arrange(p1,p2,p3,ncol=2)
 
 ########
@@ -170,18 +194,24 @@ grid.arrange(p1,p2,p3,ncol=2)
 ########
 rmse_summary <- c()
 for (df in list(rmse_increasing, rmse_decreasing, rmse_alternating)){
-  agg <- aggregate(df$RMSE,
-                   by=list(Year=rmse_increasing$Year, Model=rmse_increasing$Model), 
+  agg_mean <- aggregate(df$RMSE,
+                   by=list(Year=df$Year, Model=df$Model), 
                    FUN=function(x){mean(x, na.rm=T)})
+  agg_sd <- aggregate(df$RMSE,
+                   by=list(Year=df$Year, Model=df$Model), 
+                   FUN=function(x){sd(x, na.rm=T)})
   for (model in c("Spatiotemporal", "Pooled", "GLM")){
-    agg_m <- agg[agg$Model == model,]
-    rmse_summary <- rbind(rmse_summary, round(agg_m$x, 3))
+    agg_m_mean <- agg_mean[agg_mean$Model == model,]
+    agg_m_sd <- agg_sd[agg_sd$Model == model,]
+    rmse_summary <- rbind(rmse_summary, round(agg_m_mean$x, 3))
+    rmse_summary <- rbind(rmse_summary, round(agg_m_sd$x, 3))
   }
 }
 rmse_summary <- data.frame(rmse_summary)
-rmse_summary <- cbind(c(rep(c("Spatiotemporal", "Pooled", "GLM"), 3)), rmse_summary)
-rmse_summary <- cbind(c(rep("Increasing", 3), rep("Decreasing", 3), rep("Alternating", 3)), rmse_summary)
-names(rmse_summary) <- c("Trend", "Model", years)
+rmse_summary <- cbind(c(rep(c("Mean", "SD"), 9)), rmse_summary)
+rmse_summary <- cbind(c(rep(c("Spatiotemporal", "Spatiotemporal", "Pooled", "Pooled", "GLM", "GLM"), 3)), rmse_summary)
+rmse_summary <- cbind(c(rep("Increasing", 6), rep("Decreasing", 6), rep("Alternating", 6)), rmse_summary)
+names(rmse_summary) <- c("Trend", "Model", "Metric", years)
 write_latex_table(rmse_summary, "rmse_summary", dst)
 
 # Summarize mean observed cells over time for each trend
@@ -241,6 +271,7 @@ p1 <- ggplot() +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
   geom_hline(yintercept=0, color="red") + 
+  ylim(0,12) + 
   ggtitle("A)")
 p2 <- ggplot() + 
   geom_boxplot(data = rmses_uw, mapping = aes(Year, RMSE, fill=Trend)) + 
@@ -248,7 +279,47 @@ p2 <- ggplot() +
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
   geom_hline(yintercept=0, color="red") + 
+  ylim(0,12) + 
   ggtitle("B)")
+grid.arrange(p1,p2,ncol=2)
+
+# summary of RMSE in W
+summary_rmse_w <- list()
+counter <- 1
+for (trend in c("Increasing", "Decreasing", "Alternating")){
+  rmses_w_t <- rmses_w[rmses_w$Trend == trend,]
+  summary_rmse_w[[counter]] <- list(
+    Trend=trend,
+    Mean=round(mean(rmses_w_t$RMSE), 3),
+    SD=round(sd(rmses_w_t$RMSE), 3),
+    Median=round(median(rmses_w_t$RMSE), 3),
+    Q1=round(quantile(rmses_w_t$RMSE, 0.25), 3),
+    Q3=round(quantile(rmses_w_t$RMSE, 0.75), 3)
+  )
+  counter <- counter + 1
+}
+write_latex_table(ldply(summary_rmse_w, 'data.frame'), 'summary_rmse_w', dst)
+
+# summary of RMSE in u + W
+summary_rmse_uw <- c()
+for (trend in c("Increasing", "Decreasing", "Alternating")){
+  rmses_uw_t <- rmses_uw[rmses_uw$Trend == trend,]
+  agg_mean <- aggregate(rmses_uw_t$RMSE,
+                        by=list(Year=rmses_uw_t$Year), 
+                        FUN=function(x){mean(x, na.rm=T)})
+  agg_sd <- aggregate(rmses_uw_t$RMSE,
+                      by=list(Year=rmses_uw_t$Year), 
+                      FUN=function(x){sd(x, na.rm=T)})
+  summary_rmse_uw <- rbind(summary_rmse_uw, round(agg_mean$x, 3))
+  summary_rmse_uw <- rbind(summary_rmse_uw, round(agg_sd$x, 3))
+}
+summary_rmse_uw <- data.frame(summary_rmse_uw)
+summary_rmse_uw <- cbind(rep(c("Mean", "SD"), 3), summary_rmse_uw)
+summary_rmse_uw <- cbind(c(rep(c("Increasing"), 2), 
+                         rep(c("Decreasing"), 2), 
+                         rep(c("Alternating"), 2)), summary_rmse_uw)
+names(summary_rmse_uw) <- c("Trend", "Metric", years)
+write_latex_table(summary_rmse_uw, 'summary_rmse_uw', dst)
 
 # Biases in other param estimates
 bias_summary <- list()
@@ -259,15 +330,20 @@ for (trend in c("Increasing", "Decreasing", "Alternating")){
   sd_biases <- round(apply(bias_t[,1:4], 2, sd), 3)
   bias_summary[[counter]] <- list(
     Trend=trend,
-    Alpha_ca_mean=mean_biases[1],
-    Alpha_ca_sd=sd_biases[1],
-    Alpha_co_mean=mean_biases[2],
-    Alpha_co_sd=sd_biases[2],
-    Theta_mean=mean_biases[3],
-    Theta_sd=sd_biases[3],
-    Phi_mean=mean_biases[4],
-    Phi_sd=mean_biases[4]
+    Metric="Mean",
+    Alpha_ca=mean_biases[1],
+    Alpha_co=mean_biases[2],
+    Theta=mean_biases[3],
+    Phi=mean_biases[4]
   )
-  counter <- counter + 1  
+  bias_summary[[counter+1]] <- list(
+    Trend=trend,
+    Metric="SD",
+    Alpha_ca=sd_biases[1],
+    Alpha_co=sd_biases[2],
+    Theta=sd_biases[3],
+    Phi=mean_biases[4]
+  )
+  counter <- counter + 2
 }
 write_latex_table(ldply(bias_summary, 'data.frame'), 'bias_summary', dst)
