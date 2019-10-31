@@ -48,6 +48,27 @@ plot(loc.disc)
 plot(rasterToPolygons(loc.disc), add=T, border='black', lwd=1) 
 points(coords_all, col='2')
 
+
+# gridded summary of sample sites
+loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
+coords_distinct <- unique(coords_all)
+cells_distinct <- cellFromXY(loc.disc, coords_distinct)
+coord_to_cell <- cbind(coords_distinct, cells_distinct)
+coord_to_cell <- data.frame(coord_to_cell)
+names(coord_to_cell) <- c("x", "y", "cell")
+cell_counts <- table(coord_to_cell$cell)
+cell_counts <- data.frame(cbind(names(cell_counts), unname(cell_counts)))
+names(cell_counts) <- c("cell", "count")
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+cells_all_counts <- merge(cells_all, cell_counts, all.x = T)
+cells_all_counts$count <- as.numeric(as.character(cells_all_counts$count))
+cells_all_counts[is.na(cells_all_counts$count),]$count <- 0
+loc.disc[][!is.na(loc.disc[])] <- cells_all_counts$count
+plot(loc.disc)
+
 # high resolution
 # us <- getData("GADM", country="USA", level=2)
 # ca <- us[us$NAME_1 == 'California',]
@@ -161,6 +182,54 @@ r_risk_high[][!is.na(r_risk_high[])] <- risk_high
 summary(risk_high)
 
 
+#### Figure: side by side of risk map
+#### with case and control gridded counts
+case.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(case.disc[]))[!is.na(case.disc[])]
+coords_case <- cbind(rodents[rodents$Res == 'POS',]$Lon_Add_Fix, rodents[rodents$Res == 'POS',]$Lat_Add_Fix)
+cells_case <- cellFromXY(case.disc, coords_case)
+coord_to_cell_case <- cbind(coords_case, cells_case)
+coord_to_cell_case <- data.frame(coord_to_cell_case)
+names(coord_to_cell_case) <- c("x", "y", "cell")
+
+cell_counts_case <- table(coord_to_cell_case$cell)
+cell_counts_case <- data.frame(cbind(names(cell_counts_case), unname(cell_counts_case)))
+names(cell_counts_case) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+cells_all_counts_case <- merge(cells_all, cell_counts_case, all.x = T)
+cells_all_counts_case$count <- as.numeric(as.character(cells_all_counts_case$count))
+cells_all_counts_case[is.na(cells_all_counts_case$count),]$count <- 0
+case.disc[][!is.na(case.disc[])] <- cells_all_counts_case$count
+plot(case.disc)
+
+ctrl.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(ctrl.disc[]))[!is.na(ctrl.disc[])]
+coords_ctrl <- cbind(rodents[rodents$Res == 'NEG',]$Lon_Add_Fix, rodents[rodents$Res == 'NEG',]$Lat_Add_Fix)
+cells_ctrl <- cellFromXY(ctrl.disc, coords_ctrl)
+coord_to_cell_ctrl <- cbind(coords_ctrl, cells_ctrl)
+coord_to_cell_ctrl <- data.frame(coord_to_cell_ctrl)
+names(coord_to_cell_ctrl) <- c("x", "y", "cell")
+
+cell_counts_ctrl <- table(coord_to_cell_ctrl$cell)
+cell_counts_ctrl <- data.frame(cbind(names(cell_counts_ctrl), unname(cell_counts_ctrl)))
+names(cell_counts_ctrl) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+cells_all_counts_ctrl <- merge(cells_all, cell_counts_ctrl, all.x = T)
+cells_all_counts_ctrl$count <- as.numeric(as.character(cells_all_counts_ctrl$count))
+cells_all_counts_ctrl[is.na(cells_all_counts_ctrl$count),]$count <- 0
+ctrl.disc[][!is.na(ctrl.disc[])] <- cells_all_counts_ctrl$count
+plot(ctrl.disc)
+
+case.disc[][1] <- 0
+par(mfrow=c(2,2))
+plot(case.disc, main='A)')
+plot(ctrl.disc, main='B)')
+plot(r_risk_high, main='C)')
+
 #### Figure: low to high resolution risk map
 rescaled <- equalize_scales(r_risk_low, r_risk_high)
 par(mfrow=c(1,2))
@@ -169,7 +238,7 @@ plot(rescaled[[2]], main='B)')
 
 
 #### Figure: risk map without county lines
-plot(r_risk_high)
+
 
 
 #### Figure: risk map with county lines

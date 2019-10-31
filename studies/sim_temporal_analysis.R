@@ -167,7 +167,7 @@ p1 <- ggplot() +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-  ylim(0, 10) + 
+  ylim(0, 6) + 
   ggtitle("A)") +
   geom_hline(yintercept=0, color="red")
 p2 <- ggplot() + 
@@ -175,7 +175,7 @@ p2 <- ggplot() +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-  ylim(0, 10) + 
+  ylim(0, 6) + 
   ggtitle("B)") +
   geom_hline(yintercept=0, color="red")
 p3 <- ggplot() + 
@@ -183,7 +183,7 @@ p3 <- ggplot() +
   theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-  ylim(0, 10) + 
+  ylim(0, 6) + 
   ggtitle("C)") +
   geom_hline(yintercept=0, color="red")
 grid.arrange(p1,p2,p3,ncol=2)
@@ -203,8 +203,8 @@ for (df in list(rmse_increasing, rmse_decreasing, rmse_alternating)){
   for (model in c("Spatiotemporal", "Pooled", "GLM")){
     agg_m_mean <- agg_mean[agg_mean$Model == model,]
     agg_m_sd <- agg_sd[agg_sd$Model == model,]
-    rmse_summary <- rbind(rmse_summary, round(agg_m_mean$x, 3))
-    rmse_summary <- rbind(rmse_summary, round(agg_m_sd$x, 3))
+    rmse_summary <- rbind(rmse_summary, round(agg_m_mean$x, 2))
+    rmse_summary <- rbind(rmse_summary, round(agg_m_sd$x, 2))
   }
 }
 rmse_summary <- data.frame(rmse_summary)
@@ -229,7 +229,7 @@ for (trend in c("Increasing", "Decreasing", "Alternating")){
   prev_trend <- prevalences[prevalences$Trend == trend,]
   summary_trend <- c()
   for (i in 1:length(years)){
-    summary_trend <- c(summary_trend, round(mean(prev_trend[,i]), 3))
+    summary_trend <- c(summary_trend, round(mean(prev_trend[prev_trend$Year == years[i],]$Prevalence), 3))
   }
   print(summary_trend)
 }
@@ -242,7 +242,7 @@ p1 <- ggplot(rmse_increasing[rmse_increasing$Model=="Spatiotemporal",], aes(x=N,
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ggtitle("A)") + 
-  ylim(c(0,15)) + 
+  ylim(c(0,5)) + 
   geom_hline(yintercept=0, color="red")
 p2 <- ggplot(rmse_decreasing[rmse_decreasing$Model=="Spatiotemporal",], aes(x=N, y=RMSE, fill=Year)) +
   geom_line(aes(color=Year)) +
@@ -251,7 +251,7 @@ p2 <- ggplot(rmse_decreasing[rmse_decreasing$Model=="Spatiotemporal",], aes(x=N,
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ggtitle("B)") + 
-  ylim(c(0,15)) + 
+  ylim(c(0,5)) + 
   geom_hline(yintercept=0, color="red")
 p3 <- ggplot(rmse_alternating[rmse_alternating$Model=="Spatiotemporal",], aes(x=N, y=RMSE, fill=Year)) +
   geom_line(aes(color=Year)) +
@@ -260,7 +260,7 @@ p3 <- ggplot(rmse_alternating[rmse_alternating$Model=="Spatiotemporal",], aes(x=
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
   ggtitle("C)") + 
-  ylim(c(0,15)) + 
+  ylim(c(0,5)) + 
   geom_hline(yintercept=0, color="red")
 grid.arrange(p1,p2,p3,ncol=2)
 
@@ -342,7 +342,7 @@ for (trend in c("Increasing", "Decreasing", "Alternating")){
     Alpha_ca=sd_biases[1],
     Alpha_co=sd_biases[2],
     Theta=sd_biases[3],
-    Phi=mean_biases[4]
+    Phi=sd_biases[4]
   )
   counter <- counter + 2
 }

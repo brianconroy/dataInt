@@ -27,6 +27,55 @@ analysis_name <- "cdph_coyote_scurid"
 outputs <- load_sim_outputs(tag=analysis_name)
 data <- load_output(paste(analysis_name, '_data.json', sep=''))
 
+src <- "/Users/brianconroy/Documents/research/cdph/data/"
+
+########
+# Figure
+########
+
+# gridded summary of sample sites
+loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+rodent_coords_all <- cbind(matrix(rodents$Lon_Add_Fix), rodents$Lat_Add_Fix)
+rodent_coords_distinct <- unique(rodent_coords_all)
+rodent_cells_distinct <- cellFromXY(loc.disc, rodent_coords_distinct)
+rodent_coord_to_cell <- cbind(rodent_coords_distinct, rodent_cells_distinct)
+rodent_coord_to_cell <- data.frame(rodent_coord_to_cell)
+names(rodent_coord_to_cell) <- c("x", "y", "cell")
+rodent_cell_counts <- table(rodent_coord_to_cell$cell)
+rodent_cell_counts <- data.frame(cbind(names(rodent_cell_counts), unname(rodent_cell_counts)))
+names(rodent_cell_counts) <- c("cell", "count")
+rodent_cells_all <- data.frame(all_ids)
+names(rodent_cells_all) <- c("cell")
+rodent_cells_all_counts <- merge(rodent_cells_all, rodent_cell_counts, all.x = T)
+rodent_cells_all_counts$count <- as.numeric(as.character(rodent_cells_all_counts$count))
+rodent_cells_all_counts[is.na(rodent_cells_all_counts$count),]$count <- 0
+loc.disc[][!is.na(loc.disc[])] <- rodent_cells_all_counts$count
+plot(loc.disc)
+
+coyote_loc.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(loc.disc[]))[!is.na(loc.disc[])]
+coyote_coords_all <- cbind(matrix(coyotes$Long_QC), coyotes$Lat_QC)
+coyote_coords_distinct <- unique(coyote_coords_all)
+coyote_cells_distinct <- cellFromXY(loc.disc, coyote_coords_distinct)
+coyote_coord_to_cell <- cbind(coyote_coords_distinct, coyote_cells_distinct)
+coyote_coord_to_cell <- data.frame(coyote_coord_to_cell)
+names(coyote_coord_to_cell) <- c("x", "y", "cell")
+coyote_cell_counts <- table(coyote_coord_to_cell$cell)
+coyote_cell_counts <- data.frame(cbind(names(coyote_cell_counts), unname(coyote_cell_counts)))
+names(coyote_cell_counts) <- c("cell", "count")
+coyote_cells_all <- data.frame(all_ids)
+names(coyote_cells_all) <- c("cell")
+coyote_cells_all_counts <- merge(coyote_cells_all, coyote_cell_counts, all.x = T)
+coyote_cells_all_counts$count <- as.numeric(as.character(coyote_cells_all_counts$count))
+coyote_cells_all_counts[is.na(coyote_cells_all_counts$count),]$count <- 0
+coyote_loc.disc[][!is.na(coyote_loc.disc[])] <- coyote_cells_all_counts$count
+plot(coyote_loc.disc)
+
+par(mfrow=c(1,2))
+coyote_loc.disc[][1] <- max(loc.disc[], na.rm=T)
+plot(loc.disc, main='A)')
+plot(coyote_loc.disc, main='B)')
 
 #########
 # Figure: Coyote and Sciurid overlay
@@ -178,6 +227,109 @@ r_coords_ctrl <- cbind(r_ctrls$Lon_Add_Fix, r_ctrls$Lat_Add_Fix)
 plot(r_r_ds)
 points(r_coords_ctrl, col=rgb(0,0,1,0.05), pch=16, cex=0.65)
 points(r_coords, col=rgb(1,0,0,0.2), pch=16, cex=0.65)
+
+
+#########
+# Figure: side by side of risk map
+#########
+
+
+#### with case and control gridded counts
+rodent_case.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(rodent_case.disc[]))[!is.na(rodent_case.disc[])]
+rodent_coords_case <- cbind(rodents[rodents$Res == 'POS',]$Lon_Add_Fix, rodents[rodents$Res == 'POS',]$Lat_Add_Fix)
+rodent_cells_case <- cellFromXY(rodent_case.disc, rodent_coords_case)
+rodent_coord_to_cell_case <- cbind(rodent_coords_case, rodent_cells_case)
+rodent_coord_to_cell_case <- data.frame(rodent_coord_to_cell_case)
+names(rodent_coord_to_cell_case) <- c("x", "y", "cell")
+
+rodent_cell_counts_case <- table(rodent_coord_to_cell_case$cell)
+rodent_cell_counts_case <- data.frame(cbind(names(rodent_cell_counts_case), unname(rodent_cell_counts_case)))
+names(rodent_cell_counts_case) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+rodent_cells_all_counts_case <- merge(cells_all, rodent_cell_counts_case, all.x = T)
+rodent_cells_all_counts_case$count <- as.numeric(as.character(rodent_cells_all_counts_case$count))
+rodent_cells_all_counts_case[is.na(rodent_cells_all_counts_case$count),]$count <- 0
+rodent_case.disc[][!is.na(rodent_case.disc[])] <- rodent_cells_all_counts_case$count
+plot(rodent_case.disc)
+
+rodent_ctrl.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(rodent_ctrl.disc[]))[!is.na(rodent_ctrl.disc[])]
+rodent_coords_ctrl <- cbind(rodents[rodents$Res == 'NEG',]$Lon_Add_Fix, rodents[rodents$Res == 'NEG',]$Lat_Add_Fix)
+rodent_cells_ctrl <- cellFromXY(rodent_ctrl.disc, rodent_coords_ctrl)
+rodent_coord_to_cell_ctrl <- cbind(rodent_coords_ctrl, rodent_cells_ctrl)
+rodent_coord_to_cell_ctrl <- data.frame(rodent_coord_to_cell_ctrl)
+names(rodent_coord_to_cell_ctrl) <- c("x", "y", "cell")
+
+rodent_cell_counts_ctrl <- table(rodent_coord_to_cell_ctrl$cell)
+rodent_cell_counts_ctrl <- data.frame(cbind(names(rodent_cell_counts_ctrl), unname(rodent_cell_counts_ctrl)))
+names(rodent_cell_counts_ctrl) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+rodent_cells_all_counts_ctrl <- merge(cells_all, rodent_cell_counts_ctrl, all.x = T)
+rodent_cells_all_counts_ctrl$count <- as.numeric(as.character(rodent_cells_all_counts_ctrl$count))
+rodent_cells_all_counts_ctrl[is.na(rodent_cells_all_counts_ctrl$count),]$count <- 0
+rodent_ctrl.disc[][!is.na(rodent_ctrl.disc[])] <- rodent_cells_all_counts_ctrl$count
+plot(rodent_ctrl.disc)
+
+par(mfrow=c(2,2))
+plot(rodent_case.disc, main='A)')
+plot(rodent_ctrl.disc, main='B)')
+plot(r_r_ds, main='C)')
+
+#########
+# Coyotes
+
+
+coyote_case.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(coyote_case.disc[]))[!is.na(coyote_case.disc[])]
+coyote_coords_case <- cbind(coyotes[coyotes$Res == 'POS',]$Long_QC, coyotes[coyotes$Res == 'POS',]$Lat_QC)
+coyote_cells_case <- cellFromXY(coyote_case.disc, coyote_coords_case)
+coyote_coord_to_cell_case <- cbind(coyote_coords_case, coyote_cells_case)
+coyote_coord_to_cell_case <- data.frame(coyote_coord_to_cell_case)
+names(coyote_coord_to_cell_case) <- c("x", "y", "cell")
+
+coyote_cell_counts_case <- table(coyote_coord_to_cell_case$cell)
+coyote_cell_counts_case <- data.frame(cbind(names(coyote_cell_counts_case), unname(coyote_cell_counts_case)))
+names(coyote_cell_counts_case) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+coyote_cells_all_counts_case <- merge(cells_all, coyote_cell_counts_case, all.x = T)
+coyote_cells_all_counts_case$count <- as.numeric(as.character(coyote_cells_all_counts_case$count))
+coyote_cells_all_counts_case[is.na(coyote_cells_all_counts_case$count),]$count <- 0
+coyote_case.disc[][!is.na(coyote_case.disc[])] <- coyote_cells_all_counts_case$count
+plot(coyote_case.disc)
+
+coyote_ctrl.disc <- caPr.disc[[1]]
+all_ids <- c(1:length(coyote_ctrl.disc[]))[!is.na(coyote_ctrl.disc[])]
+coyote_coords_ctrl <- cbind(coyotes[coyotes$Res == 'NEG',]$Long_QC, coyotes[coyotes$Res == 'NEG',]$Lat_QC)
+coyote_cells_ctrl <- cellFromXY(coyote_ctrl.disc, coyote_coords_ctrl)
+coyote_coord_to_cell_ctrl <- cbind(coyote_coords_ctrl, coyote_cells_ctrl)
+coyote_coord_to_cell_ctrl <- data.frame(coyote_coord_to_cell_ctrl)
+names(coyote_coord_to_cell_ctrl) <- c("x", "y", "cell")
+
+coyote_cell_counts_ctrl <- table(coyote_coord_to_cell_ctrl$cell)
+coyote_cell_counts_ctrl <- data.frame(cbind(names(coyote_cell_counts_ctrl), unname(coyote_cell_counts_ctrl)))
+names(coyote_cell_counts_ctrl) <- c("cell", "count")
+
+cells_all <- data.frame(all_ids)
+names(cells_all) <- c("cell")
+coyote_cells_all_counts_ctrl <- merge(cells_all, coyote_cell_counts_ctrl, all.x = T)
+coyote_cells_all_counts_ctrl$count <- as.numeric(as.character(coyote_cells_all_counts_ctrl$count))
+coyote_cells_all_counts_ctrl[is.na(coyote_cells_all_counts_ctrl$count),]$count <- 0
+coyote_ctrl.disc[][!is.na(coyote_ctrl.disc[])] <- coyote_cells_all_counts_ctrl$count
+plot(coyote_ctrl.disc)
+
+par(mfrow=c(2,2))
+plot(coyote_case.disc, main='A)')
+plot(coyote_ctrl.disc, main='B)')
+plot(r_c_ds, main='C)')
+
+
 
 
 # covariate contribution to log odds, random field contribution to log odds
